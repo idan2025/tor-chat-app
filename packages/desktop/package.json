@@ -25,12 +25,14 @@
   },
   "config": {
     "forge": {
-      "packagerConfig": {},
+      "packagerConfig": {
+        "executableName": "tor-chat-desktop"
+      },
       "makers": [
         {
           "name": "@electron-forge/maker-squirrel",
           "config": {
-            "name": "tor_chat"
+            "name": "tor-chat-desktop"
           }
         },
         {
@@ -39,11 +41,19 @@
         },
         {
           "name": "@electron-forge/maker-deb",
-          "config": {}
+          "config": {
+            "options": {
+              "name": "tor-chat-desktop"
+            }
+          }
         },
         {
           "name": "@electron-forge/maker-rpm",
-          "config": {}
+          "config": {
+            "options": {
+              "name": "tor-chat-desktop"
+            }
+          }
         }
       ]
     }
