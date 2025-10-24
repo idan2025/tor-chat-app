@@ -1,0 +1,112 @@
+name: Code Quality
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    - cron: '0 0 * * 1'  # Weekly on Monday
+
+jobs:
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Run npm audit (Backend)
+      working-directory: ./packages/backend
+      run: |
+        npm audit --audit-level=moderate || true
+        npm audit fix --dry-run || true
+      continue-on-error: true
+
+    - name: Run npm audit (Web)
+      working-directory: ./packages/web
+      run: |
+        npm audit --audit-level=moderate || true
+        npm audit fix --dry-run || true
+      continue-on-error: true
+
+    - name: Run Snyk Security Scan
+      uses: snyk/actions/node@master
+      continue-on-error: true
+      env:
+        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      with:
+        args: --all-projects --severity-threshold=high
+
+  codeql:
+    name: CodeQL Analysis
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    strategy:
+      matrix:
+        language: [ 'javascript', 'typescript' ]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v2
+      with:
+        languages: ${{ matrix.language }}
+
+    - name: Autobuild
+      uses: github/codeql-action/autobuild@v2
+
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v2
+
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Dependency Review
+      uses: actions/dependency-review-action@v3
+      with:
+        fail-on-severity: moderate
+
+  linter:
+    name: Lint All Packages
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+
+    - name: Install dependencies (Backend)
+      working-directory: ./packages/backend
+      run: npm ci
+
+    - name: Lint Backend
+      working-directory: ./packages/backend
+      run: npm run lint
+      continue-on-error: true
+
+    - name: Install dependencies (Web)
+      working-directory: ./packages/web
+      run: npm ci
+
+    - name: Lint Web
+      working-directory: ./packages/web
+      run: npm run lint
+      continue-on-error: true

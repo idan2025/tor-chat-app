@@ -1,0 +1,57 @@
+# Dependencies
+node_modules/
+*/node_modules/
+**/node_modules/
+
+# Build outputs
+dist/
+build/
+*.log
+*.tgz
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# TOR
+tor-data/
+hidden_service/
+
+# Database
+*.db
+*.sqlite
+pg_data/
+
+# Secrets
+*.key
+*.pem
+secrets/
+
+# Android
+*.apk
+*.aab
+*.hprof
+.gradle/
+packages/android/.gradle/
+packages/android/android/.gradle/
+packages/android/android/app/build/
+
+# iOS
+*.ipa
+Pods/
+packages/android/ios/Pods/
+
+# Electron
+packages/desktop/out/

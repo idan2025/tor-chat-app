@@ -1,0 +1,82 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: torchat-postgres
+    environment:
+      POSTGRES_DB: ${DB_NAME:-torchat}
+      POSTGRES_USER: ${DB_USER:-toruser}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-toruser} -d ${DB_NAME:-torchat}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - torchat-network
+    restart: always
+
+  tor:
+    image: goldy/tor-hidden-service:latest
+    container_name: torchat-tor
+    environment:
+      SERVICE1_TOR_SERVICE_HOSTS: "80:backend:3000"
+    volumes:
+      - tor_data:/var/lib/tor/hidden_service
+    depends_on:
+      - backend
+    networks:
+      - torchat-network
+    restart: always
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: torchat-backend
+    env_file:
+      - .env.prod
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - tor_data:/var/lib/tor/hidden_service:ro
+      - backend_logs:/app/packages/backend/logs
+    networks:
+      - torchat-network
+    restart: always
+
+  nginx:
+    image: nginx:alpine
+    container_name: torchat-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+      - web_build:/usr/share/nginx/html:ro
+    depends_on:
+      - backend
+    networks:
+      - torchat-network
+    restart: always
+
+volumes:
+  postgres_data:
+    driver: local
+  tor_data:
+    driver: local
+  backend_logs:
+    driver: local
+  web_build:
+    driver: local
+
+networks:
+  torchat-network:
+    driver: bridge

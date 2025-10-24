@@ -1,0 +1,64 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Generate Changelog
+      id: changelog
+      uses: mikepenz/release-changelog-builder-action@v4
+      with:
+        configuration: ".github/release-config.json"
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        body: ${{ steps.changelog.outputs.changelog }}
+        draft: false
+        prerelease: false
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  docker-release:
+    name: Release Docker Images
+    needs: create-release
+    uses: ./.github/workflows/docker-build-push.yml
+    secrets: inherit
+
+  desktop-release:
+    name: Release Desktop Apps
+    needs: create-release
+    uses: ./.github/workflows/desktop-build.yml
+    secrets: inherit
+
+  android-release:
+    name: Release Android App
+    needs: create-release
+    uses: ./.github/workflows/android-build.yml
+    secrets: inherit
+
+  notify:
+    name: Notify Release
+    needs: [docker-release, desktop-release, android-release]
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Send notification
+      run: |
+        echo "Release ${{ github.ref_name }} completed successfully!"
+        echo "Docker images, desktop apps, and Android app have been built and published."
