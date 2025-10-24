@@ -33,7 +33,7 @@ export class Room extends Model<RoomAttributes, RoomCreationAttributes> implemen
    * Sanitize room data (remove encryption key from public view)
    */
   public toPublicJSON(): any {
-    const values = { ...this.get() };
+    const values: any = { ...this.get() };
     delete values.encryptionKey;
     return values;
   }

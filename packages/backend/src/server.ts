@@ -43,7 +43,7 @@ const limiter = rateLimit({
 app.use('/api/', limiter);
 
 // Health check
-app.get('/health', (req, res) => {
+app.get('/health', (_req, res) => {
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
@@ -52,7 +52,7 @@ app.get('/health', (req, res) => {
 });
 
 // TOR status endpoint
-app.get('/api/tor-status', async (req, res) => {
+app.get('/api/tor-status', async (_req, res) => {
   const isConnected = await torService.checkTorConnection();
   const info = torService.getConnectionInfo();
   res.json({
@@ -66,12 +66,12 @@ app.use('/api/auth', authRoutes);
 app.use('/api/rooms', roomRoutes);
 
 // 404 handler
-app.use((req, res) => {
+app.use((_req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });
 
 // Error handler
-app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   logger.error('Unhandled error:', err);
   res.status(500).json({
     error: config.env === 'development' ? err.message : 'Internal server error',
@@ -79,7 +79,7 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 });
 
 // Initialize Socket.IO
-const socketService = new SocketService(server);
+new SocketService(server);
 
 // Startup
 async function start(): Promise<void> {

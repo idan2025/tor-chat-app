@@ -3,7 +3,6 @@ import { Server as HTTPServer } from 'http';
 import jwt from 'jsonwebtoken';
 import { config } from './config';
 import { User, Room, Message, RoomMember } from './models';
-import { cryptoService } from './services/crypto';
 import { logger } from './utils/logger';
 
 interface SocketData {

@@ -53,7 +53,7 @@ export class User extends Model<UserAttributes, UserCreationAttributes> implemen
    * Sanitize user data for public view (remove sensitive fields)
    */
   public toJSON(): any {
-    const values = { ...this.get() };
+    const values: any = { ...this.get() };
     delete values.passwordHash;
     delete values.privateKeyEncrypted;
     return values;

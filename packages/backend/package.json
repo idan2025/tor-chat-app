@@ -37,6 +37,7 @@
     "@types/cors": "^2.8.17",
     "@types/node": "^20.19.23",
     "@types/uuid": "^10.0.0",
+    "@types/libsodium-wrappers": "^0.7.14",
     "tsx": "^4.7.0",
     "typescript": "^5.3.3",
     "@typescript-eslint/eslint-plugin": "^8.46.2",

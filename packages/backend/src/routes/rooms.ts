@@ -2,10 +2,9 @@ import express, { Response } from 'express';
 import { z } from 'zod';
 import { Room, RoomMember, User, Message } from '../models';
 import { AuthRequest, authenticateToken } from '../middleware/auth';
-import { validateBody, validateQuery } from '../middleware/validation';
+import { validateBody } from '../middleware/validation';
 import { cryptoService } from '../services/crypto';
 import { logger } from '../utils/logger';
-import { Op } from 'sequelize';
 
 const router = express.Router();
 
@@ -14,10 +13,6 @@ const createRoomSchema = z.object({
   description: z.string().max(500).optional(),
   type: z.enum(['public', 'private']).default('public'),
   maxMembers: z.number().int().positive().max(1000).optional(),
-});
-
-const joinRoomSchema = z.object({
-  roomId: z.string().uuid(),
 });
 
 /**

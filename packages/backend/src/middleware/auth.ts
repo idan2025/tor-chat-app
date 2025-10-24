@@ -41,7 +41,9 @@ export async function authenticateToken(
 }
 
 export function generateToken(userId: string): string {
-  return jwt.sign({ userId }, config.jwt.secret, {
-    expiresIn: config.jwt.expiresIn,
-  });
+  return jwt.sign(
+    { userId },
+    config.jwt.secret,
+    { expiresIn: config.jwt.expiresIn } as jwt.SignOptions
+  );
 }
