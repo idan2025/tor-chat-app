@@ -55,7 +55,7 @@ jobs:
 
     - name: Upload artifacts (Linux)
       if: runner.os == 'Linux'
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: desktop-linux
         path: |
@@ -66,7 +66,7 @@ jobs:
 
     - name: Upload artifacts (Windows)
       if: runner.os == 'Windows'
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: desktop-windows
         path: |
@@ -76,7 +76,7 @@ jobs:
 
     - name: Upload artifacts (macOS)
       if: runner.os == 'macOS'
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: desktop-macos
         path: |
