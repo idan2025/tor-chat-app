@@ -5,6 +5,10 @@ on:
     tags:
       - 'v*.*.*'
 
+permissions:
+  contents: write
+  packages: write
+
 jobs:
   create-release:
     name: Create GitHub Release
@@ -20,20 +24,11 @@ jobs:
       run: |
         gh release delete ${{ github.ref_name }} -y || echo "No existing release to delete"
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Generate Changelog
-      id: changelog
-      uses: mikepenz/release-changelog-builder-action@v4
-      with:
-        configuration: ".github/release-config.json"
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Create Release
       uses: softprops/action-gh-release@v1
       with:
-        body: ${{ steps.changelog.outputs.changelog }}
         draft: false
         prerelease: false
         generate_release_notes: true
