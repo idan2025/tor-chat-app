@@ -2,6 +2,7 @@
   "name": "tor-chat-desktop",
   "version": "1.0.0",
   "description": "TOR Chat Desktop App",
+  "author": "TOR Chat Team",
   "license": "MIT",
   "main": "dist/main.js",
   "scripts": {
@@ -33,7 +34,8 @@
         {
           "name": "@electron-forge/maker-squirrel",
           "config": {
-            "name": "tor-chat-desktop"
+            "name": "tor-chat-desktop",
+            "authors": "TOR Chat Team"
           }
         },
         {
