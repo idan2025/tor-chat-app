@@ -62,3 +62,49 @@ jobs:
       run: |
         echo "Release ${{ github.ref_name }} completed successfully!"
         echo "Docker images, desktop apps, and Android app have been built and published."
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        body: ${{ steps.changelog.outputs.changelog }}
+        draft: false
+        prerelease: false
+        generate_release_notes: true
+        fail_on_unmatched_files: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Delete existing release if present
+      run: |
+        gh release delete ${{ github.ref_name }} -y || echo "No existing release to delete"
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Generate Changelog
+      id: changelog
+      uses: mikepenz/release-changelog-builder-action@v4
+      with:
+        configuration: ".github/release-config.json"
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        body: ${{ steps.changelog.outputs.changelog }}
+        draft: false
+        prerelease: false
+        generate_release_notes: true
+        fail_on_unmatched_files: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
