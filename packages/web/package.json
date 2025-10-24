@@ -2,6 +2,7 @@
   "name": "@tor-chat/web",
   "version": "1.0.0",
   "description": "TOR Chat Web UI",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "vite",

@@ -2,6 +2,7 @@
   "name": "@tor-chat/android",
   "version": "1.0.0",
   "description": "TOR Chat Android App",
+  "license": "MIT",
   "main": "index.js",
   "scripts": {
     "android": "react-native run-android",

@@ -2,6 +2,7 @@
   "name": "tor-chat-desktop",
   "version": "1.0.0",
   "description": "TOR Chat Desktop App",
+  "license": "MIT",
   "main": "dist/main.js",
   "scripts": {
     "dev": "electron-forge start",
