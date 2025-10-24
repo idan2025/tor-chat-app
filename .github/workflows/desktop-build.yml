@@ -30,7 +30,7 @@ jobs:
 
     - name: Install dependencies
       working-directory: ./packages/desktop
-      run: npm ci
+      run: npm install
 
     - name: Build TypeScript
       working-directory: ./packages/desktop

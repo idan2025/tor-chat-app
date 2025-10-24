@@ -46,7 +46,7 @@ jobs:
 
     - name: Install dependencies
       working-directory: ./packages/backend
-      run: npm ci
+      run: npm install
 
     - name: Run linter
       working-directory: ./packages/backend

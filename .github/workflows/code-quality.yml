@@ -95,7 +95,7 @@ jobs:
 
     - name: Install dependencies (Backend)
       working-directory: ./packages/backend
-      run: npm ci
+      run: npm install
 
     - name: Lint Backend
       working-directory: ./packages/backend
@@ -104,7 +104,7 @@ jobs:
 
     - name: Install dependencies (Web)
       working-directory: ./packages/web
-      run: npm ci
+      run: npm install
 
     - name: Lint Web
       working-directory: ./packages/web

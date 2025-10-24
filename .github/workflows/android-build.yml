@@ -39,7 +39,7 @@ jobs:
 
     - name: Install dependencies
       working-directory: ./packages/android
-      run: npm ci
+      run: npm install
 
     - name: Create android directory structure
       working-directory: ./packages/android
