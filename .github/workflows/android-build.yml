@@ -3,13 +3,8 @@ name: Android Build
 on:
   push:
     branches: [ main ]
-    paths:
-      - 'packages/android/**'
-      - '.github/workflows/android-build.yml'
   pull_request:
     branches: [ main ]
-    paths:
-      - 'packages/android/**'
   workflow_dispatch:
   workflow_call:
 
