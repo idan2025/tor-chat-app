@@ -2,9 +2,8 @@ name: Android Build
 
 on:
   push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+    tags:
+      - 'v*.*.*'
   workflow_dispatch:
   workflow_call:
 
@@ -35,31 +34,17 @@ jobs:
       working-directory: ./packages/android
       run: npm install
 
-    - name: Initialize React Native Android project
+    - name: Check Android project exists
       working-directory: ./packages/android
       run: |
         if [ ! -d "android/app" ]; then
-          echo "Android native project not found. Initializing React Native Android..."
-
-          # Install React Native CLI globally
-          npm install -g react-native-cli @react-native-community/cli
-
-          # Initialize React Native project
-          npx react-native init TorChatAndroid --skip-install --directory temp_project
-
-          # Move the android directory to the correct location
-          mv temp_project/android ./android
-
-          # Clean up temporary files
-          rm -rf temp_project
-
-          # Update app name in android configuration
-          sed -i 's/TorChatAndroid/TorChat/g' android/app/src/main/res/values/strings.xml || true
-
-          echo "React Native Android project initialized successfully!"
-        else
-          echo "Android native project already exists, skipping initialization."
+          echo "::error::Android native project not found at packages/android/android/"
+          echo "::error::Please initialize the React Native Android project first:"
+          echo "::error::  cd packages/android && npx react-native init TorChatAndroid"
+          echo "::error::  mv TorChatAndroid/android ."
+          exit 1
         fi
+        echo "Android project found, proceeding with build..."
 
     - name: Create android assets directory
       working-directory: ./packages/android
