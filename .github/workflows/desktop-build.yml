@@ -58,6 +58,7 @@ jobs:
         path: |
           packages/desktop/out/make/**/*.deb
           packages/desktop/out/make/**/*.rpm
+          packages/desktop/out/make/**/*.AppImage
           packages/desktop/out/make/**/*.zip
         retention-days: 30
 
@@ -88,6 +89,7 @@ jobs:
         files: |
           packages/desktop/out/make/**/*.deb
           packages/desktop/out/make/**/*.rpm
+          packages/desktop/out/make/**/*.AppImage
           packages/desktop/out/make/**/*.zip
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
