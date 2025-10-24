@@ -112,3 +112,123 @@ jobs:
         prerelease: false
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+name: Android Build
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'packages/android/**'
+      - '.github/workflows/android-build.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'packages/android/**'
+  workflow_dispatch:
+  workflow_call:
+
+jobs:
+  build:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+
+    - name: Install dependencies
+      working-directory: ./packages/android
+      run: npm install
+
+    - name: Create android directory structure
+      working-directory: ./packages/android
+      run: |
+        mkdir -p android/app/src/main/assets
+        echo "Creating Android project structure..."
+
+    - name: Cache Gradle packages
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+        restore-keys: |
+          ${{ runner.os }}-gradle-
+
+    - name: Make gradlew executable
+      working-directory: ./packages/android/android
+      run: chmod +x gradlew
+      continue-on-error: true
+
+    - name: Build Debug APK
+      working-directory: ./packages/android/android
+      run: ./gradlew assembleDebug
+      continue-on-error: true
+
+    - name: Build Release APK
+      working-directory: ./packages/android/android
+      run: ./gradlew assembleRelease
+      env:
+        SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+        SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+        SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+      continue-on-error: true
+
+    - name: Upload Debug APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: app-debug
+        path: packages/android/android/app/build/outputs/apk/debug/app-debug.apk
+        retention-days: 30
+      continue-on-error: true
+
+    - name: Upload Release APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: app-release
+        path: packages/android/android/app/build/outputs/apk/release/app-release.apk
+        retention-days: 30
+      continue-on-error: true
+
+    - name: Upload Release APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: app-release
+        path: packages/android/android/app/build/outputs/apk/release/app-release.apk
+        retention-days: 30
+      continue-on-error: true
+
+  upload-to-release:
+    name: Upload to Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+    - name: Download APK artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: app-release
+
+    - name: Upload Android APK to Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: app-release.apk
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
