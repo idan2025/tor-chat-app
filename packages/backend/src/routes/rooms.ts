@@ -19,7 +19,7 @@ const createRoomSchema = z.object({
  * GET /api/rooms
  * List all public rooms
  */
-router.get('/', authenticateToken, async (req: AuthRequest, res: Response) => {
+router.get('/', authenticateToken, async (_req: AuthRequest, res: Response) => {
   try {
     const rooms = await Room.findAll({
       where: { type: 'public' },
