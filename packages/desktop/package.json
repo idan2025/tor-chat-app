@@ -9,7 +9,7 @@
     "dev": "electron-forge start",
     "package": "electron-forge package",
     "make": "electron-forge make",
-    "build": "tsc",
+    "build": "tsc && node -e \"require('fs').copyFileSync('src/index.html', 'dist/index.html')\"",
     "start": "npm run build && electron ."
   },
   "dependencies": {},

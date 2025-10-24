@@ -19,15 +19,15 @@ const createWindow = (): void => {
     show: false,
   });
 
-  // Load the WebUI
+  // Load the UI
   const WEB_URL = process.env.WEB_URL || 'http://localhost:5173';
 
   if (process.env.NODE_ENV === 'development') {
     mainWindow.loadURL(WEB_URL);
     mainWindow.webContents.openDevTools();
   } else {
-    // In production, load the built web app
-    mainWindow.loadFile(path.join(__dirname, '../../web/dist/index.html'));
+    // In production, load the desktop app HTML
+    mainWindow.loadFile(path.join(__dirname, 'index.html'));
   }
 
   // Show window when ready
