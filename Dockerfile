@@ -1,5 +1,5 @@
 # Multi-stage build for TOR Chat Backend
-FROM node:18-alpine AS builder
+FROM node:25-alpine AS builder
 
 WORKDIR /app
 
@@ -18,7 +18,7 @@ WORKDIR /app/packages/backend
 RUN npm run build
 
 # Production stage
-FROM node:18-alpine
+FROM node:25-alpine
 
 # Install TOR
 RUN apk add --no-cache tor
