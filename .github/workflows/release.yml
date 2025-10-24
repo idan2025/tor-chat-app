@@ -48,19 +48,22 @@ jobs:
     uses: ./.github/workflows/desktop-build.yml
     secrets: inherit
 
-  android-release:
-    name: Release Android App
-    needs: create-release
-    uses: ./.github/workflows/android-build.yml
-    secrets: inherit
+  # Android release disabled: Native Android project not yet initialized
+  # To enable: Run 'npx react-native init' in packages/android and uncomment below
+  # android-release:
+  #   name: Release Android App
+  #   needs: create-release
+  #   uses: ./.github/workflows/android-build.yml
+  #   secrets: inherit
 
   notify:
     name: Notify Release
-    needs: [docker-release, desktop-release, android-release]
+    needs: [docker-release, desktop-release]
     runs-on: ubuntu-latest
 
     steps:
     - name: Send notification
       run: |
         echo "Release ${{ github.ref_name }} completed successfully!"
-        echo "Docker images, desktop apps, and Android app have been built and published."
+        echo "Docker images and desktop apps have been built and published."
+        echo "Note: Android APK not included - native project needs initialization."
