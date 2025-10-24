@@ -6,12 +6,12 @@ updates:
     schedule:
       interval: "weekly"
       day: "monday"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 3
     labels:
       - "dependencies"
       - "backend"
     reviewers:
-      - "yourusername"
+      - "idan2025"
     commit-message:
       prefix: "chore(backend)"
 
@@ -21,12 +21,12 @@ updates:
     schedule:
       interval: "weekly"
       day: "monday"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 3
     labels:
       - "dependencies"
       - "web"
     reviewers:
-      - "yourusername"
+      - "idan2025"
     commit-message:
       prefix: "chore(web)"
 
@@ -36,7 +36,7 @@ updates:
     schedule:
       interval: "weekly"
       day: "monday"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 3
     labels:
       - "dependencies"
       - "desktop"
@@ -49,7 +49,7 @@ updates:
     schedule:
       interval: "weekly"
       day: "monday"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 3
     labels:
       - "dependencies"
       - "android"

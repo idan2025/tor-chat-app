@@ -27,8 +27,6 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: '20.x'
-        cache: 'npm'
-        cache-dependency-path: packages/android/package-lock.json
 
     - name: Setup Java
       uses: actions/setup-java@v4
