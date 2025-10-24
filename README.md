@@ -1,10 +1,10 @@
 # TOR Chat App - Secure & Encrypted Communication
 
-[![Backend CI](https://github.com/yourusername/tor-chat-app/workflows/Backend%20CI/badge.svg)](https://github.com/yourusername/tor-chat-app/actions)
-[![Docker Build](https://github.com/yourusername/tor-chat-app/workflows/Docker%20Build%20and%20Push/badge.svg)](https://github.com/yourusername/tor-chat-app/actions)
-[![Web CI](https://github.com/yourusername/tor-chat-app/workflows/Web%20CI/badge.svg)](https://github.com/yourusername/tor-chat-app/actions)
+[![Backend CI](https://github.com/idan2025/tor-chat-app/workflows/Backend%20CI/badge.svg)](https://github.com/idan2025/tor-chat-app/actions)
+[![Docker Build](https://github.com/idan2025/tor-chat-app/workflows/Docker%20Build%20and%20Push/badge.svg)](https://github.com/idan2025/tor-chat-app/actions)
+[![Web CI](https://github.com/idan2025/tor-chat-app/workflows/Web%20CI/badge.svg)](https://github.com/idan2025/tor-chat-app/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Docker Pulls](https://img.shields.io/docker/pulls/yourusername/tor-chat-backend.svg)](https://hub.docker.com/r/yourusername/tor-chat-backend)
+[![Docker Pulls](https://img.shields.io/docker/pulls/idan2025/tor-chat-backend.svg)](https://hub.docker.com/r/idan2025/tor-chat-backend)
 
 A production-ready, end-to-end encrypted chat application running over TOR for maximum privacy and security.
 
@@ -89,14 +89,16 @@ Pull from DockerHub:
 
 ```bash
 # Backend
-docker pull yourusername/tor-chat-backend:latest
+docker pull idan2025/tor-chat-backend:latest
 
 # Web
-docker pull yourusername/tor-chat-web:latest
+docker pull idan2025/tor-chat-web:latest
 
-# Run with docker-compose
+# Run with docker-compose (uses images from Docker Hub automatically)
 docker-compose up -d
 ```
+
+**Note**: The `docker-compose.yml` file is already configured to use the pre-built images from Docker Hub (`idan2025/tor-chat-backend:latest` and `idan2025/tor-chat-web:latest`), so you don't need to build anything locally!
 
 ### Environment Setup
 
@@ -239,8 +241,8 @@ Contributions welcome! Please:
 
 ## Support
 
-- **Issues**: [GitHub Issues](https://github.com/yourusername/tor-chat-app/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/tor-chat-app/discussions)
+- **Issues**: [GitHub Issues](https://github.com/idan2025/tor-chat-app/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/idan2025/tor-chat-app/discussions)
 - **Email**: support@example.com
 
 ## Star History
