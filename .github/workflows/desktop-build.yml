@@ -3,116 +3,6 @@ name: Desktop Build
 on:
   push:
     branches: [ main ]
-    tags:
-      - 'v*'
-  pull_request:
-    branches: [ main ]
-  workflow_dispatch:
-
-jobs:
-  build:
-    name: Build Desktop App
-    runs-on: ${{ matrix.os }}
-
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        node-version: [20.x]
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ matrix.node-version }}
-
-    - name: Install dependencies
-      working-directory: ./packages/desktop
-      run: npm install
-
-    - name: Build TypeScript
-      working-directory: ./packages/desktop
-      run: npm run build
-
-    - name: Package application (Linux)
-      if: runner.os == 'Linux'
-      working-directory: ./packages/desktop
-      run: npm run make -- --platform=linux
-
-    - name: Package application (Windows)
-      if: runner.os == 'Windows'
-      working-directory: ./packages/desktop
-      run: npm run make -- --platform=win32
-
-    - name: Package application (macOS)
-      if: runner.os == 'macOS'
-      working-directory: ./packages/desktop
-      run: npm run make -- --platform=darwin
-
-    - name: Upload artifacts (Linux)
-      if: runner.os == 'Linux'
-      uses: actions/upload-artifact@v4
-      with:
-        name: desktop-linux
-        path: |
-          packages/desktop/out/make/**/*.deb
-          packages/desktop/out/make/**/*.rpm
-          packages/desktop/out/make/**/*.zip
-        retention-days: 30
-
-    - name: Upload artifacts (Windows)
-      if: runner.os == 'Windows'
-      uses: actions/upload-artifact@v4
-      with:
-        name: desktop-windows
-        path: |
-          packages/desktop/out/make/**/*.exe
-          packages/desktop/out/make/**/*.zip
-        retention-days: 30
-
-    - name: Upload artifacts (macOS)
-      if: runner.os == 'macOS'
-      uses: actions/upload-artifact@v4
-      with:
-        name: desktop-macos
-        path: |
-          packages/desktop/out/make/**/*.dmg
-          packages/desktop/out/make/**/*.zip
-        retention-days: 30
-
-  release:
-    name: Create Release
-    needs: build
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Download all artifacts
-      uses: actions/download-artifact@v4
-
-    - name: Create Release
-      uses: softprops/action-gh-release@v1
-      with:
-        files: |
-          desktop-linux/**/*
-          desktop-windows/**/*
-          desktop-macos/**/*
-        draft: false
-        prerelease: false
-        generate_release_notes: true
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-name: Desktop Build
-
-on:
-  push:
-    branches: [ main ]
   pull_request:
     branches: [ main ]
   workflow_dispatch:
@@ -191,32 +81,33 @@ jobs:
           packages/desktop/out/make/**/*.zip
         retention-days: 30
 
-    - name: Upload artifacts (macOS)
-      if: runner.os == 'macOS'
-      uses: actions/upload-artifact@v4
-      with:
-        name: desktop-macos
-        path: |
-          packages/desktop/out/make/**/*.dmg
-          packages/desktop/out/make/**/*.zip
-        retention-days: 30
-
-  upload-to-release:
-    name: Upload to Release
-    needs: build
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
-
-    steps:
-    - name: Download all artifacts
-      uses: actions/download-artifact@v4
-
-    - name: Upload Desktop Assets to Release
+    - name: Upload to Release (Linux)
+      if: runner.os == 'Linux' && startsWith(github.ref, 'refs/tags/v')
       uses: softprops/action-gh-release@v1
       with:
         files: |
-          desktop-linux/**/*
-          desktop-windows/**/*
-          desktop-macos/**/*
+          packages/desktop/out/make/**/*.deb
+          packages/desktop/out/make/**/*.rpm
+          packages/desktop/out/make/**/*.zip
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Upload to Release (Windows)
+      if: runner.os == 'Windows' && startsWith(github.ref, 'refs/tags/v')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          packages/desktop/out/make/**/*.exe
+          packages/desktop/out/make/**/*.zip
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Upload to Release (macOS)
+      if: runner.os == 'macOS' && startsWith(github.ref, 'refs/tags/v')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          packages/desktop/out/make/**/*.dmg
+          packages/desktop/out/make/**/*.zip
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
