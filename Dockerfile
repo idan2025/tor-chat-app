@@ -1,14 +1,17 @@
 # Multi-stage build for TOR Chat Backend
 FROM node:18-alpine AS builder
 
+# Install build dependencies for native modules (bcrypt, etc)
+RUN apk add --no-cache python3 make g++
+
 WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
 COPY packages/backend/package*.json ./packages/backend/
 
-# Install dependencies
-RUN npm install --workspace=@tor-chat/backend --ignore-scripts
+# Install dependencies (allow scripts to build native modules)
+RUN npm install --workspace=@tor-chat/backend
 
 # Copy source code
 COPY packages/backend ./packages/backend
@@ -20,8 +23,8 @@ RUN npm run build
 # Production stage
 FROM node:18-alpine
 
-# Install TOR
-RUN apk add --no-cache tor
+# Install TOR and build dependencies for native modules
+RUN apk add --no-cache tor python3 make g++
 
 WORKDIR /app
 
@@ -29,8 +32,9 @@ WORKDIR /app
 COPY package*.json ./
 COPY packages/backend/package*.json ./packages/backend/
 
-# Install production dependencies only
-RUN npm install --workspace=@tor-chat/backend --production --ignore-scripts
+# Copy node_modules from builder (includes compiled native modules)
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/packages/backend/node_modules ./packages/backend/node_modules
 
 # Copy built files from builder
 COPY --from=builder /app/packages/backend/dist ./packages/backend/dist
