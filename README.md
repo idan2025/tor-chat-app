@@ -8,6 +8,32 @@
 
 A production-ready, end-to-end encrypted chat application running over TOR for maximum privacy and security.
 
+## ⚖️ Legal Disclaimer
+
+**IMPORTANT: READ BEFORE USING THIS SOFTWARE**
+
+This software is provided for **educational and legitimate privacy purposes only**. The developers and maintainers of TOR Chat App:
+
+- **Are completely neutral** regarding how this software is used
+- **Take no responsibility** for any illegal actions, crimes, or unlawful activities conducted using this application
+- **Do not endorse, support, or condone** any illegal use of this software
+- **Are not liable** for any damages, legal consequences, or harm resulting from the use or misuse of this application
+
+This application utilizes the **TOR network**, which is designed to provide anonymity and privacy. While anonymity is a fundamental right and has many legitimate uses (protecting journalists, whistleblowers, activists, and users in oppressive regimes), it can also be misused.
+
+**Users are solely responsible for:**
+- Complying with all applicable local, national, and international laws
+- Using this software in a lawful and ethical manner
+- Understanding the legal implications of using anonymity tools in their jurisdiction
+- Any consequences arising from their use of this application
+
+**By using this software, you acknowledge that:**
+- You will use it only for lawful purposes
+- You understand the risks associated with anonymous communication
+- The developers bear no responsibility for your actions
+
+If you do not agree with this disclaimer, **DO NOT USE THIS SOFTWARE**.
+
 ## Features
 
 - **End-to-End Encryption (E2EE)**: All messages encrypted with libsodium
@@ -226,7 +252,7 @@ MIT - See [LICENSE](LICENSE) for details
 
 ## Security Disclosure
 
-For security issues, please email: security@example.com
+For security issues, please use [GitHub Security Advisories](https://github.com/idan2025/tor-chat-app/security/advisories) or create a private security report.
 
 **Do NOT create public issues for security vulnerabilities.**
 
@@ -243,7 +269,6 @@ Contributions welcome! Please:
 
 - **Issues**: [GitHub Issues](https://github.com/idan2025/tor-chat-app/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/idan2025/tor-chat-app/discussions)
-- **Email**: support@example.com
 
 ## Star History
 
