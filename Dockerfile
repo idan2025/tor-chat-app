@@ -34,7 +34,6 @@ COPY packages/backend/package*.json ./packages/backend/
 
 # Copy node_modules from builder (includes compiled native modules)
 COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/packages/backend/node_modules ./packages/backend/node_modules
 
 # Copy built files from builder
 COPY --from=builder /app/packages/backend/dist ./packages/backend/dist
