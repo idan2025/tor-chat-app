@@ -27,6 +27,9 @@ services:
       SERVICE1_TOR_SERVICE_HOSTS: "80:backend:3000"
     volumes:
       - tor_data:/var/lib/tor/hidden_service
+    depends_on:
+      backend:
+        condition: service_started
     networks:
       - torchat-network
     restart: unless-stopped
