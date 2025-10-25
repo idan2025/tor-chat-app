@@ -1,6 +1,6 @@
 {
   "name": "@tor-chat/backend",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "TOR Chat Backend Server",
   "license": "MIT",
   "main": "dist/server.js",

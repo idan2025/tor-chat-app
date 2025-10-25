@@ -53,17 +53,25 @@ jobs:
       working-directory: ./packages/android
       run: npm install
 
-    - name: Check Android project exists
+    - name: Initialize Android project if needed
       working-directory: ./packages/android
       run: |
         if [ ! -d "android/app" ]; then
-          echo "::error::Android native project not found at packages/android/android/"
-          echo "::error::Please initialize the React Native Android project first:"
-          echo "::error::  cd packages/android && npx react-native init TorChatAndroid"
-          echo "::error::  mv TorChatAndroid/android ."
-          exit 1
+          echo "::notice::Android native project not found, initializing..."
+
+          # Initialize React Native project
+          npx react-native@latest init TorChatAndroid --skip-install
+
+          # Move android directory to correct location
+          mv TorChatAndroid/android .
+
+          # Clean up temporary files
+          rm -rf TorChatAndroid
+
+          echo "::notice::Android project initialized successfully"
+        else
+          echo "::notice::Android project already exists, proceeding with build..."
         fi
-        echo "Android project found, proceeding with build..."
 
     - name: Create android assets directory
       working-directory: ./packages/android
