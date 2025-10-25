@@ -27,10 +27,15 @@ services:
       SERVICE1_TOR_SERVICE_HOSTS: "80:backend:3000"
     volumes:
       - tor_data:/var/lib/tor/hidden_service
-    depends_on:
-      - backend
     networks:
       - torchat-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "9050"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 45s
 
   backend:
     image: idan2025/tor-chat-backend:latest
@@ -60,6 +65,8 @@ services:
       - "3000:3000"
     depends_on:
       postgres:
+        condition: service_healthy
+      tor:
         condition: service_healthy
     volumes:
       - tor_data:/var/lib/tor/hidden_service

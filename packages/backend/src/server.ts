@@ -81,6 +81,39 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
 // Initialize Socket.IO
 new SocketService(server);
 
+// TOR connection retry logic
+async function retryTorConnection(attempt: number = 1, maxAttempts: number = 10): Promise<void> {
+  try {
+    const torConnected = await torService.checkTorConnection();
+    if (torConnected) {
+      logger.info('TOR connection verified');
+      const hiddenService = torService.getHiddenServiceAddress();
+      if (hiddenService) {
+        logger.info(`Hidden service: ${hiddenService}`);
+      } else {
+        logger.warn('Hidden service not configured. See instructions:');
+        logger.warn(torService.getHiddenServiceConfig());
+      }
+      return;
+    }
+
+    // If not connected and we haven't reached max attempts, retry
+    if (attempt < maxAttempts) {
+      const delay = Math.min(1000 * Math.pow(2, attempt - 1), 30000); // Exponential backoff, max 30s
+      logger.warn(`TOR connection failed (attempt ${attempt}/${maxAttempts}). Retrying in ${delay}ms...`);
+      setTimeout(() => retryTorConnection(attempt + 1, maxAttempts), delay);
+    } else {
+      logger.error(`TOR connection failed after ${maxAttempts} attempts. Continuing without TOR.`);
+    }
+  } catch (error) {
+    logger.error('Error checking TOR connection:', error);
+    if (attempt < maxAttempts) {
+      const delay = Math.min(1000 * Math.pow(2, attempt - 1), 30000);
+      setTimeout(() => retryTorConnection(attempt + 1, maxAttempts), delay);
+    }
+  }
+}
+
 // Startup
 async function start(): Promise<void> {
   try {
@@ -88,21 +121,9 @@ async function start(): Promise<void> {
     await initializeDatabase();
     logger.info('Database initialized');
 
-    // Check TOR connection
+    // Check TOR connection with retry logic
     if (config.tor.enabled) {
-      const torConnected = await torService.checkTorConnection();
-      if (torConnected) {
-        logger.info('TOR connection verified');
-        const hiddenService = torService.getHiddenServiceAddress();
-        if (hiddenService) {
-          logger.info(`Hidden service: ${hiddenService}`);
-        } else {
-          logger.warn('Hidden service not configured. See instructions:');
-          logger.warn(torService.getHiddenServiceConfig());
-        }
-      } else {
-        logger.warn('TOR connection failed. Make sure TOR is running.');
-      }
+      retryTorConnection();
     }
 
     // Start server
