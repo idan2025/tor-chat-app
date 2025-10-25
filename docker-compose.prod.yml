@@ -17,23 +17,6 @@ services:
       - torchat-network
     restart: always
 
-  tor:
-    image: goldy/tor-hidden-service:latest
-    container_name: torchat-tor
-    environment:
-      SERVICE1_TOR_SERVICE_HOSTS: "80:backend:3000"
-    volumes:
-      - tor_data:/var/lib/tor/hidden_service
-    networks:
-      - torchat-network
-    restart: always
-    healthcheck:
-      test: ["CMD", "nc", "-z", "localhost", "9050"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 45s
-
   backend:
     build:
       context: .
@@ -52,6 +35,26 @@ services:
     networks:
       - torchat-network
     restart: always
+
+  tor:
+    image: goldy/tor-hidden-service:latest
+    container_name: torchat-tor
+    depends_on:
+      backend:
+        condition: service_started
+    environment:
+      SERVICE1_TOR_SERVICE_HOSTS: "80:backend:3000"
+    volumes:
+      - tor_data:/var/lib/tor/hidden_service
+    networks:
+      - torchat-network
+    restart: always
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "9050"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 45s
 
   nginx:
     image: nginx:alpine
