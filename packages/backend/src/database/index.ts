@@ -18,10 +18,14 @@ export async function initializeDatabase(): Promise<void> {
     await sequelize.authenticate();
     logger.info('Database connection established successfully');
 
-    // Sync models (in production, use migrations instead)
+    // Sync models
     if (config.env === 'development') {
       await sequelize.sync({ alter: true });
-      logger.info('Database models synchronized');
+      logger.info('Database models synchronized (development mode)');
+    } else {
+      // In production, create tables if they don't exist but don't alter existing ones
+      await sequelize.sync();
+      logger.info('Database models synchronized (production mode)');
     }
   } catch (error) {
     logger.error('Unable to connect to the database:', error);

@@ -12,8 +12,10 @@ export function validateBody(schema: ZodSchema) {
           error: 'Validation failed',
           details: error.errors,
         });
+        return;
       } else {
         res.status(500).json({ error: 'Internal validation error' });
+        return;
       }
     }
   };
@@ -30,8 +32,10 @@ export function validateQuery(schema: ZodSchema) {
           error: 'Validation failed',
           details: error.errors,
         });
+        return;
       } else {
         res.status(500).json({ error: 'Internal validation error' });
+        return;
       }
     }
   };
