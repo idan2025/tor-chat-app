@@ -4,19 +4,32 @@ import * as path from 'path';
 let mainWindow: BrowserWindow | null = null;
 
 const createWindow = (): void => {
+  // Get screen dimensions
+  const { screen } = require('electron');
+  const primaryDisplay = screen.getPrimaryDisplay();
+  const { width: screenWidth, height: screenHeight } = primaryDisplay.workAreaSize;
+
+  // Calculate window size (80% of screen, but with min/max constraints)
+  const windowWidth = Math.min(1400, Math.max(1000, Math.floor(screenWidth * 0.8)));
+  const windowHeight = Math.min(900, Math.max(700, Math.floor(screenHeight * 0.85)));
+
   // Create the browser window
   mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
+    width: windowWidth,
+    height: windowHeight,
     minWidth: 800,
     minHeight: 600,
+    maxWidth: screenWidth,
+    maxHeight: screenHeight,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.js'),
+      zoomFactor: 1.0,
     },
     backgroundColor: '#1a1a2e',
     show: false,
+    center: true,
   });
 
   // Load the UI

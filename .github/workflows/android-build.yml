@@ -59,8 +59,12 @@ jobs:
         if [ ! -d "android/app" ]; then
           echo "::notice::Android native project not found, initializing..."
 
-          # Initialize React Native project
-          npx react-native@latest init TorChatAndroid --skip-install
+          # Get React Native version from package.json
+          RN_VERSION=$(node -p "require('./package.json').dependencies['react-native']")
+          echo "Using React Native version: $RN_VERSION"
+
+          # Initialize React Native project with specific version
+          npx react-native@${RN_VERSION} init TorChatAndroid --skip-install --version ${RN_VERSION}
 
           # Move android directory to correct location
           mv TorChatAndroid/android .
