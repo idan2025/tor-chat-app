@@ -1,5 +1,6 @@
 import express, { Request, Response } from 'express';
 import { z } from 'zod';
+import { Op } from 'sequelize';
 import { User } from '../models';
 import { generateToken, AuthRequest, authenticateToken } from '../middleware/auth';
 import { validateBody } from '../middleware/validation';
@@ -154,8 +155,5 @@ router.post('/logout', authenticateToken, async (req: AuthRequest, res: Response
     res.status(500).json({ error: 'Failed to logout' });
   }
 });
-
-// Import Op from sequelize for the or condition
-import { Op } from 'sequelize';
 
 export default router;
