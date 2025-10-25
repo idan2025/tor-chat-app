@@ -30,6 +30,11 @@ cat > .env <<EOF
 # JWT Secret (auto-generated)
 JWT_SECRET=${JWT_SECRET}
 
+# CORS Configuration (backend)
+# Allow all origins by default (safe when using nginx proxy)
+# To restrict, set specific origins: http://example.com:5173,http://another.com
+ALLOWED_ORIGINS=*
+
 # API URLs for web frontend
 # The web app uses nginx proxy to forward API requests to the backend
 # Use relative paths (default) for production deployment:

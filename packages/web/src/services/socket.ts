@@ -1,7 +1,8 @@
 import { io, Socket } from 'socket.io-client';
 import { Message } from '../types';
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3000';
+// Use environment variable if set, otherwise use current origin (for nginx proxy)
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || window.location.origin;
 
 class SocketService {
   private socket: Socket | null = null;
