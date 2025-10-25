@@ -1,0 +1,30 @@
+# Development docker-compose override
+# Use this for local development and building from source
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+#   OR
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml build
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        BUILD_DATE: ${BUILD_DATE:-}
+        VCS_REF: ${VCS_REF:-}
+        VERSION: ${VERSION:-dev}
+    environment:
+      NODE_ENV: development
+      LOG_LEVEL: debug
+
+  web:
+    build:
+      context: ./packages/web
+      dockerfile: Dockerfile.web
+      args:
+        VITE_API_URL: ${API_URL:-/api}
+        VITE_SOCKET_URL: ${SOCKET_URL:-}
+    environment:
+      NODE_ENV: development

@@ -65,10 +65,16 @@ If you do not agree with this disclaimer, **DO NOT USE THIS SOFTWARE**.
 
 ## Quick Start
 
-### Super Fast Setup (3 seconds!)
+### Super Fast Setup
 
 ```bash
-./quickstart.sh
+# 1. Generate environment configuration
+./setup.sh
+
+# 2. Start the application
+docker compose up -d
+
+# Access at http://localhost:5173 (or your server IP)
 ```
 
 ### Prerequisites
@@ -81,13 +87,13 @@ If you do not agree with this disclaimer, **DO NOT USE THIS SOFTWARE**.
 #### Option 1: Docker (Recommended)
 
 ```bash
-# One-command setup
-./quickstart.sh
+# Setup environment
+./setup.sh
 
-# Or manually
-docker-compose up -d
+# Start services
+docker compose up -d
 
-# Access at http://localhost:5173
+# Access at http://localhost:5173 (or http://YOUR_SERVER_IP:5173 for remote)
 ```
 
 #### Option 2: Manual Setup
@@ -194,18 +200,40 @@ tor-chat-app/
 └── README.md
 ```
 
-## Building for Production
+## Production Deployment
+
+### Quick Deploy with Pre-built Images
 
 ```bash
-# Build all packages
-npm run build:all
+# 1. Run the setup script to generate .env file
+./setup.sh
 
-# Build Docker image
-docker build -t tor-chat-app .
+# 2. Pull the latest images from DockerHub
+docker compose pull
 
-# Deploy with Docker Compose
-docker-compose -f docker-compose.prod.yml up -d
+# 3. Start the services
+docker compose up -d
+
+# 4. Check logs
+docker compose logs -f
+
+# Access at http://YOUR_SERVER_IP:5173
 ```
+
+### Build from Source (For Development)
+
+```bash
+# Build and run with development configuration
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+
+# Or build images separately
+docker compose -f docker-compose.yml -f docker-compose.dev.yml build
+
+# Then start
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+```
+
+For detailed production setup, see [DEPLOYMENT.md](DEPLOYMENT.md)
 
 ## API Documentation
 

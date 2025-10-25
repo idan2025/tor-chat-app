@@ -84,9 +84,6 @@ services:
   web:
     image: idan2025/tor-chat-web:latest
     container_name: torchat-web
-    environment:
-      VITE_API_URL: ${API_URL:-http://localhost:3000/api}
-      VITE_SOCKET_URL: ${SOCKET_URL:-http://localhost:3000}
     ports:
       - "5173:80"
     depends_on:
