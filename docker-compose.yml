@@ -18,11 +18,31 @@ services:
     networks:
       - torchat-network
 
+  tor:
+    image: goldy/tor-hidden-service:latest
+    container_name: torchat-tor
+    environment:
+      SERVICE1_TOR_SERVICE_HOSTS: "80:backend:3000"
+      TOR_SOCKS_PORT: "0.0.0.0:9050"
+    volumes:
+      - tor_data:/var/lib/tor/hidden_service
+    networks:
+      - torchat-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 9050 || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 30s
+
   backend:
     image: idan2025/tor-chat-backend:latest
     container_name: torchat-backend
     depends_on:
       postgres:
+        condition: service_healthy
+      tor:
         condition: service_healthy
     environment:
       NODE_ENV: production
@@ -60,27 +80,6 @@ services:
       retries: 3
       start_period: 40s
 
-  tor:
-    image: goldy/tor-hidden-service:latest
-    container_name: torchat-tor
-    depends_on:
-      backend:
-        condition: service_started
-    environment:
-      SERVICE1_TOR_SERVICE_HOSTS: "80:backend:3000"
-      TOR_SOCKS_PORT: "0.0.0.0:9050"
-    volumes:
-      - tor_data:/var/lib/tor/hidden_service
-    networks:
-      - torchat-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "nc -z localhost 9050 || exit 1"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
-      start_period: 30s
-
   web:
     image: idan2025/tor-chat-web:latest
     container_name: torchat-web
@@ -88,7 +87,7 @@ services:
       - "5173:80"
     depends_on:
       backend:
-        condition: service_started
+        condition: service_healthy
     networks:
       - torchat-network
     restart: unless-stopped
