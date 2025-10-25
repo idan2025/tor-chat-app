@@ -19,6 +19,9 @@ import './models';
 const app = express();
 const server = createServer(app);
 
+// Trust proxy - required when behind nginx reverse proxy
+app.set('trust proxy', true);
+
 // Middleware
 app.use(helmet({
   contentSecurityPolicy: config.env === 'production',
@@ -89,10 +92,9 @@ async function retryTorConnection(attempt: number = 1, maxAttempts: number = 10)
       logger.info('TOR connection verified');
       const hiddenService = torService.getHiddenServiceAddress();
       if (hiddenService) {
-        logger.info(`Hidden service: ${hiddenService}`);
+        logger.info(`Hidden service available: ${hiddenService}`);
       } else {
-        logger.warn('Hidden service not configured. See instructions:');
-        logger.warn(torService.getHiddenServiceConfig());
+        logger.debug('Hidden service address not found (this is normal if using Docker tor-hidden-service)');
       }
       return;
     }

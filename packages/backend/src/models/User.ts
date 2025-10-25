@@ -21,19 +21,19 @@ interface UserAttributes {
 interface UserCreationAttributes extends Optional<UserAttributes, 'id' | 'isOnline' | 'lastSeen'> {}
 
 export class User extends Model<UserAttributes, UserCreationAttributes> implements UserAttributes {
-  public id!: string;
-  public username!: string;
-  public email!: string;
-  public passwordHash!: string;
-  public publicKey!: string;
-  public privateKeyEncrypted?: string;
-  public displayName?: string;
-  public avatar?: string;
-  public isOnline!: boolean;
-  public lastSeen!: Date;
+  declare id: string;
+  declare username: string;
+  declare email: string;
+  declare passwordHash: string;
+  declare publicKey: string;
+  declare privateKeyEncrypted?: string;
+  declare displayName?: string;
+  declare avatar?: string;
+  declare isOnline: boolean;
+  declare lastSeen: Date;
 
-  public readonly createdAt!: Date;
-  public readonly updatedAt!: Date;
+  declare readonly createdAt: Date;
+  declare readonly updatedAt: Date;
 
   /**
    * Compare password with hash

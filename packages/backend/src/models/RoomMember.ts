@@ -14,14 +14,14 @@ interface RoomMemberAttributes {
 interface RoomMemberCreationAttributes extends Optional<RoomMemberAttributes, 'id' | 'joinedAt'> {}
 
 export class RoomMember extends Model<RoomMemberAttributes, RoomMemberCreationAttributes> implements RoomMemberAttributes {
-  public id!: string;
-  public roomId!: string;
-  public userId!: string;
-  public role!: 'admin' | 'moderator' | 'member';
-  public joinedAt!: Date;
+  declare id: string;
+  declare roomId: string;
+  declare userId: string;
+  declare role: 'admin' | 'moderator' | 'member';
+  declare joinedAt: Date;
 
-  public readonly createdAt!: Date;
-  public readonly updatedAt!: Date;
+  declare readonly createdAt: Date;
+  declare readonly updatedAt: Date;
 }
 
 RoomMember.init(

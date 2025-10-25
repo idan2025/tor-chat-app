@@ -15,15 +15,15 @@ interface MessageAttributes {
 interface MessageCreationAttributes extends Optional<MessageAttributes, 'id'> {}
 
 export class Message extends Model<MessageAttributes, MessageCreationAttributes> implements MessageAttributes {
-  public id!: string;
-  public roomId!: string;
-  public senderId!: string;
-  public encryptedContent!: string;
-  public messageType!: 'text' | 'file' | 'image' | 'system';
-  public metadata?: object;
+  declare id: string;
+  declare roomId: string;
+  declare senderId: string;
+  declare encryptedContent: string;
+  declare messageType: 'text' | 'file' | 'image' | 'system';
+  declare metadata?: object;
 
-  public readonly createdAt!: Date;
-  public readonly updatedAt!: Date;
+  declare readonly createdAt: Date;
+  declare readonly updatedAt: Date;
 }
 
 Message.init(

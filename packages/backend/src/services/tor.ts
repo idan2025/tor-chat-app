@@ -81,7 +81,7 @@ export class TorService {
         this.hiddenServiceHostname = fs.readFileSync(hostnameFile, 'utf8').trim();
         logger.info(`Hidden service available at: ${this.hiddenServiceHostname}`);
       } else {
-        logger.warn('Hidden service hostname file not found');
+        logger.debug('Hidden service hostname file not found (normal when using external TOR container)');
       }
     } catch (error) {
       logger.error('Failed to read hidden service hostname:', error);

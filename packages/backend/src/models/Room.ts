@@ -17,17 +17,17 @@ interface RoomAttributes {
 interface RoomCreationAttributes extends Optional<RoomAttributes, 'id'> {}
 
 export class Room extends Model<RoomAttributes, RoomCreationAttributes> implements RoomAttributes {
-  public id!: string;
-  public name!: string;
-  public description?: string;
-  public type!: 'public' | 'private';
-  public encryptionKey!: string;
-  public creatorId!: string;
-  public maxMembers?: number;
-  public avatar?: string;
+  declare id: string;
+  declare name: string;
+  declare description?: string;
+  declare type: 'public' | 'private';
+  declare encryptionKey: string;
+  declare creatorId: string;
+  declare maxMembers?: number;
+  declare avatar?: string;
 
-  public readonly createdAt!: Date;
-  public readonly updatedAt!: Date;
+  declare readonly createdAt: Date;
+  declare readonly updatedAt: Date;
 
   /**
    * Sanitize room data (remove encryption key from public view)
