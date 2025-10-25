@@ -68,6 +68,7 @@ services:
         condition: service_started
     environment:
       SERVICE1_TOR_SERVICE_HOSTS: "80:backend:3000"
+      TOR_SOCKS_PORT: "0.0.0.0:9050"
     volumes:
       - tor_data:/var/lib/tor/hidden_service
     networks:
