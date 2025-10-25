@@ -16,10 +16,29 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Extract version from tag
+      id: version
+      run: |
+        if [[ "${{ github.ref }}" =~ ^refs/tags/v(.*)$ ]]; then
+          VERSION="${BASH_REMATCH[1]}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Using version: $VERSION"
+        else
+          echo "version=1.0.0" >> $GITHUB_OUTPUT
+          echo "No tag found, using default version: 1.0.0"
+        fi
+      shell: bash
+
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '20.x'
+
+    - name: Update package.json version
+      working-directory: ./packages/android
+      run: |
+        npm version ${{ steps.version.outputs.version }} --no-git-tag-version --allow-same-version
+      shell: bash
 
     - name: Setup Java
       uses: actions/setup-java@v4

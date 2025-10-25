@@ -22,6 +22,29 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Validate tag format
+      if: startsWith(github.ref, 'refs/tags/')
+      run: |
+        TAG="${GITHUB_REF#refs/tags/}"
+        echo "Validating tag: $TAG"
+
+        # Check if tag starts with "-"
+        if [[ "$TAG" =~ ^- ]]; then
+          echo "::error::Tag cannot start with '-': $TAG"
+          exit 1
+        fi
+
+        # Extract version (remove 'v' prefix if present)
+        if [[ "$TAG" =~ ^v(.*)$ ]]; then
+          VERSION="${BASH_REMATCH[1]}"
+          if [[ "$VERSION" =~ ^- ]]; then
+            echo "::error::Version cannot start with '-': $VERSION"
+            exit 1
+          fi
+        fi
+
+        echo "Tag validation passed: $TAG"
+
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
@@ -72,6 +95,29 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+
+    - name: Validate tag format
+      if: startsWith(github.ref, 'refs/tags/')
+      run: |
+        TAG="${GITHUB_REF#refs/tags/}"
+        echo "Validating tag: $TAG"
+
+        # Check if tag starts with "-"
+        if [[ "$TAG" =~ ^- ]]; then
+          echo "::error::Tag cannot start with '-': $TAG"
+          exit 1
+        fi
+
+        # Extract version (remove 'v' prefix if present)
+        if [[ "$TAG" =~ ^v(.*)$ ]]; then
+          VERSION="${BASH_REMATCH[1]}"
+          if [[ "$VERSION" =~ ^- ]]; then
+            echo "::error::Version cannot start with '-': $VERSION"
+            exit 1
+          fi
+        fi
+
+        echo "Tag validation passed: $TAG"
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
