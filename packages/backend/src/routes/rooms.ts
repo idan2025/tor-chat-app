@@ -114,13 +114,28 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res: Response) =>
     }
 
     // Check if user is a member
-    const membership = await RoomMember.findOne({
+    let membership = await RoomMember.findOne({
       where: {
         roomId: id,
         userId: req.userId!,
       },
     });
 
+    // Auto-join public rooms if not already a member
+    if (!membership && room.type === 'public') {
+      // Check room capacity
+      const memberCount = await RoomMember.count({ where: { roomId: id } });
+      if (!room.maxMembers || memberCount < room.maxMembers) {
+        membership = await RoomMember.create({
+          roomId: id,
+          userId: req.userId!,
+          role: 'member',
+        });
+        logger.info(`User ${req.userId} auto-joined public room ${id}`);
+      }
+    }
+
+    // Deny access to private rooms without membership
     if (!membership && room.type === 'private') {
       res.status(403).json({ error: 'Access denied' });
       return;
