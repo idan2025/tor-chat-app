@@ -56,6 +56,10 @@ jobs:
         npm install
         echo "✓ Dependencies installed (hoisted to workspace root)"
 
+        echo "Creating symlink to workspace node_modules..."
+        ln -s ../../node_modules node_modules
+        echo "✓ Symlink created: packages/android/node_modules -> ../../node_modules"
+
     - name: Verify babel configuration
       working-directory: ./packages/android
       run: |
@@ -71,25 +75,15 @@ jobs:
       run: |
         cat > metro.config.js << 'EOF'
         const {getDefaultConfig, mergeConfig} = require('@react-native/metro-config');
-        const path = require('path');
 
         const config = {
           projectRoot: __dirname,
-          watchFolders: [
-            __dirname,
-            path.resolve(__dirname, '../..'),
-          ],
-          resolver: {
-            nodeModulesPaths: [
-              path.resolve(__dirname, 'node_modules'),
-              path.resolve(__dirname, '../../node_modules'),
-            ],
-          },
+          watchFolders: [__dirname],
         };
 
         module.exports = mergeConfig(getDefaultConfig(__dirname), config);
         EOF
-        echo "✓ Metro config created (with workspace support)"
+        echo "✓ Metro config created"
 
     - name: Initialize Android project if needed
       working-directory: ./packages/android
@@ -121,24 +115,12 @@ jobs:
           echo "::notice::Android project already exists, proceeding with build..."
         fi
 
-    - name: Fix Android Gradle files for monorepo structure
+    - name: Verify Android Gradle setup
       working-directory: ./packages/android/android
       run: |
-        echo "Checking settings.gradle content before fix..."
-        grep -n "node_modules" settings.gradle || echo "No node_modules references found in settings.gradle"
-
-        echo "Fixing settings.gradle for workspace node_modules..."
-        # Replace all ../node_modules references with ../../../node_modules
-        sed -i "s|../node_modules|../../../node_modules|g" settings.gradle
-
-        echo "Checking settings.gradle content after fix..."
-        grep -n "node_modules" settings.gradle || echo "No node_modules references found in settings.gradle"
-
-        echo "Fixing app/build.gradle for workspace node_modules..."
-        # Replace all ../node_modules references with ../../../node_modules
-        sed -i "s|../node_modules|../../../node_modules|g" app/build.gradle
-
-        echo "✓ Gradle files updated for monorepo structure"
+        echo "Verifying Gradle files are ready for build..."
+        ls -la ../node_modules | head -5
+        echo "✓ Gradle setup verified (using symlinked node_modules)"
 
     - name: Create android assets directory and bundle JS
       working-directory: ./packages/android
