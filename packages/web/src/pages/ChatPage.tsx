@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { useChatStore } from '../store/chatStore';
 import RoomList from '../components/RoomList';
@@ -8,6 +9,7 @@ import CreateRoomModal from '../components/CreateRoomModal';
 export default function ChatPage() {
   const { user, logout } = useAuthStore();
   const { loadRooms } = useChatStore();
+  const navigate = useNavigate();
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   useEffect(() => {
@@ -23,14 +25,31 @@ export default function ChatPage() {
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-xl font-bold text-white">TOR Chat</h2>
-              <p className="text-sm text-gray-400">{user?.displayName || user?.username}</p>
+              <p className="text-sm text-gray-400">
+                {user?.displayName || user?.username}
+                {user?.isAdmin && (
+                  <span className="ml-2 px-2 py-0.5 text-xs bg-purple-600 text-white rounded">
+                    ADMIN
+                  </span>
+                )}
+              </p>
             </div>
-            <button
-              onClick={logout}
-              className="px-3 py-1 text-sm bg-red-600 hover:bg-red-700 text-white rounded transition"
-            >
-              Logout
-            </button>
+            <div className="flex space-x-2">
+              {user?.isAdmin && (
+                <button
+                  onClick={() => navigate('/admin')}
+                  className="px-3 py-1 text-sm bg-purple-600 hover:bg-purple-700 text-white rounded transition"
+                >
+                  Admin
+                </button>
+              )}
+              <button
+                onClick={logout}
+                className="px-3 py-1 text-sm bg-red-600 hover:bg-red-700 text-white rounded transition"
+              >
+                Logout
+              </button>
+            </div>
           </div>
         </div>
 

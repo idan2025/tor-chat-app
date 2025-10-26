@@ -13,7 +13,7 @@ export default function RegisterPage() {
     e.preventDefault();
     clearError();
     try {
-      await register(username, email, password, displayName || username);
+      await register(username, email || undefined, password, displayName || username);
     } catch (error) {
       // Error is handled in store
     }
@@ -53,7 +53,7 @@ export default function RegisterPage() {
 
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
-              Email
+              Email (optional)
             </label>
             <input
               id="email"
@@ -61,7 +61,6 @@ export default function RegisterPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded focus:outline-none focus:border-purple-500 text-white"
-              required
               autoComplete="email"
             />
           </div>

@@ -4,6 +4,7 @@ import { useAuthStore } from './store/authStore';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ChatPage from './pages/ChatPage';
+import AdminPage from './pages/AdminPage';
 
 function App() {
   const { isAuthenticated, isLoading, loadUser } = useAuthStore();
@@ -34,6 +35,10 @@ function App() {
         <Route
           path="/chat"
           element={isAuthenticated ? <ChatPage /> : <Navigate to="/login" />}
+        />
+        <Route
+          path="/admin"
+          element={isAuthenticated ? <AdminPage /> : <Navigate to="/login" />}
         />
         <Route path="/" element={<Navigate to={isAuthenticated ? '/chat' : '/login'} />} />
       </Routes>

@@ -68,8 +68,8 @@ class SocketService {
     this.socket?.emit('leave_room', { roomId });
   }
 
-  sendMessage(roomId: string, encryptedContent: string, messageType: string = 'text'): void {
-    this.socket?.emit('send_message', { roomId, encryptedContent, messageType });
+  sendMessage(roomId: string, encryptedContent: string, messageType: string = 'text', attachments?: string[]): void {
+    this.socket?.emit('send_message', { roomId, encryptedContent, messageType, attachments });
   }
 
   sendTyping(roomId: string, isTyping: boolean): void {

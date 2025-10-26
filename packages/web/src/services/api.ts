@@ -25,10 +25,10 @@ class ApiService {
   }
 
   // Auth endpoints
-  async register(username: string, email: string, password: string, displayName?: string) {
+  async register(username: string, email: string | undefined, password: string, displayName?: string) {
     const response = await this.api.post('/auth/register', {
       username,
-      email,
+      ...(email && { email }),
       password,
       displayName,
     });
@@ -94,6 +94,70 @@ class ApiService {
 
   async getRoomMembers(roomId: string): Promise<{ members: RoomMember[] }> {
     const response = await this.api.get(`/rooms/${roomId}/members`);
+    return response.data;
+  }
+
+  async deleteRoom(roomId: string) {
+    const response = await this.api.delete(`/rooms/${roomId}`);
+    return response.data;
+  }
+
+  async addRoomMember(roomId: string, userId: string) {
+    const response = await this.api.post(`/rooms/${roomId}/members`, { userId });
+    return response.data;
+  }
+
+  async removeRoomMember(roomId: string, userId: string) {
+    const response = await this.api.delete(`/rooms/${roomId}/members/${userId}`);
+    return response.data;
+  }
+
+  async getUsers(): Promise<{ users: User[] }> {
+    const response = await this.api.get('/auth/users');
+    return response.data;
+  }
+
+  // Admin endpoints
+  async getAdminUsers(): Promise<{ users: User[] }> {
+    const response = await this.api.get('/admin/users');
+    return response.data;
+  }
+
+  async toggleUserAdmin(userId: string, isAdmin: boolean) {
+    const response = await this.api.patch(`/admin/users/${userId}/admin`, { isAdmin });
+    return response.data;
+  }
+
+  async deleteUser(userId: string) {
+    const response = await this.api.delete(`/admin/users/${userId}`);
+    return response.data;
+  }
+
+  async getAdminRooms(): Promise<{ rooms: Room[] }> {
+    const response = await this.api.get('/admin/rooms');
+    return response.data;
+  }
+
+  async deleteAdminRoom(roomId: string) {
+    const response = await this.api.delete(`/admin/rooms/${roomId}`);
+    return response.data;
+  }
+
+  async getAdminStats(): Promise<{ users: number; rooms: number; messages: number; onlineUsers: number }> {
+    const response = await this.api.get('/admin/stats');
+    return response.data;
+  }
+
+  // Upload file
+  async uploadFile(file: File): Promise<{ file: { url: string; filename: string; originalName: string; mimetype: string; size: number } }> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await this.api.post('/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
     return response.data;
   }
 

@@ -1,5 +1,6 @@
 import express from 'express';
 import { createServer } from 'http';
+import path from 'path';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
@@ -13,6 +14,7 @@ import { logger } from './utils/logger';
 import authRoutes from './routes/auth';
 import roomRoutes from './routes/rooms';
 import adminRoutes from './routes/admin';
+import uploadRoutes from './routes/upload';
 
 // Import models to ensure they are registered
 import './models';
@@ -65,10 +67,14 @@ app.get('/api/tor-status', async (_req, res) => {
   });
 });
 
+// Serve uploaded files
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/rooms', roomRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/upload', uploadRoutes);
 
 // 404 handler
 app.use((_req, res) => {

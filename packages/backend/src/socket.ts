@@ -113,7 +113,7 @@ export class SocketService {
     });
 
     // Handle send message
-    socket.on('send_message', async (data: { roomId: string; encryptedContent: string; messageType?: string }) => {
+    socket.on('send_message', async (data: { roomId: string; encryptedContent: string; messageType?: string; attachments?: string[] }) => {
       await this.handleSendMessage(socket, data);
     });
 
@@ -198,11 +198,11 @@ export class SocketService {
    */
   private async handleSendMessage(
     socket: AuthSocket,
-    data: { roomId: string; encryptedContent: string; messageType?: string }
+    data: { roomId: string; encryptedContent: string; messageType?: string; attachments?: string[] }
   ): Promise<void> {
     try {
       const userId = socket.data.userId;
-      const { roomId, encryptedContent, messageType = 'text' } = data;
+      const { roomId, encryptedContent, messageType = 'text', attachments } = data;
 
       // Verify membership
       const membership = await RoomMember.findOne({
@@ -219,7 +219,8 @@ export class SocketService {
         roomId,
         senderId: userId,
         encryptedContent,
-        messageType: messageType as 'text' | 'file' | 'image' | 'system',
+        messageType: messageType as 'text' | 'file' | 'image' | 'video' | 'system',
+        attachments: attachments || [],
       });
 
       // Load sender info
@@ -240,6 +241,7 @@ export class SocketService {
         sender: message.get('sender'),
         encryptedContent: message.encryptedContent,
         messageType: message.messageType,
+        attachments: message.attachments,
         createdAt: message.createdAt,
       });
 

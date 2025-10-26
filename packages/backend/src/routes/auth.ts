@@ -170,4 +170,22 @@ router.post('/logout', authenticateToken, async (req: AuthRequest, res: Response
   }
 });
 
+/**
+ * GET /api/users
+ * Get all users (basic info only, for member selection)
+ */
+router.get('/users', authenticateToken, async (_req: AuthRequest, res: Response) => {
+  try {
+    const users = await User.findAll({
+      attributes: ['id', 'username', 'displayName', 'avatar', 'isOnline', 'publicKey', 'isAdmin'],
+      order: [['username', 'ASC']],
+    });
+
+    res.json({ users });
+  } catch (error) {
+    logger.error('Get users error:', error);
+    res.status(500).json({ error: 'Failed to get users' });
+  }
+});
+
 export default router;

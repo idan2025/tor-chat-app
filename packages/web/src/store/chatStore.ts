@@ -19,7 +19,10 @@ interface ChatState {
   createRoom: (data: { name: string; description?: string; type?: 'public' | 'private' }) => Promise<void>;
   joinRoom: (roomId: string) => Promise<void>;
   leaveRoom: (roomId: string) => Promise<void>;
-  sendMessage: (roomId: string, content: string) => Promise<void>;
+  deleteRoom: (roomId: string) => Promise<void>;
+  addMember: (roomId: string, userId: string) => Promise<void>;
+  removeMember: (roomId: string, userId: string) => Promise<void>;
+  sendMessage: (roomId: string, content: string, attachments?: string[]) => Promise<void>;
   loadMessages: (roomId: string) => Promise<void>;
   loadMembers: (roomId: string) => Promise<void>;
   addMessage: (message: Message) => void;
@@ -127,7 +130,44 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
 
-  sendMessage: async (roomId: string, content: string) => {
+  deleteRoom: async (roomId: string) => {
+    try {
+      await apiService.deleteRoom(roomId);
+      socketService.leaveRoom(roomId);
+
+      const rooms = get().rooms.filter((r) => r.id !== roomId);
+      set({ rooms });
+
+      if (get().currentRoom?.id === roomId) {
+        set({ currentRoom: null });
+      }
+    } catch (error: any) {
+      set({ error: error.response?.data?.error || 'Failed to delete room' });
+      throw error;
+    }
+  },
+
+  addMember: async (roomId: string, userId: string) => {
+    try {
+      await apiService.addRoomMember(roomId, userId);
+      await get().loadMembers(roomId);
+    } catch (error: any) {
+      set({ error: error.response?.data?.error || 'Failed to add member' });
+      throw error;
+    }
+  },
+
+  removeMember: async (roomId: string, userId: string) => {
+    try {
+      await apiService.removeRoomMember(roomId, userId);
+      await get().loadMembers(roomId);
+    } catch (error: any) {
+      set({ error: error.response?.data?.error || 'Failed to remove member' });
+      throw error;
+    }
+  },
+
+  sendMessage: async (roomId: string, content: string, attachments?: string[]) => {
     try {
       const roomKey = get().roomKeys.get(roomId);
       if (!roomKey) {
@@ -137,8 +177,21 @@ export const useChatStore = create<ChatState>((set, get) => ({
       // Encrypt message
       const encryptedContent = await cryptoService.encryptRoomMessage(content, roomKey);
 
+      // Determine message type based on attachments
+      let messageType = 'text';
+      if (attachments && attachments.length > 0) {
+        const firstAttachment = attachments[0];
+        if (firstAttachment.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
+          messageType = 'image';
+        } else if (firstAttachment.match(/\.(mp4|webm|ogg)$/i)) {
+          messageType = 'video';
+        } else {
+          messageType = 'file';
+        }
+      }
+
       // Send via socket
-      socketService.sendMessage(roomId, encryptedContent);
+      socketService.sendMessage(roomId, encryptedContent, messageType, attachments);
     } catch (error: any) {
       set({ error: error.message || 'Failed to send message' });
       throw error;
