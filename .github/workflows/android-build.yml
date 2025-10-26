@@ -121,6 +121,19 @@ jobs:
           echo "::notice::Android project already exists, proceeding with build..."
         fi
 
+    - name: Fix Android Gradle files for monorepo structure
+      working-directory: ./packages/android/android
+      run: |
+        echo "Fixing settings.gradle for workspace node_modules..."
+        # Replace node_modules path in settings.gradle to use workspace root
+        sed -i "s|new File(rootProject.projectDir, '../node_modules')|new File(rootProject.projectDir, '../../../node_modules')|g" settings.gradle
+
+        echo "Fixing app/build.gradle for workspace node_modules..."
+        # Replace node_modules paths in app/build.gradle
+        sed -i "s|new File(rootProject.projectDir, '../node_modules')|new File(rootProject.projectDir, '../../../node_modules')|g" app/build.gradle
+
+        echo "✓ Gradle files updated for monorepo structure"
+
     - name: Create android assets directory and bundle JS
       working-directory: ./packages/android
       run: |
