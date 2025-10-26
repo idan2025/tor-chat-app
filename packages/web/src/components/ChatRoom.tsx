@@ -43,9 +43,16 @@ export default function ChatRoom() {
       // Upload files if any
       let attachments: string[] = [];
       if (selectedFiles.length > 0) {
-        const uploadPromises = selectedFiles.map((file) => apiService.uploadFile(file));
-        const uploadResults = await Promise.all(uploadPromises);
-        attachments = uploadResults.map((result) => result.file.url);
+        try {
+          const uploadPromises = selectedFiles.map((file) => apiService.uploadFile(file));
+          const uploadResults = await Promise.all(uploadPromises);
+          attachments = uploadResults.map((result) => result.file.url);
+        } catch (uploadError: any) {
+          setUploadingFiles(false);
+          const errorMsg = uploadError.response?.data?.error || 'Failed to upload file';
+          alert(`Upload failed: ${errorMsg}`);
+          return;
+        }
       }
 
       // Send message with attachments
@@ -53,8 +60,9 @@ export default function ChatRoom() {
       setMessageInput('');
       setSelectedFiles([]);
       setUploadingFiles(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to send message:', error);
+      alert('Failed to send message');
       setUploadingFiles(false);
     }
   };
@@ -64,6 +72,13 @@ export default function ChatRoom() {
       return URL.createObjectURL(file);
     }
     return null;
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
   };
 
   if (!currentRoom) {
@@ -185,15 +200,21 @@ export default function ChatRoom() {
             {selectedFiles.map((file, index) => {
               const preview = getFilePreview(file);
               return (
-                <div key={index} className="relative">
+                <div key={index} className="relative group">
                   {preview ? (
-                    <img
-                      src={preview}
-                      alt={file.name}
-                      className="w-20 h-20 object-cover rounded border border-gray-600"
-                    />
+                    <div className="relative">
+                      <img
+                        src={preview}
+                        alt={file.name}
+                        className="w-24 h-24 object-cover rounded border border-gray-600"
+                      />
+                      <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-75 text-white text-xs p-1 rounded-b">
+                        <div className="truncate">{file.name}</div>
+                        <div className="text-gray-300">{formatFileSize(file.size)}</div>
+                      </div>
+                    </div>
                   ) : (
-                    <div className="w-20 h-20 flex flex-col items-center justify-center bg-gray-700 rounded border border-gray-600">
+                    <div className="w-24 h-24 flex flex-col items-center justify-center bg-gray-700 rounded border border-gray-600 p-2">
                       <svg
                         className="w-8 h-8 text-gray-400"
                         fill="none"
@@ -207,15 +228,16 @@ export default function ChatRoom() {
                           d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
                         />
                       </svg>
-                      <span className="text-xs text-gray-400 mt-1 truncate max-w-full px-1">
-                        {file.name.split('.').pop()}
+                      <span className="text-xs text-gray-400 mt-1 truncate max-w-full text-center">
+                        {file.name}
                       </span>
+                      <span className="text-xs text-gray-500">{formatFileSize(file.size)}</span>
                     </div>
                   )}
                   <button
                     type="button"
                     onClick={() => handleRemoveFile(index)}
-                    className="absolute -top-2 -right-2 w-5 h-5 bg-red-600 hover:bg-red-700 text-white rounded-full flex items-center justify-center text-xs"
+                    className="absolute -top-2 -right-2 w-6 h-6 bg-red-600 hover:bg-red-700 text-white rounded-full flex items-center justify-center text-sm font-bold shadow-lg"
                   >
                     ×
                   </button>
