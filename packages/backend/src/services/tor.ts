@@ -77,11 +77,35 @@ export class TorService {
   private readHiddenServiceHostname(): void {
     try {
       const hostnameFile = path.join(config.tor.hiddenServiceDir, 'hostname');
+      logger.info(`Checking for .onion address at: ${hostnameFile}`);
+
       if (fs.existsSync(hostnameFile)) {
         this.hiddenServiceHostname = fs.readFileSync(hostnameFile, 'utf8').trim();
-        logger.info(`Hidden service available at: ${this.hiddenServiceHostname}`);
+        logger.info(`╔════════════════════════════════════════════════════════════════╗`);
+        logger.info(`║  TOR HIDDEN SERVICE ACTIVE                                     ║`);
+        logger.info(`║  .onion address: ${this.hiddenServiceHostname.padEnd(40)} ║`);
+        logger.info(`╚════════════════════════════════════════════════════════════════╝`);
       } else {
-        logger.debug('Hidden service hostname file not found (normal when using external TOR container)');
+        logger.warn('Hidden service hostname file not found at expected location');
+        logger.info('This is normal when using external TOR container - checking periodically...');
+
+        // Retry reading the hostname file every 5 seconds for up to 60 seconds
+        let attempts = 0;
+        const maxAttempts = 12;
+        const retryInterval = setInterval(() => {
+          attempts++;
+          if (fs.existsSync(hostnameFile)) {
+            this.hiddenServiceHostname = fs.readFileSync(hostnameFile, 'utf8').trim();
+            logger.info(`╔════════════════════════════════════════════════════════════════╗`);
+            logger.info(`║  TOR HIDDEN SERVICE ACTIVE                                     ║`);
+            logger.info(`║  .onion address: ${this.hiddenServiceHostname.padEnd(40)} ║`);
+            logger.info(`╚════════════════════════════════════════════════════════════════╝`);
+            clearInterval(retryInterval);
+          } else if (attempts >= maxAttempts) {
+            logger.warn('Could not find .onion hostname after 60 seconds');
+            clearInterval(retryInterval);
+          }
+        }, 5000);
       }
     } catch (error) {
       logger.error('Failed to read hidden service hostname:', error);
