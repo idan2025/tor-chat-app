@@ -125,7 +125,9 @@ async function start(): Promise<void> {
 
     // Check TOR connection with retry logic
     if (config.tor.enabled) {
-      retryTorConnection();
+      retryTorConnection().catch((error) => {
+        logger.error('Fatal error in TOR connection retry:', error);
+      });
     }
 
     // Start server
@@ -144,7 +146,15 @@ async function start(): Promise<void> {
 async function shutdown(): Promise<void> {
   logger.info('Shutting down gracefully...');
   try {
-    server.close();
+    // Close HTTP server
+    await new Promise<void>((resolve, reject) => {
+      server.close((err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+
+    // Close database connection
     await closeDatabase();
     logger.info('Server shut down successfully');
     process.exit(0);
@@ -156,6 +166,19 @@ async function shutdown(): Promise<void> {
 
 process.on('SIGTERM', shutdown);
 process.on('SIGINT', shutdown);
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
+  logger.error('Unhandled Promise Rejection:', reason);
+  // Don't exit the process, just log the error
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error: Error) => {
+  logger.error('Uncaught Exception:', error);
+  // For critical errors, gracefully shutdown
+  shutdown();
+});
 
 // Start server
 start();
