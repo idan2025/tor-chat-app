@@ -1,4 +1,4 @@
-import express, { Response, NextFunction } from 'express';
+import express, { Response } from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -59,7 +59,7 @@ const upload = multer({
  * POST /api/upload
  * Upload a file
  */
-router.post('/', authenticateToken, (req: AuthRequest, res: Response, next: express.NextFunction) => {
+router.post('/', authenticateToken, (req: AuthRequest, res: Response) => {
   upload.single('file')(req, res, (err) => {
     if (err) {
       if (err instanceof multer.MulterError) {
