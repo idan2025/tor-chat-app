@@ -33,7 +33,7 @@ services:
       DB_NAME: torchat
       DB_USER: toruser
       DB_PASSWORD: torpass
-      JWT_SECRET: ${JWT_SECRET:-change-this-to-a-secure-random-string-min-32-chars}
+      JWT_SECRET: ${JWT_SECRET:-2nh/smP4XNvfRHthxSpRRS9z3wk7At/C1ex02kzc7q/e0cs/YzrbgII82ERqgJib8mr4yUYehGWqQbkIKUN4hQ==}
       JWT_EXPIRES_IN: 24h
       BCRYPT_ROUNDS: 12
       TOR_SOCKS_HOST: tor
