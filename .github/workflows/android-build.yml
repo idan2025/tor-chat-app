@@ -53,6 +53,22 @@ jobs:
       working-directory: ./packages/android
       run: npm install
 
+    - name: Create metro config
+      working-directory: ./packages/android
+      run: |
+        cat > metro.config.js << 'EOF'
+        const {getDefaultConfig, mergeConfig} = require('@react-native/metro-config');
+        const path = require('path');
+
+        const config = {
+          projectRoot: __dirname,
+          watchFolders: [__dirname],
+        };
+
+        module.exports = mergeConfig(getDefaultConfig(__dirname), config);
+        EOF
+        echo "Metro config created"
+
     - name: Initialize Android project if needed
       working-directory: ./packages/android
       run: |
@@ -69,19 +85,35 @@ jobs:
           # Move android directory to correct location
           mv TorChatAndroid/android .
 
+          # Copy package.json to keep dependencies
+          cp package.json android_package.json.bak
+
           # Clean up temporary files
           rm -rf TorChatAndroid
+
+          # Restore package.json
+          mv android_package.json.bak package.json
 
           echo "::notice::Android project initialized successfully"
         else
           echo "::notice::Android project already exists, proceeding with build..."
         fi
 
-    - name: Create android assets directory
+    - name: Create android assets directory and bundle JS
       working-directory: ./packages/android
       run: |
         mkdir -p android/app/src/main/assets
         echo "Android assets directory ready"
+
+        # Bundle JavaScript and assets
+        npx react-native bundle \
+          --platform android \
+          --dev false \
+          --entry-file index.js \
+          --bundle-output android/app/src/main/assets/index.android.bundle \
+          --assets-dest android/app/src/main/res
+
+        echo "JavaScript bundle created successfully"
 
     - name: Cache Gradle packages
       uses: actions/cache@v3
