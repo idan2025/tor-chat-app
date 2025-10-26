@@ -25,7 +25,7 @@ export default function ChatPage() {
   }, [currentRoom]);
 
   return (
-    <div className="flex h-screen bg-gray-900 overflow-hidden">
+    <div className="flex h-screen bg-gray-900 overflow-hidden" style={{ height: '100dvh' }}>
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
