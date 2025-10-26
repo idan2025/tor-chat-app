@@ -11,7 +11,7 @@ const router = express.Router();
 
 const registerSchema = z.object({
   username: z.string().min(3).max(50),
-  email: z.string().email(),
+  email: z.string().email().optional(),
   password: z.string().min(8).max(100),
   displayName: z.string().max(100).optional(),
 });
@@ -30,9 +30,14 @@ router.post('/register', validateBody(registerSchema), async (req: Request, res:
     const { username, email, password, displayName } = req.body;
 
     // Check if user already exists
+    const whereConditions: any[] = [{ username }];
+    if (email) {
+      whereConditions.push({ email });
+    }
+
     const existingUser = await User.findOne({
       where: {
-        [Op.or]: [{ username }, { email }],
+        [Op.or]: whereConditions,
       },
     });
 
@@ -40,6 +45,10 @@ router.post('/register', validateBody(registerSchema), async (req: Request, res:
       res.status(409).json({ error: 'Username or email already exists' });
       return;
     }
+
+    // Check if this is the first user (make them admin)
+    const userCount = await User.count();
+    const isFirstUser = userCount === 0;
 
     // Generate encryption keypair
     const keyPair = await cryptoService.generateKeyPair();
@@ -50,19 +59,24 @@ router.post('/register', validateBody(registerSchema), async (req: Request, res:
     // Create user
     const user = await User.create({
       username,
-      email,
+      email: email || undefined,
       passwordHash,
       publicKey: keyPair.publicKey,
       privateKeyEncrypted: keyPair.privateKey, // In production, encrypt this with user's password
       displayName: displayName || username,
       isOnline: false,
       lastSeen: new Date(),
+      isAdmin: isFirstUser, // First user becomes admin
     });
 
     // Generate JWT token
     const token = generateToken(user.id);
 
-    logger.info(`New user registered: ${username}`);
+    if (isFirstUser) {
+      logger.info(`First user registered as ADMIN: ${username}`);
+    } else {
+      logger.info(`New user registered: ${username}`);
+    }
 
     res.status(201).json({
       message: 'User registered successfully',

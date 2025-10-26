@@ -1,12 +1,13 @@
 export interface User {
   id: string;
   username: string;
-  email: string;
+  email?: string;
   displayName?: string;
   avatar?: string;
   publicKey: string;
   isOnline: boolean;
   lastSeen: Date;
+  isAdmin: boolean;
 }
 
 export interface Room {
@@ -27,8 +28,9 @@ export interface Message {
   roomId: string;
   sender: User;
   encryptedContent: string;
-  messageType: 'text' | 'file' | 'image' | 'system';
+  messageType: 'text' | 'file' | 'image' | 'video' | 'system';
   metadata?: Record<string, any>;
+  attachments?: string[];
   createdAt: Date;
 }
 

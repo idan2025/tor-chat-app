@@ -6,8 +6,9 @@ interface MessageAttributes {
   roomId: string;
   senderId: string;
   encryptedContent: string;
-  messageType: 'text' | 'file' | 'image' | 'system';
+  messageType: 'text' | 'file' | 'image' | 'video' | 'system';
   metadata?: object;
+  attachments?: string[];
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -19,8 +20,9 @@ export class Message extends Model<MessageAttributes, MessageCreationAttributes>
   declare roomId: string;
   declare senderId: string;
   declare encryptedContent: string;
-  declare messageType: 'text' | 'file' | 'image' | 'system';
+  declare messageType: 'text' | 'file' | 'image' | 'video' | 'system';
   declare metadata?: object;
+  declare attachments?: string[];
 
   declare readonly createdAt: Date;
   declare readonly updatedAt: Date;
@@ -54,12 +56,16 @@ Message.init(
       allowNull: false,
     },
     messageType: {
-      type: DataTypes.ENUM('text', 'file', 'image', 'system'),
+      type: DataTypes.ENUM('text', 'file', 'image', 'video', 'system'),
       defaultValue: 'text',
       allowNull: false,
     },
     metadata: {
       type: DataTypes.JSONB,
+      allowNull: true,
+    },
+    attachments: {
+      type: DataTypes.ARRAY(DataTypes.TEXT),
       allowNull: true,
     },
   },

@@ -6,7 +6,7 @@ import { config } from '../config';
 interface UserAttributes {
   id: string;
   username: string;
-  email: string;
+  email?: string;
   passwordHash: string;
   publicKey: string;
   privateKeyEncrypted?: string;
@@ -14,6 +14,7 @@ interface UserAttributes {
   avatar?: string;
   isOnline: boolean;
   lastSeen: Date;
+  isAdmin: boolean;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -23,7 +24,7 @@ interface UserCreationAttributes extends Optional<UserAttributes, 'id' | 'isOnli
 export class User extends Model<UserAttributes, UserCreationAttributes> implements UserAttributes {
   declare id: string;
   declare username: string;
-  declare email: string;
+  declare email?: string;
   declare passwordHash: string;
   declare publicKey: string;
   declare privateKeyEncrypted?: string;
@@ -31,6 +32,7 @@ export class User extends Model<UserAttributes, UserCreationAttributes> implemen
   declare avatar?: string;
   declare isOnline: boolean;
   declare lastSeen: Date;
+  declare isAdmin: boolean;
 
   declare readonly createdAt: Date;
   declare readonly updatedAt: Date;
@@ -78,7 +80,7 @@ User.init(
     },
     email: {
       type: DataTypes.STRING(255),
-      allowNull: false,
+      allowNull: true,
       unique: true,
       validate: {
         isEmail: true,
@@ -112,6 +114,11 @@ User.init(
       type: DataTypes.DATE,
       defaultValue: DataTypes.NOW,
     },
+    isAdmin: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+      allowNull: false,
+    },
   },
   {
     sequelize,
@@ -120,6 +127,7 @@ User.init(
     indexes: [
       { fields: ['username'] },
       { fields: ['email'] },
+      { fields: ['isAdmin'] },
     ],
   }
 );

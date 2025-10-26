@@ -12,6 +12,7 @@ import { logger } from './utils/logger';
 // Import routes
 import authRoutes from './routes/auth';
 import roomRoutes from './routes/rooms';
+import adminRoutes from './routes/admin';
 
 // Import models to ensure they are registered
 import './models';
@@ -67,6 +68,7 @@ app.get('/api/tor-status', async (_req, res) => {
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/rooms', roomRoutes);
+app.use('/api/admin', adminRoutes);
 
 // 404 handler
 app.use((_req, res) => {

@@ -285,7 +285,7 @@ router.get('/:id/messages', authenticateToken, async (req: AuthRequest, res: Res
  */
 router.get('/:id/members', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
-    const { id } = req.params;
+    const { id} = req.params;
 
     const members = await RoomMember.findAll({
       where: { roomId: id },
@@ -302,6 +302,162 @@ router.get('/:id/members', authenticateToken, async (req: AuthRequest, res: Resp
   } catch (error) {
     logger.error('Get members error:', error);
     res.status(500).json({ error: 'Failed to get members' });
+  }
+});
+
+/**
+ * DELETE /api/rooms/:id
+ * Delete a room (creator or admin only)
+ */
+router.delete('/:id', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const room = await Room.findByPk(id);
+
+    if (!room) {
+      res.status(404).json({ error: 'Room not found' });
+      return;
+    }
+
+    const user = await User.findByPk(req.userId!);
+
+    // Check if user is creator or admin
+    if (room.creatorId !== req.userId && !user?.isAdmin) {
+      res.status(403).json({ error: 'Only room creator or admin can delete this room' });
+      return;
+    }
+
+    // Delete all room members and messages
+    await RoomMember.destroy({ where: { roomId: id } });
+    await Message.destroy({ where: { roomId: id } });
+    await room.destroy();
+
+    logger.info(`Room ${id} deleted by user ${req.userId}`);
+
+    res.json({ message: 'Room deleted successfully' });
+  } catch (error) {
+    logger.error('Delete room error:', error);
+    res.status(500).json({ error: 'Failed to delete room' });
+  }
+});
+
+/**
+ * POST /api/rooms/:id/members
+ * Add a member to a room (private rooms only, creator or admin)
+ */
+router.post('/:id/members', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { userId } = req.body;
+
+    if (!userId) {
+      res.status(400).json({ error: 'userId is required' });
+      return;
+    }
+
+    const room = await Room.findByPk(id);
+
+    if (!room) {
+      res.status(404).json({ error: 'Room not found' });
+      return;
+    }
+
+    // Check if requester is creator or admin
+    const requester = await User.findByPk(req.userId!);
+    const isCreator = room.creatorId === req.userId;
+    const membership = await RoomMember.findOne({
+      where: { roomId: id, userId: req.userId! },
+    });
+
+    if (!isCreator && membership?.role !== 'admin' && !requester?.isAdmin) {
+      res.status(403).json({ error: 'Only room creator or admin can add members' });
+      return;
+    }
+
+    // Check if user exists
+    const userToAdd = await User.findByPk(userId);
+    if (!userToAdd) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    // Check if already a member
+    const existingMember = await RoomMember.findOne({
+      where: { roomId: id, userId },
+    });
+
+    if (existingMember) {
+      res.status(409).json({ error: 'User is already a member' });
+      return;
+    }
+
+    // Add member
+    await RoomMember.create({
+      roomId: id,
+      userId,
+      role: 'member',
+    });
+
+    logger.info(`User ${userId} added to room ${id} by ${req.userId}`);
+
+    res.json({ message: 'Member added successfully' });
+  } catch (error) {
+    logger.error('Add member error:', error);
+    res.status(500).json({ error: 'Failed to add member' });
+  }
+});
+
+/**
+ * DELETE /api/rooms/:id/members/:userId
+ * Remove a member from a room (creator or admin only)
+ */
+router.delete('/:id/members/:userId', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id, userId } = req.params;
+
+    const room = await Room.findByPk(id);
+
+    if (!room) {
+      res.status(404).json({ error: 'Room not found' });
+      return;
+    }
+
+    // Check if requester is creator or admin
+    const requester = await User.findByPk(req.userId!);
+    const isCreator = room.creatorId === req.userId;
+    const membership = await RoomMember.findOne({
+      where: { roomId: id, userId: req.userId! },
+    });
+
+    if (!isCreator && membership?.role !== 'admin' && !requester?.isAdmin) {
+      res.status(403).json({ error: 'Only room creator or admin can remove members' });
+      return;
+    }
+
+    // Can't remove creator
+    if (userId === room.creatorId) {
+      res.status(403).json({ error: 'Cannot remove room creator' });
+      return;
+    }
+
+    const memberToRemove = await RoomMember.findOne({
+      where: { roomId: id, userId },
+    });
+
+    if (!memberToRemove) {
+      res.status(404).json({ error: 'User is not a member of this room' });
+      return;
+    }
+
+    await memberToRemove.destroy();
+
+    logger.info(`User ${userId} removed from room ${id} by ${req.userId}`);
+
+    res.json({ message: 'Member removed successfully' });
+  } catch (error) {
+    logger.error('Remove member error:', error);
+    res.status(500).json({ error: 'Failed to remove member' });
   }
 });
 
