@@ -56,9 +56,13 @@ jobs:
         npm install
         echo "Verifying critical dependencies..."
         node -e "
-          const pkg = require('./package.json');
+          const fs = require('fs');
+          const path = require('path');
           const critical = ['@babel/runtime', 'react-native', 'react'];
-          const missing = critical.filter(dep => !require.resolve(dep));
+          const missing = critical.filter(dep => {
+            const depPath = path.join('node_modules', dep);
+            return !fs.existsSync(depPath);
+          });
           if (missing.length > 0) {
             console.error('Missing critical dependencies:', missing);
             process.exit(1);
