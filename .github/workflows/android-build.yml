@@ -96,21 +96,23 @@ jobs:
     - name: Make gradlew executable
       working-directory: ./packages/android/android
       run: chmod +x gradlew
-      continue-on-error: true
 
     - name: Build Debug APK
       working-directory: ./packages/android/android
-      run: ./gradlew assembleDebug
-      continue-on-error: true
+      run: ./gradlew assembleDebug --stacktrace
 
     - name: Build Release APK
       working-directory: ./packages/android/android
-      run: ./gradlew assembleRelease
+      run: ./gradlew assembleRelease --stacktrace
       env:
         SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
         SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
         SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
-      continue-on-error: true
+
+    - name: List APK outputs
+      run: |
+        echo "Checking for APK files..."
+        find packages/android/android/app/build/outputs/apk -name "*.apk" -type f || echo "No APK files found"
 
     - name: Upload Debug APK
       uses: actions/upload-artifact@v4
@@ -118,21 +120,32 @@ jobs:
         name: app-debug
         path: packages/android/android/app/build/outputs/apk/debug/app-debug.apk
         retention-days: 30
-      continue-on-error: true
+        if-no-files-found: warn
 
     - name: Upload Release APK
       uses: actions/upload-artifact@v4
       with:
         name: app-release
-        path: packages/android/android/app/build/outputs/apk/release/app-release.apk
+        path: packages/android/android/app/build/outputs/apk/release/app-release*.apk
         retention-days: 30
-      continue-on-error: true
+        if-no-files-found: error
+
+    - name: Verify APK exists for release
+      if: startsWith(github.ref, 'refs/tags/v')
+      run: |
+        if [ ! -f packages/android/android/app/build/outputs/apk/release/app-release-unsigned.apk ] && [ ! -f packages/android/android/app/build/outputs/apk/release/app-release.apk ]; then
+          echo "Error: Release APK not found!"
+          ls -la packages/android/android/app/build/outputs/apk/release/ || true
+          exit 1
+        fi
+        echo "Release APK found successfully"
 
     - name: Upload APK to Release
       if: startsWith(github.ref, 'refs/tags/v')
       uses: softprops/action-gh-release@v1
       with:
-        files: packages/android/android/app/build/outputs/apk/release/app-release.apk
+        files: |
+          packages/android/android/app/build/outputs/apk/release/app-release*.apk
+        fail_on_unmatched_files: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      continue-on-error: true
