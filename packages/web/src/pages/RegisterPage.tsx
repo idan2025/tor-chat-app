@@ -20,11 +20,11 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900">
-      <div className="w-full max-w-md p-8 space-y-6 bg-gray-800 rounded-lg shadow-2xl">
+    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 p-4">
+      <div className="w-full max-w-md p-6 md:p-8 space-y-4 md:space-y-6 bg-gray-800 rounded-lg shadow-2xl">
         <div className="text-center">
-          <h1 className="text-4xl font-bold text-white mb-2">TOR Chat</h1>
-          <p className="text-gray-400">Create a Secure Account</p>
+          <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">TOR Chat</h1>
+          <p className="text-sm md:text-base text-gray-400">Create a Secure Account</p>
         </div>
 
         {error && (
