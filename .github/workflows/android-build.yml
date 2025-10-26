@@ -125,12 +125,23 @@ jobs:
           echo "::notice::Android project already exists, proceeding with build..."
         fi
 
-    - name: Verify Android Gradle setup
+    - name: Update Android SDK versions
       working-directory: ./packages/android/android
       run: |
-        echo "Verifying Gradle files are ready for build..."
-        ls -la ../node_modules | head -5
-        echo "✓ Gradle setup verified (using symlinked node_modules)"
+        echo "Updating compileSdkVersion and targetSdkVersion for compatibility..."
+        # Update compileSdkVersion to 34 (latest)
+        sed -i 's/compileSdkVersion = .*/compileSdkVersion = 34/' app/build.gradle
+        sed -i 's/compileSdk .*/compileSdk 34/' app/build.gradle
+
+        # Update targetSdkVersion to 34
+        sed -i 's/targetSdkVersion = .*/targetSdkVersion = 34/' app/build.gradle
+        sed -i 's/targetSdk .*/targetSdk 34/' app/build.gradle
+
+        # Update minSdkVersion to 24 (required by React Native 0.73)
+        sed -i 's/minSdkVersion = .*/minSdkVersion = 24/' app/build.gradle
+        sed -i 's/minSdk .*/minSdk 24/' app/build.gradle
+
+        echo "✓ SDK versions updated (compileSdk: 34, targetSdk: 34, minSdk: 24)"
 
     - name: Create android assets directory and bundle JS
       working-directory: ./packages/android
