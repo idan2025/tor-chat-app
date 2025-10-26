@@ -75,10 +75,20 @@ jobs:
       run: |
         cat > metro.config.js << 'EOF'
         const {getDefaultConfig, mergeConfig} = require('@react-native/metro-config');
+        const path = require('path');
 
         const config = {
           projectRoot: __dirname,
-          watchFolders: [__dirname],
+          watchFolders: [
+            __dirname,
+            path.resolve(__dirname, '../..'),
+          ],
+          resolver: {
+            nodeModulesPaths: [
+              path.resolve(__dirname, 'node_modules'),
+              path.resolve(__dirname, '../../node_modules'),
+            ],
+          },
         };
 
         module.exports = mergeConfig(getDefaultConfig(__dirname), config);
