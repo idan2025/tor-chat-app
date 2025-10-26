@@ -124,13 +124,19 @@ jobs:
     - name: Fix Android Gradle files for monorepo structure
       working-directory: ./packages/android/android
       run: |
+        echo "Checking settings.gradle content before fix..."
+        grep -n "node_modules" settings.gradle || echo "No node_modules references found in settings.gradle"
+
         echo "Fixing settings.gradle for workspace node_modules..."
-        # Replace node_modules path in settings.gradle to use workspace root
-        sed -i "s|new File(rootProject.projectDir, '../node_modules')|new File(rootProject.projectDir, '../../../node_modules')|g" settings.gradle
+        # Replace all ../node_modules references with ../../../node_modules
+        sed -i "s|../node_modules|../../../node_modules|g" settings.gradle
+
+        echo "Checking settings.gradle content after fix..."
+        grep -n "node_modules" settings.gradle || echo "No node_modules references found in settings.gradle"
 
         echo "Fixing app/build.gradle for workspace node_modules..."
-        # Replace node_modules paths in app/build.gradle
-        sed -i "s|new File(rootProject.projectDir, '../node_modules')|new File(rootProject.projectDir, '../../../node_modules')|g" app/build.gradle
+        # Replace all ../node_modules references with ../../../node_modules
+        sed -i "s|../node_modules|../../../node_modules|g" app/build.gradle
 
         echo "✓ Gradle files updated for monorepo structure"
 
