@@ -51,7 +51,30 @@ jobs:
 
     - name: Install dependencies
       working-directory: ./packages/android
-      run: npm install
+      run: |
+        echo "Installing dependencies..."
+        npm install
+        echo "Verifying critical dependencies..."
+        node -e "
+          const pkg = require('./package.json');
+          const critical = ['@babel/runtime', 'react-native', 'react'];
+          const missing = critical.filter(dep => !require.resolve(dep));
+          if (missing.length > 0) {
+            console.error('Missing critical dependencies:', missing);
+            process.exit(1);
+          }
+          console.log('✓ All critical dependencies installed');
+        "
+
+    - name: Verify babel configuration
+      working-directory: ./packages/android
+      run: |
+        if [ ! -f "babel.config.js" ]; then
+          echo "Error: babel.config.js not found!"
+          exit 1
+        fi
+        echo "✓ babel.config.js exists"
+        cat babel.config.js
 
     - name: Create metro config
       working-directory: ./packages/android
@@ -63,11 +86,14 @@ jobs:
         const config = {
           projectRoot: __dirname,
           watchFolders: [__dirname],
+          resolver: {
+            nodeModulesPaths: [path.resolve(__dirname, 'node_modules')],
+          },
         };
 
         module.exports = mergeConfig(getDefaultConfig(__dirname), config);
         EOF
-        echo "Metro config created"
+        echo "✓ Metro config created"
 
     - name: Initialize Android project if needed
       working-directory: ./packages/android
@@ -102,18 +128,33 @@ jobs:
     - name: Create android assets directory and bundle JS
       working-directory: ./packages/android
       run: |
+        echo "Creating assets directory..."
         mkdir -p android/app/src/main/assets
-        echo "Android assets directory ready"
 
-        # Bundle JavaScript and assets
+        echo "Verifying entry file exists..."
+        if [ ! -f "index.js" ]; then
+          echo "Error: index.js not found!"
+          exit 1
+        fi
+        echo "✓ Entry file exists"
+
+        echo "Bundling JavaScript and assets..."
         npx react-native bundle \
           --platform android \
           --dev false \
           --entry-file index.js \
           --bundle-output android/app/src/main/assets/index.android.bundle \
-          --assets-dest android/app/src/main/res
+          --assets-dest android/app/src/main/res \
+          --verbose
 
-        echo "JavaScript bundle created successfully"
+        echo "Verifying bundle was created..."
+        if [ ! -f "android/app/src/main/assets/index.android.bundle" ]; then
+          echo "Error: Bundle file was not created!"
+          exit 1
+        fi
+
+        BUNDLE_SIZE=$(wc -c < android/app/src/main/assets/index.android.bundle)
+        echo "✓ JavaScript bundle created successfully (${BUNDLE_SIZE} bytes)"
 
     - name: Cache Gradle packages
       uses: actions/cache@v3
@@ -125,17 +166,44 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-gradle-
 
-    - name: Make gradlew executable
+    - name: Verify Gradle setup
       working-directory: ./packages/android/android
-      run: chmod +x gradlew
+      run: |
+        echo "Checking Gradle wrapper..."
+        if [ ! -f "gradlew" ]; then
+          echo "Error: gradlew not found!"
+          exit 1
+        fi
+        echo "✓ Gradle wrapper exists"
+
+        echo "Making gradlew executable..."
+        chmod +x gradlew
+        echo "✓ gradlew is executable"
+
+        echo "Verifying build.gradle files..."
+        if [ ! -f "build.gradle" ]; then
+          echo "Error: Root build.gradle not found!"
+          exit 1
+        fi
+        if [ ! -f "app/build.gradle" ]; then
+          echo "Error: App build.gradle not found!"
+          exit 1
+        fi
+        echo "✓ Build files verified"
 
     - name: Build Debug APK
       working-directory: ./packages/android/android
-      run: ./gradlew assembleDebug --stacktrace
+      run: |
+        echo "Starting Debug APK build..."
+        ./gradlew assembleDebug --stacktrace --info
+        echo "✓ Debug APK build completed"
 
     - name: Build Release APK
       working-directory: ./packages/android/android
-      run: ./gradlew assembleRelease --stacktrace
+      run: |
+        echo "Starting Release APK build..."
+        ./gradlew assembleRelease --stacktrace --info
+        echo "✓ Release APK build completed"
       env:
         SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
         SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
