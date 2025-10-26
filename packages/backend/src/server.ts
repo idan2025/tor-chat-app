@@ -177,7 +177,7 @@ process.on('SIGTERM', shutdown);
 process.on('SIGINT', shutdown);
 
 // Handle unhandled promise rejections
-process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
+process.on('unhandledRejection', (reason: any, _promise: Promise<any>) => {
   logger.error('Unhandled Promise Rejection:', reason);
   logger.error('Stack:', reason?.stack);
   // Don't exit the process, just log the error to allow recovery
