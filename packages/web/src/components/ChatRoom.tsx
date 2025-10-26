@@ -81,6 +81,20 @@ export default function ChatRoom() {
     return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
   };
 
+  // Sanitize URLs to prevent XSS
+  const sanitizeUrl = (url: string): string => {
+    try {
+      const parsedUrl = new URL(url, window.location.origin);
+      // Only allow http, https, and blob URLs
+      if (['http:', 'https:', 'blob:'].includes(parsedUrl.protocol)) {
+        return url;
+      }
+    } catch {
+      // Invalid URL
+    }
+    return '#';
+  };
+
   if (!currentRoom) {
     return (
       <div className="flex-1 flex items-center justify-center">
@@ -156,14 +170,16 @@ export default function ChatRoom() {
                     const isVideo = attachment.match(/\.(mp4|webm|ogg)$/i);
                     const fileName = attachment.split('/').pop() || 'file';
 
+                    const safeUrl = sanitizeUrl(attachment);
+
                     if (isImage) {
                       return (
                         <div key={idx}>
                           <img
-                            src={attachment}
+                            src={safeUrl}
                             alt="Attachment"
                             className="max-w-sm rounded border border-gray-600 cursor-pointer hover:opacity-90"
-                            onClick={() => window.open(attachment, '_blank')}
+                            onClick={() => window.open(safeUrl, '_blank', 'noopener,noreferrer')}
                           />
                         </div>
                       );
@@ -171,7 +187,7 @@ export default function ChatRoom() {
                       return (
                         <div key={idx}>
                           <video
-                            src={attachment}
+                            src={safeUrl}
                             controls
                             className="max-w-sm rounded border border-gray-600"
                           />
@@ -181,7 +197,7 @@ export default function ChatRoom() {
                       return (
                         <a
                           key={idx}
-                          href={attachment}
+                          href={safeUrl}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="flex items-center space-x-2 px-3 py-2 bg-gray-700 rounded hover:bg-gray-600 transition max-w-sm"

@@ -30,7 +30,7 @@
     "uuid": "^10.0.0",
     "zod": "^3.25.76",
     "winston": "^3.11.0",
-    "multer": "^1.4.5-lts.1"
+    "multer": "^2.0.2"
   },
   "devDependencies": {
     "@types/express": "^4.17.24",
