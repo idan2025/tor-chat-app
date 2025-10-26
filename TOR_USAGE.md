@@ -1,64 +1,115 @@
-# Using TOR Chat with Full Tor Network Routing
+# TOR Chat - Hassle-Free Tor-Grade Security
 
-This app provides **Tor-grade security** for anonymous, encrypted communication. The backend is exposed as a Tor hidden service (.onion address), and you can route all traffic through the Tor network.
+This app provides **Tor-grade security for everyone** - whether you use a regular browser or Tor Browser. The app is accessible both ways, and all messages are end-to-end encrypted.
 
-## Current Architecture
+## Dual Access: Regular Network + Tor Network
 
-### Without Tor Browser (Default)
+**TOR Chat is accessible TWO ways:**
+
+### 1. Regular Browsers (Chrome, Brave, Firefox, etc.)
 ```
-Client → nginx:5173 → backend:3000 (regular HTTP/WebSocket)
-- ✅ End-to-end encryption (messages encrypted with room keys)
-- ❌ NOT routed through Tor network
-- ❌ IP addresses visible
-```
-
-### With Tor Browser (Full Anonymity)
-```
-Client → Tor Network → .onion address → backend:3000
-- ✅ End-to-end encryption
-- ✅ Fully routed through Tor network
-- ✅ IP addresses hidden
-- ✅ Anonymous access
+Access: http://localhost:5173
+✅ Works instantly, no setup
+✅ Messages fully encrypted
+✅ Perfect for regular users
 ```
 
-## How to Use with Full Tor Routing
-
-### Step 1: Find Your .onion Address
-
-After running `docker compose up`, check the backend logs for your .onion address:
-
-```bash
-docker compose logs backend | grep "onion"
+### 2. Tor Browser (Maximum Anonymity)
+```
+Access: http://your-web-app.onion
+✅ IP address hidden
+✅ Fully anonymous
+✅ Censorship-resistant
+✅ Messages fully encrypted
 ```
 
-You should see:
+**Both groups can message each other seamlessly!** A user on a regular browser can chat with a user on Tor Browser - they'll never know the difference.
+
+## Architecture
+
+### Dual .onion Addresses
+
+Your app has **TWO** .onion addresses:
+
+1. **Web App .onion** - Access the chat interface via Tor
+2. **Backend API .onion** - API accessible via Tor
+
+Both are automatically created when you start the app.
+
+### How Messages Flow
+
+**Regular Browser User ↔ Tor Browser User:**
 ```
-╔════════════════════════════════════════════════════════════════╗
-║  TOR HIDDEN SERVICE ACTIVE                                     ║
-║  .onion address: abc123xyz456.onion                            ║
-╚════════════════════════════════════════════════════════════════╝
+User A (Chrome, localhost:5173)
+  → nginx
+  → backend
+  → nginx
+  → User B (Tor Browser, xyz.onion)
 ```
 
-### Step 2: Use Tor Browser
+- ✅ Messages are **end-to-end encrypted** with room keys
+- ✅ Both users can send/receive flawlessly
+- ✅ Tor users get full anonymity
+- ✅ Regular users get instant access
 
-1. **Download Tor Browser**: https://www.torproject.org/download/
+## Getting Started
 
-2. **Access your .onion address**:
+### For Regular Users (No Setup Required)
+
+1. Start the app:
+   ```bash
+   docker compose up -d
    ```
-   http://your-onion-address.onion:3000
+
+2. Open your browser:
+   ```
+   http://localhost:5173
    ```
 
-3. **All traffic now routed through Tor!**
-   - Your IP is hidden
-   - Connection is anonymous
-   - Messages still end-to-end encrypted
+3. Register and start chatting!
+   - ✅ Instant access
+   - ✅ Messages fully encrypted
+   - ✅ Chat with anyone (Tor or regular)
 
-### Step 3: Share the .onion Address
+### For Tor Users (Maximum Anonymity)
 
-- Give your .onion address to users who want to connect
-- They must use Tor Browser to access it
-- No port forwarding or public IP needed
-- Works anywhere in the world anonymously
+1. Start the app (same as above):
+   ```bash
+   docker compose up -d
+   ```
+
+2. Find your .onion addresses:
+   ```bash
+   docker compose logs backend | grep -A 6 "TOR HIDDEN SERVICES"
+   ```
+
+   You'll see:
+   ```
+   ╔════════════════════════════════════════════════════════════════════╗
+   ║                  TOR HIDDEN SERVICES ACTIVE                        ║
+   ╠════════════════════════════════════════════════════════════════════╣
+   ║  Backend API:  http://abc123backend.onion                          ║
+   ║  Web App:      http://xyz789webapp.onion                           ║
+   ╚════════════════════════════════════════════════════════════════════╝
+   ```
+
+3. Download **Tor Browser**: https://www.torproject.org/download/
+
+4. Access your **Web App .onion** address in Tor Browser
+
+5. Register and chat with full anonymity!
+   - ✅ IP address hidden
+   - ✅ Fully anonymous
+   - ✅ Works anywhere
+   - ✅ No port forwarding needed
+
+### Sharing with Friends
+
+**For regular users:** Share `http://your-server-ip:5173`
+
+**For Tor users:** Share the **Web App .onion** address
+
+Both can chat together seamlessly!
 
 ## Tor Network Benefits
 

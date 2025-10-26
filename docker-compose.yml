@@ -66,11 +66,19 @@ services:
     depends_on:
       backend:
         condition: service_started
+      web:
+        condition: service_started
     environment:
+      # Backend API hidden service
       SERVICE1_TOR_SERVICE_HOSTS: "80:backend:3000"
+      # Web app hidden service
+      SERVICE2_TOR_SERVICE_HOSTS: "80:web:80"
+      # SOCKS proxy for backend to route traffic through Tor
       TOR_SOCKS_PORT: "0.0.0.0:9050"
     volumes:
       - tor_data:/var/lib/tor/hidden_service
+    ports:
+      - "9050:9050"  # Expose SOCKS proxy for local testing
     networks:
       - torchat-network
     restart: unless-stopped
