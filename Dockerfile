@@ -23,8 +23,8 @@ RUN npm run build
 # Production stage
 FROM node:18-alpine
 
-# Install TOR and build dependencies for native modules
-RUN apk add --no-cache tor python3 make g++
+# Install TOR, wget (for health check), and build dependencies for native modules
+RUN apk add --no-cache tor wget python3 make g++
 
 WORKDIR /app
 
@@ -56,7 +56,7 @@ EXPOSE 3000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3000/health', (r) => {r.resume(); process.exit(r.statusCode === 200 ? 0 : 1)}).on('error', () => process.exit(1))"
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
 
 # Start server
 CMD ["node", "dist/server.js"]

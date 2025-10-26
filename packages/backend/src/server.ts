@@ -136,6 +136,15 @@ async function start(): Promise<void> {
       logger.info(`Environment: ${config.env}`);
       logger.info(`TOR enabled: ${config.tor.enabled}`);
     });
+
+    // Handle server errors
+    server.on('error', (error: any) => {
+      logger.error('Server error:', error);
+      if (error.code === 'EADDRINUSE') {
+        logger.error(`Port ${config.port} is already in use`);
+        process.exit(1);
+      }
+    });
   } catch (error) {
     logger.error('Failed to start server:', error);
     process.exit(1);
@@ -170,14 +179,16 @@ process.on('SIGINT', shutdown);
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
   logger.error('Unhandled Promise Rejection:', reason);
-  // Don't exit the process, just log the error
+  logger.error('Stack:', reason?.stack);
+  // Don't exit the process, just log the error to allow recovery
 });
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (error: Error) => {
   logger.error('Uncaught Exception:', error);
-  // For critical errors, gracefully shutdown
-  shutdown();
+  logger.error('Stack:', error.stack);
+  // Don't exit - log and continue to allow the process to recover
+  // Only critical errors in Node.js internals should crash the process
 });
 
 // Start server
