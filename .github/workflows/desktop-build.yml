@@ -102,7 +102,7 @@ jobs:
 
     - name: Upload to Release (Linux)
       if: runner.os == 'Linux' && startsWith(github.ref, 'refs/tags/v')
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
         files: |
           packages/desktop/out/make/**/*.deb
@@ -113,7 +113,7 @@ jobs:
 
     - name: Upload to Release (Windows)
       if: runner.os == 'Windows' && startsWith(github.ref, 'refs/tags/v')
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
         files: |
           packages/desktop/out/make/**/*.exe
@@ -123,7 +123,7 @@ jobs:
 
     - name: Upload to Release (macOS)
       if: runner.os == 'macOS' && startsWith(github.ref, 'refs/tags/v')
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
         files: |
           packages/desktop/out/make/**/*.dmg
