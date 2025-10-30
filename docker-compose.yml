@@ -44,7 +44,11 @@ services:
       RATE_LIMIT_WINDOW_MS: 900000
       RATE_LIMIT_MAX_REQUESTS: 100
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-*}
-      LOG_LEVEL: info
+      # Logging Configuration (privacy-focused)
+      # Set ENABLE_LOGGING=false for complete zero-logging mode (maximum privacy)
+      # Set ENABLE_LOGGING=true for standard logging (development/debugging)
+      ENABLE_LOGGING: ${ENABLE_LOGGING:-true}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
     ports:
       - "3000:3000"
     volumes:

@@ -38,6 +38,7 @@ If you do not agree with this disclaimer, **DO NOT USE THIS SOFTWARE**.
 
 - **End-to-End Encryption (E2EE)**: All messages encrypted with libsodium
 - **TOR Integration**: Complete anonymity via TOR hidden services
+- **Zero-Logging Mode**: Optional complete logging disable for maximum privacy
 - **Chat Rooms**: Create and join encrypted chat rooms
 - **Multi-Platform**: WebUI, Desktop (Windows/macOS/Linux), and Android
 - **Real-time Communication**: WebSocket-based instant messaging
@@ -167,6 +168,25 @@ HIDDEN_SERVICE_DIR=/var/lib/tor/hidden_service
 - bcrypt password hashing (12 rounds)
 - JWT tokens with short expiration
 - Optional 2FA support
+
+### Zero-Logging Mode
+
+For maximum privacy, the application supports complete logging disable:
+
+- **Environment Variable**: `ENABLE_LOGGING=false`
+- **Effect**: NO logs created anywhere (console, files, etc.)
+- **Use Case**: High-security TOR deployments where logging could compromise anonymity
+- **Documentation**: See [ZERO_LOGGING.md](ZERO_LOGGING.md) for details
+
+```bash
+# Deploy with zero-logging for maximum privacy
+ENABLE_LOGGING=false docker-compose up -d
+
+# Or set in .env file
+echo "ENABLE_LOGGING=false" >> packages/backend/.env
+```
+
+**Privacy Warning**: When `ENABLE_LOGGING=false`, absolutely NO logs are created. This means no debugging, no error logs, no audit trails. Use only when privacy is more critical than observability.
 
 ## Project Structure
 

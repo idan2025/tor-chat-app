@@ -46,6 +46,7 @@ export const config = {
 
   logging: {
     level: process.env.LOG_LEVEL || 'info',
+    enabled: process.env.ENABLE_LOGGING !== 'false', // Default to enabled, set to 'false' to disable all logging
   },
 };
 
