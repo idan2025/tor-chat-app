@@ -231,6 +231,40 @@ export class TorService {
   }
 
   /**
+   * Check if TOR is connected (alias for isReady)
+   */
+  public isConnected(): boolean {
+    return this.isReady();
+  }
+
+  /**
+   * Get recommended timeout for TOR requests
+   *
+   * @returns Timeout in milliseconds (60 seconds for TOR)
+   */
+  public getTimeout(): number {
+    return 60000; // 60 seconds - TOR is slow
+  }
+
+  /**
+   * Format onion address to full URL
+   *
+   * @param onionAddress - Raw onion address (with or without .onion)
+   * @returns Formatted HTTP URL (e.g., "http://abc123.onion")
+   */
+  public formatOnionUrl(onionAddress: string): string {
+    const cleanAddress = onionAddress.trim().toLowerCase();
+
+    // Add .onion suffix if missing
+    const fullAddress = cleanAddress.endsWith('.onion')
+      ? cleanAddress
+      : `${cleanAddress}.onion`;
+
+    // Return HTTP URL (TOR provides encryption)
+    return `http://${fullAddress}`;
+  }
+
+  /**
    * Wait for TOR bootstrap to complete
    *
    * Monitors bootstrap progress until it reaches 100% or times out.
