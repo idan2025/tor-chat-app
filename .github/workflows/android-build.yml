@@ -4,6 +4,13 @@ on:
   push:
     tags:
       - 'v*.*.*'
+    paths:
+      - 'packages/android/**'
+      - '.github/workflows/android-build.yml'
+  pull_request:
+    paths:
+      - 'packages/android/**'
+      - '.github/workflows/android-build.yml'
   workflow_dispatch:
   workflow_call:
 
@@ -11,6 +18,7 @@ jobs:
   build:
     name: Build Android APK
     runs-on: ubuntu-latest
+    timeout-minutes: 45
 
     steps:
     - name: Checkout code
@@ -33,6 +41,8 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: '20.x'
+        cache: 'npm'
+        cache-dependency-path: 'packages/android/package.json'
 
     - name: Update package.json version
       working-directory: ./packages/android
@@ -175,14 +185,25 @@ jobs:
         echo "✓ JavaScript bundle created successfully (${BUNDLE_SIZE} bytes)"
 
     - name: Cache Gradle packages
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: |
           ~/.gradle/caches
           ~/.gradle/wrapper
-        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          ~/.android/build-cache
+        key: ${{ runner.os }}-gradle-${{ hashFiles('packages/android/android/**/*.gradle*', 'packages/android/android/gradle/wrapper/gradle-wrapper.properties') }}
         restore-keys: |
           ${{ runner.os }}-gradle-
+
+    - name: Cache Metro bundler
+      uses: actions/cache@v4
+      with:
+        path: |
+          packages/android/.metro-cache
+          packages/android/node_modules/.cache
+        key: ${{ runner.os }}-metro-${{ hashFiles('packages/android/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-metro-
 
     - name: Verify Gradle setup
       working-directory: ./packages/android/android
@@ -213,24 +234,42 @@ jobs:
       working-directory: ./packages/android/android
       run: |
         echo "Starting Debug APK build..."
-        ./gradlew assembleDebug --stacktrace --info
+        ./gradlew assembleDebug --stacktrace --build-cache --parallel --max-workers=4
         echo "✓ Debug APK build completed"
+      env:
+        GRADLE_OPTS: -Dorg.gradle.jvmargs="-Xmx4096m -XX:MaxMetaspaceSize=1024m"
 
     - name: Build Release APK
       working-directory: ./packages/android/android
       run: |
         echo "Starting Release APK build..."
-        ./gradlew assembleRelease --stacktrace --info
+        ./gradlew assembleRelease --stacktrace --build-cache --parallel --max-workers=4
         echo "✓ Release APK build completed"
       env:
+        GRADLE_OPTS: -Dorg.gradle.jvmargs="-Xmx4096m -XX:MaxMetaspaceSize=1024m"
         SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
         SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
         SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+
+    - name: Generate build info
+      if: success()
+      working-directory: ./packages/android/android
+      run: |
+        echo "=== Build Information ===" > build-info.txt
+        echo "Build Date: $(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> build-info.txt
+        echo "Git Commit: ${{ github.sha }}" >> build-info.txt
+        echo "Git Ref: ${{ github.ref }}" >> build-info.txt
+        echo "Version: ${{ steps.version.outputs.version }}" >> build-info.txt
+        echo "========================" >> build-info.txt
+        cat build-info.txt
 
     - name: List APK outputs
       run: |
         echo "Checking for APK files..."
         find packages/android/android/app/build/outputs/apk -name "*.apk" -type f || echo "No APK files found"
+        echo ""
+        echo "APK sizes:"
+        find packages/android/android/app/build/outputs/apk -name "*.apk" -type f -exec ls -lh {} \;
 
     - name: Upload Debug APK
       uses: actions/upload-artifact@v4

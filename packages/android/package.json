@@ -1,31 +1,57 @@
 {
   "name": "@tor-chat/android",
   "version": "0.1.2",
-  "description": "TOR Chat Android App",
+  "description": "TOR Chat Android App with Integrated TOR Support",
   "license": "MIT",
   "main": "index.js",
   "scripts": {
     "android": "react-native run-android",
-    "ios": "react-native run-ios",
+    "android:debug": "react-native run-android --variant=debug",
+    "android:release": "react-native run-android --variant=release",
     "start": "react-native start",
+    "start:reset": "react-native start --reset-cache",
+    "build:debug": "cd android && ./gradlew assembleDebug",
+    "build:release": "cd android && ./gradlew assembleRelease",
+    "clean": "cd android && ./gradlew clean",
+    "bundle:android": "npx react-native bundle --platform android --dev false --entry-file index.js --bundle-output android/app/src/main/assets/index.android.bundle --assets-dest android/app/src/main/res",
     "test": "jest",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "type-check": "tsc --noEmit"
   },
   "dependencies": {
     "react": "18.2.0",
     "react-native": "0.73.0",
+    "@babel/runtime": "^7.23.5",
+
     "@react-navigation/native": "^7.1.19",
     "@react-navigation/native-stack": "^7.6.0",
+    "@react-navigation/bottom-tabs": "^7.0.0",
     "react-native-screens": "^4.4.0",
     "react-native-safe-area-context": "^4.8.2",
-    "socket.io-client": "^4.7.2",
-    "axios": "^1.6.2",
+
     "zustand": "^4.5.7",
     "@react-native-async-storage/async-storage": "^1.21.0",
+
+    "socket.io-client": "^4.7.2",
+    "axios": "^1.6.2",
+
+    "react-native-iptproxy": "^1.0.0",
+
     "react-native-sodium": "^0.3.9",
+
     "react-native-toast-message": "^2.2.0",
+    "react-native-document-picker": "^9.1.0",
+    "react-native-image-picker": "^7.1.0",
+    "react-native-fast-image": "^8.6.3",
+    "react-native-video": "^6.0.0",
+
+    "react-native-push-notification": "^8.1.1",
+    "@react-native-community/push-notification-ios": "^1.11.0",
+
+    "react-native-permissions": "^4.0.0",
+
     "date-fns": "^3.6.0",
-    "@babel/runtime": "^7.23.5"
+    "react-native-vector-icons": "^10.0.3"
   },
   "devDependencies": {
     "@babel/core": "^7.23.5",
@@ -43,5 +69,9 @@
     "prettier": "^3.1.1",
     "react-test-renderer": "18.2.0",
     "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
   }
 }
