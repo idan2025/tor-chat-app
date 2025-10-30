@@ -55,6 +55,15 @@ router.post('/', authenticateToken, validateBody(createRoomSchema), async (req: 
 
     const { name, description, type, maxMembers } = req.body;
 
+    // Only admins can create public rooms
+    if (type === 'public') {
+      const user = await User.findByPk(req.userId);
+      if (!user?.isAdmin) {
+        res.status(403).json({ error: 'Only admins can create public rooms' });
+        return;
+      }
+    }
+
     // Generate room encryption key
     const encryptionKey = await cryptoService.generateRoomKey();
 
@@ -308,6 +317,7 @@ router.get('/:id/members', authenticateToken, async (req: AuthRequest, res: Resp
 /**
  * DELETE /api/rooms/:id
  * Delete a room (creator or admin only)
+ * For private channels: only the creator can delete (other members cannot)
  */
 router.delete('/:id', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
@@ -322,9 +332,14 @@ router.delete('/:id', authenticateToken, async (req: AuthRequest, res: Response)
 
     const user = await User.findByPk(req.userId!);
 
-    // Check if user is creator or admin
+    // Check if user is creator or global admin
+    // For private channels, only the creator (or global admin for moderation) can delete
+    // Regular members who were invited/added cannot delete
     if (room.creatorId !== req.userId && !user?.isAdmin) {
-      res.status(403).json({ error: 'Only room creator or admin can delete this room' });
+      const errorMsg = room.type === 'private'
+        ? 'Only the creator can delete this private channel'
+        : 'Only room creator or admin can delete this room';
+      res.status(403).json({ error: errorMsg });
       return;
     }
 

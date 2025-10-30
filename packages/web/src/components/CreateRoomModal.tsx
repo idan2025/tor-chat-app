@@ -1,14 +1,18 @@
 import { useState } from 'react';
 import { useChatStore } from '../store/chatStore';
+import { useAuthStore } from '../store/authStore';
 
 interface Props {
   onClose: () => void;
 }
 
 export default function CreateRoomModal({ onClose }: Props) {
+  const { user } = useAuthStore();
+  const isAdmin = user?.isAdmin || false;
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [type, setType] = useState<'public' | 'private'>('public');
+  // Default to private for non-admin users, public for admins
+  const [type, setType] = useState<'public' | 'private'>(isAdmin ? 'public' : 'private');
   const { createRoom, error, isLoading } = useChatStore();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -65,9 +69,14 @@ export default function CreateRoomModal({ onClose }: Props) {
               onChange={(e) => setType(e.target.value as 'public' | 'private')}
               className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded focus:outline-none focus:border-purple-500 text-white"
             >
-              <option value="public">Public</option>
+              {isAdmin && <option value="public">Public</option>}
               <option value="private">Private</option>
             </select>
+            {!isAdmin && (
+              <p className="mt-2 text-sm text-gray-400">
+                Only admins can create public rooms
+              </p>
+            )}
           </div>
 
           <div className="flex space-x-3">
