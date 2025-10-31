@@ -35,8 +35,6 @@
     "socket.io-client": "^4.7.2",
     "axios": "^1.6.2",
 
-    "react-native-iptproxy": "^1.0.0",
-
     "react-native-sodium": "^0.3.9",
 
     "react-native-toast-message": "^2.2.0",

@@ -49,7 +49,7 @@ jobs:
 
     strategy:
       matrix:
-        language: [ 'javascript', 'typescript' ]
+        language: [ 'typescript' ]
 
     steps:
     - name: Checkout code
