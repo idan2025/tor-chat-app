@@ -1,7 +1,7 @@
 import express, { Request, Response } from 'express';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
-import { auth } from '../middleware/auth';
+import { authenticateToken } from '../middleware/auth';
 
 const router = express.Router();
 
@@ -47,12 +47,13 @@ const extractYouTubeVideoId = (url: string): string | undefined => {
  * Privacy Note: This endpoint should be configured to route requests through TOR
  * to maintain user privacy when fetching external content.
  */
-router.post('/', auth, async (req: Request, res: Response) => {
+router.post('/', authenticateToken, async (req: Request, res: Response): Promise<void> => {
   try {
     const { url } = req.body;
 
     if (!url) {
-      return res.status(400).json({ error: 'URL is required' });
+      res.status(400).json({ error: 'URL is required' });
+      return;
     }
 
     // Validate URL format
@@ -60,25 +61,28 @@ router.post('/', auth, async (req: Request, res: Response) => {
     try {
       parsedUrl = new URL(url);
     } catch (error) {
-      return res.status(400).json({ error: 'Invalid URL format' });
+      res.status(400).json({ error: 'Invalid URL format' });
+      return;
     }
 
     // Only allow HTTP and HTTPS protocols
     if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
-      return res.status(400).json({ error: 'Only HTTP and HTTPS URLs are allowed' });
+      res.status(400).json({ error: 'Only HTTP and HTTPS URLs are allowed' });
+      return;
     }
 
     // Special handling for YouTube
     if (isYouTubeURL(url)) {
       const videoId = extractYouTubeVideoId(url);
       if (videoId) {
-        return res.json({
+        res.json({
           url,
           title: `YouTube Video`,
           image: `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`,
           siteName: 'YouTube',
           videoId,
         });
+        return;
       }
     }
 
@@ -136,12 +140,14 @@ router.post('/', auth, async (req: Request, res: Response) => {
 
     if (axios.isAxiosError(error)) {
       if (error.code === 'ECONNABORTED') {
-        return res.status(408).json({ error: 'Request timeout' });
+        res.status(408).json({ error: 'Request timeout' });
+        return;
       }
       if (error.response) {
-        return res.status(error.response.status).json({
+        res.status(error.response.status).json({
           error: `Failed to fetch URL: ${error.response.statusText}`,
         });
+        return;
       }
     }
 
