@@ -1,26 +1,28 @@
 # TOR Chat App - Complete Project Status
 
 > **Last Updated**: October 31, 2025
-> **Session**: Android App Redesign - Phase 4 Complete
-> **Overall Progress**: 87.5% Complete (Phases 1, 2, 3 & 4 of 6 phases done)
+> **Session**: Android App Redesign - Phase 5 Complete
+> **Overall Progress**: 95% Complete (Phases 1, 2, 3, 4 & 5 of 6 phases done)
 
 ---
 
 ## Quick Resume Points
 
 **If continuing from here:**
-1. Phases 1, 2, 3 & 4 (Foundation, Chat Core, Rich Features, Admin Panel) are COMPLETE
-2. Phase 3: file uploads, image viewer, reactions, link previews (19 files) - COMMITTED
-3. Phase 4: admin panel, reply/edit/delete/forward messages (13 files) - NEEDS COMMIT
-4. Backend requires: admin API endpoints + message edit/delete + Socket.IO events
-5. Ready to commit Phase 4, then start Phase 5 (Notifications) or test Phase 4
+1. Phases 1-5 (Foundation, Chat Core, Rich Features, Admin Panel, Notifications) are COMPLETE
+2. Phase 3: file uploads, reactions, link previews - COMMITTED (v0.1.2)
+3. Phase 4: admin panel, reply/edit/delete/forward - COMMITTED (1ca826b)
+4. Phase 5: local notifications, badges, settings - NEEDS COMMIT
+5. Backend requires: All Phase 3-4-5 API endpoints + Socket.IO events
+6. Ready to commit Phase 5, then start Phase 6 (Testing & Polish)
 
 **Current Branch**: `main`
-**Last Commit**: `92078c2` - "Phase 3 - Rich features with file uploads, reactions, and link previews"
+**Last Commit**: `1ca826b` - "Phase 4 - Admin panel and advanced message features"
 **Previous Commits**:
+- `92078c2` - "Phase 3 - Rich features with file uploads, reactions, and link previews" (v0.1.2)
 - `8fdae86` - "Phase 2 - Complete chat core with real-time messaging and E2E encryption"
 - `c2b6df8` - "Phase 1 - Complete foundation with TOR integration and multi-server support"
-**Pending Work**: Phase 4 code needs testing and commit, then Phase 5 (Notifications)
+**Pending Work**: Phase 5 code needs testing and commit, then Phase 6 (Testing & Polish)
 
 ---
 
@@ -488,20 +490,64 @@ ENABLE_LOGGING=true docker-compose up -d
 
 ---
 
-## 📋 Pending Work
+### ✅ Phase 5: Notifications & Background Service (COMPLETE - October 31, 2025)
+**Completed**: October 31, 2025
+**Status**: 100% Complete - 7 files created/modified, ~1,006 lines of code
 
-### Phase 5: Notifications (Not Started)
-**Estimated**: 3-4 days
+**What Was Built:**
+
+1. **NotificationService** (`src/services/NotificationService.ts` - 367 lines)
+   - Local push notifications only (no Firebase/FCM)
+   - Notification channels: chat-messages, mentions, room-invites
+   - Badge count management
+   - Permission handling (Android 13+ & iOS)
+   - Methods: showMessageNotification, showMentionNotification, showInviteNotification
 
 **Features:**
-- react-native-push-notification setup
-- Local notifications (no Firebase)
-- Notification on new message
-- Notification on room invite
-- Tap to navigate to room
-- Background service
+- Message notifications (app in background or not viewing room)
+- Mention notifications (@username with high priority)
+- Room invite notifications
+- Tap-to-navigate with deep linking
+- Unread badge counts (per room and total)
+- Sound & vibration control
 
-**Files to Create**: ~3-4 files
+2. **NotificationSettingsScreen** (353 lines)
+   - Complete user preferences UI
+   - Settings: Enable/Disable, Sound, Vibration, Mentions-Only, Do Not Disturb
+   - Permission request for Android 13+
+   - Clear all notifications, Reset to defaults
+   - Settings persistence via AsyncStorage
+
+3. **Chat Integration**
+   - chatStore: +150 lines (unread counts, badge updates, notification triggers)
+   - App.tsx: +70 lines (initialization, tap handler, AppState listener)
+   - Mention detection in messages (@username)
+   - Settings respect (DND mode, Mentions-Only mode)
+
+4. **Android Configuration**
+   - AndroidManifest.xml: +3 lines (RECEIVE_BOOT_COMPLETED permission)
+   - ic_notification.xml: Notification icon for status bar
+
+**Files Created**: 4 new files
+**Files Modified**: 3 existing files
+**Documentation**: PHASE5_COMPLETE.md, PHASE_5_NOTIFICATIONS_SUMMARY.md, + 2 more guides
+
+**Privacy:**
+- 100% local notifications (no external servers)
+- No Firebase/FCM
+- TOR network not bypassed
+- E2E encryption preserved
+
+#### Phase 5 Status
+- ✅ All code written and ready
+- ✅ Documentation complete (PHASE5_COMPLETE.md + 3 more docs)
+- ❌ Not yet committed to git
+- ❌ Not yet tested on devices
+- ❌ Android 13+ permissions not yet tested
+
+---
+
+## 📋 Pending Work
 
 ### Phase 6: Testing & Polish (Not Started)
 **Estimated**: 1 week
@@ -848,10 +894,10 @@ docker-compose logs -f backend
 ## Summary
 
 **Project**: TOR Chat App - Privacy-focused encrypted chat
-**Current Phase**: Android Phases 1, 2, 3 & 4 Complete (87.5% overall)
-**Next Phase**: Test Phase 4, implement backend APIs, then Phase 5 - Notifications
+**Current Phase**: Android Phases 1-5 Complete (95% overall)
+**Next Phase**: Test Phase 5, implement backend APIs, then Phase 6 - Testing & Polish
 **Blockers**: None - ready to test and continue
-**Uncommitted Work**: Phase 4 - 13 files created/modified, needs testing then commit
+**Uncommitted Work**: Phase 5 - 7 files created/modified, needs testing then commit
 
 **Phase 3 Implementation Complete** (Committed - v0.1.2):
 - ✅ File & Image uploads (FileService - 560 lines)
@@ -862,7 +908,7 @@ docker-compose logs -f backend
 - ✅ Complete documentation (PHASE3_COMPLETE.md)
 - **Total Phase 3**: ~3,000 lines, 10 new files, 9 modified files
 
-**Phase 4 Implementation Complete** (Needs Commit):
+**Phase 4 Implementation Complete** (Committed - 1ca826b):
 - ✅ Admin Panel (AdminScreen, AdminUsersScreen, AdminRoomsScreen - 1,355 lines)
 - ✅ Admin Components (AdminCard, UserListItem - 352 lines)
 - ✅ Reply to messages with preview
@@ -872,13 +918,24 @@ docker-compose logs -f backend
 - ✅ Complete documentation (PHASE4_COMPLETE.md + 2 more docs)
 - **Total Phase 4**: ~3,500 lines, 6 new files, 7 modified files
 
-**Combined Stats**: ~6,500 lines of code added in Phases 3 & 4
+**Phase 5 Implementation Complete** (Needs Commit):
+- ✅ NotificationService (Local push notifications - 367 lines)
+- ✅ NotificationSettingsScreen (User preferences - 353 lines)
+- ✅ Message & mention notifications with @username detection
+- ✅ Tap-to-navigate with deep linking
+- ✅ Unread badge counts (per room and total)
+- ✅ Do Not Disturb mode, Mentions-Only mode
+- ✅ 100% local (no Firebase), privacy-preserving
+- ✅ Complete documentation (PHASE5_COMPLETE.md + 3 more docs)
+- **Total Phase 5**: ~1,006 lines, 4 new files, 3 modified files
+
+**Combined Stats**: ~7,506 lines of code added in Phases 3, 4 & 5
 
 **All work fully documented. Can resume from any point.**
 
 ---
 
-**Document Version**: 1.3
+**Document Version**: 1.4
 **Last Updated**: October 31, 2025
-**Status**: Phases 1, 2, 3 & 4 Complete, Ready for Commit and Testing
+**Status**: Phases 1, 2, 3, 4 & 5 Complete, Ready for Commit and Testing
 **Location**: `/home/idan/Projects/tor-chat-app/PROJECT_STATUS.md`

@@ -18,6 +18,7 @@
  */
 
 import { create } from 'zustand';
+import { AppState } from 'react-native';
 import {
   Room,
   Message,
@@ -44,8 +45,13 @@ import { apiService } from '../services/ApiService';
 import { socketService } from '../services/SocketService';
 import { cryptoService } from '../services/CryptoService';
 import { fileService, DocumentPickerResponse, ImageAsset } from '../services/FileService';
+import NotificationService from '../services/NotificationService';
 import { useServerStore } from './serverStore';
 import { detectURLs } from '../utils/urlDetector';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { NotificationSettings } from '../types/Notification';
+
+const NOTIFICATION_SETTINGS_KEY = '@notification_settings';
 
 /**
  * Pagination state for each room
@@ -126,10 +132,14 @@ interface ChatState {
   addTypingUser: (data: TypingUser) => void;
   removeTypingUser: (roomId: string, userId: string) => void;
 
-  // Unread counts
+  // Unread counts and notifications
   markRoomAsRead: (roomId: string) => void;
   incrementUnread: (roomId: string) => void;
   getUnreadCount: (roomId: string) => number;
+  getTotalUnreadCount: () => number;
+  clearUnreadCount: (roomId: string) => void;
+  incrementUnreadCount: (roomId: string) => void;
+  updateBadgeCount: () => void;
 
   // File upload actions
   uploadFile: (roomId: string, file: DocumentPickerResponse) => Promise<void>;
@@ -242,6 +252,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     // Mark room as read when entering
     if (roomId) {
       get().markRoomAsRead(roomId);
+      get().clearUnreadCount(roomId);
     }
   },
 
@@ -747,7 +758,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   /**
    * Handle new message from Socket.IO
    */
-  handleNewMessage: (socketMessage: SocketMessageEvent) => {
+  handleNewMessage: async (socketMessage: SocketMessageEvent) => {
     const message: Message = {
       id: socketMessage.id,
       roomId: socketMessage.roomId,
@@ -761,29 +772,75 @@ export const useChatStore = create<ChatState>((set, get) => ({
       isDecrypted: false,
     };
 
+    // Get current user
+    const activeServer = useServerStore.getState().activeServer;
+    const currentUserId = activeServer?.user?.id;
+
     // Decrypt message asynchronously
     const roomKey = get().roomKeys.get(message.roomId);
     if (roomKey) {
-      cryptoService
-        .decryptMessage(message.encryptedContent, roomKey)
-        .then((decrypted) => {
-          message.decryptedContent = decrypted;
-          message.isDecrypted = true;
-          get().addMessage(message);
-        })
-        .catch((error) => {
-          console.error('Failed to decrypt message:', error);
-          message.decryptedContent = '[Encrypted]';
-          message.decryptionError = error.message;
-          get().addMessage(message);
-        });
-    } else {
-      get().addMessage(message);
+      try {
+        const decrypted = await cryptoService.decryptMessage(message.encryptedContent, roomKey);
+        message.decryptedContent = decrypted;
+        message.isDecrypted = true;
+      } catch (error) {
+        console.error('Failed to decrypt message:', error);
+        message.decryptedContent = '[Encrypted]';
+        message.decryptionError = (error as Error).message;
+      }
     }
 
-    // Increment unread count if not in the room
-    if (get().currentRoomId !== message.roomId) {
-      get().incrementUnread(message.roomId);
+    get().addMessage(message);
+
+    // Check if should show notification
+    const appState = AppState.currentState;
+    const isInRoom = get().currentRoomId === message.roomId;
+    const isOwnMessage = message.sender.id === currentUserId;
+    const shouldNotify = (appState !== 'active' || !isInRoom) && !isOwnMessage;
+
+    if (shouldNotify && message.decryptedContent) {
+      // Load notification settings
+      let notificationSettings: NotificationSettings | null = null;
+      try {
+        const stored = await AsyncStorage.getItem(NOTIFICATION_SETTINGS_KEY);
+        if (stored) {
+          notificationSettings = JSON.parse(stored);
+        }
+      } catch (error) {
+        console.error('[ChatStore] Failed to load notification settings:', error);
+      }
+
+      // Find room name
+      const room = get().rooms.find(r => r.id === message.roomId);
+      const roomName = room?.name || 'Unknown Room';
+
+      // Get current user info
+      const currentUser = activeServer?.user;
+
+      // Check for mentions
+      const isMentioned = currentUser && message.decryptedContent.includes(`@${currentUser.username}`);
+
+      if (isMentioned) {
+        NotificationService.showMentionNotification(
+          roomName,
+          message.sender.username,
+          message.decryptedContent,
+          message.roomId,
+          message.id,
+          notificationSettings || undefined
+        );
+      } else {
+        NotificationService.showMessageNotification(
+          roomName,
+          message.sender.username,
+          message.decryptedContent,
+          message.roomId,
+          message.id,
+          notificationSettings || undefined
+        );
+      }
+
+      get().incrementUnreadCount(message.roomId);
     }
 
     // Update room's last message
@@ -895,6 +952,63 @@ export const useChatStore = create<ChatState>((set, get) => ({
    */
   getUnreadCount: (roomId: string) => {
     return get().unreadCounts.get(roomId) || 0;
+  },
+
+  /**
+   * Get total unread count across all rooms
+   */
+  getTotalUnreadCount: () => {
+    const { unreadCounts } = get();
+    return Array.from(unreadCounts.values()).reduce((a, b) => a + b, 0);
+  },
+
+  /**
+   * Clear unread count for a room
+   */
+  clearUnreadCount: (roomId: string) => {
+    const { unreadCounts } = get();
+    unreadCounts.set(roomId, 0);
+
+    set({
+      unreadCounts: new Map(unreadCounts),
+      rooms: get().rooms.map((room) =>
+        room.id === roomId ? { ...room, unreadCount: 0 } : room
+      ),
+    });
+
+    // Update badge
+    get().updateBadgeCount();
+  },
+
+  /**
+   * Increment unread count for a room (used by notifications)
+   */
+  incrementUnreadCount: (roomId: string) => {
+    const { currentRoomId, unreadCounts } = get();
+
+    // Don't increment if user is viewing the room
+    if (currentRoomId === roomId) return;
+
+    const currentCount = unreadCounts.get(roomId) || 0;
+    unreadCounts.set(roomId, currentCount + 1);
+
+    set({
+      unreadCounts: new Map(unreadCounts),
+      rooms: get().rooms.map((room) =>
+        room.id === roomId ? { ...room, unreadCount: currentCount + 1 } : room
+      ),
+    });
+
+    // Update badge
+    get().updateBadgeCount();
+  },
+
+  /**
+   * Update the app badge count
+   */
+  updateBadgeCount: () => {
+    const totalUnread = get().getTotalUnreadCount();
+    NotificationService.setBadgeCount(totalUnread);
   },
 
   /**

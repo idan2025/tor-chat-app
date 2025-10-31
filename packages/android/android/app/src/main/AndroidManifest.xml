@@ -16,6 +16,9 @@
     <!-- Notification permissions (Android 13+) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!-- Boot completed for notification scheduling -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
     <!-- Wake lock for background operations -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
