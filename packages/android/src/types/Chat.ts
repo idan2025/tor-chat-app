@@ -108,6 +108,11 @@ export interface Message {
   createdAt: Date;
   updatedAt?: Date;
 
+  // Reply and edit features
+  replyTo?: Message; // Message being replied to
+  isEdited?: boolean; // Has been edited
+  editedAt?: string; // When it was edited
+
   // Client-side fields
   isDecrypted?: boolean;
   decryptionError?: string;
@@ -388,4 +393,60 @@ export function formatMessageTime(date: Date): string {
   } else {
     return messageDate.toLocaleDateString();
   }
+}
+
+/**
+ * Admin Panel Types
+ */
+
+/**
+ * Admin statistics for dashboard
+ */
+export interface AdminStats {
+  totalUsers: number;
+  totalRooms: number;
+  totalMessages: number;
+  todayMessages: number;
+  onlineUsers: number;
+  activeUsers: User[];
+  recentActivity?: Activity[];
+}
+
+/**
+ * Admin user information (extended from User)
+ */
+export interface AdminUser {
+  id: string;
+  username: string;
+  email: string;
+  isAdmin: boolean;
+  isBanned: boolean;
+  isOnline: boolean;
+  createdAt: string;
+  lastSeen?: string;
+}
+
+/**
+ * Admin room information
+ */
+export interface AdminRoom {
+  id: string;
+  name: string;
+  isPublic: boolean;
+  memberCount: number;
+  messageCount: number;
+  createdBy: string;
+  createdAt: string;
+}
+
+/**
+ * Activity log entry
+ */
+export interface Activity {
+  id: string;
+  type: 'user_join' | 'user_leave' | 'room_create' | 'room_delete' | 'message_delete';
+  userId: string;
+  username: string;
+  description: string;
+  timestamp: string;
 }

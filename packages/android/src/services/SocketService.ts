@@ -573,6 +573,21 @@ export class SocketService {
         useChatStore.getState().handleReactionUpdate(data);
       });
     });
+
+    // Message edit/delete events
+    this.socket.on('messageDeleted', (data: { messageId: string; roomId: string; deletedBy: string }) => {
+      // Import chatStore dynamically to avoid circular dependency
+      import('../store/chatStore').then(({ useChatStore }) => {
+        useChatStore.getState().handleMessageDeleted(data);
+      });
+    });
+
+    this.socket.on('messageEdited', (data: { messageId: string; roomId: string; content: string; editedAt: string }) => {
+      // Import chatStore dynamically to avoid circular dependency
+      import('../store/chatStore').then(({ useChatStore }) => {
+        useChatStore.getState().handleMessageEdited(data);
+      });
+    });
   }
 
   /**

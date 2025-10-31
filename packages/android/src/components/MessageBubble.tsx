@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Clipboard } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Clipboard, Linking } from 'react-native';
 import Toast from 'react-native-toast-message';
 import FastImage from 'react-native-fast-image';
 import { Message, MessageAttachment } from '../types/Chat';
@@ -115,28 +115,49 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   };
 
   const handleDelete = async () => {
-    // TODO: Implement delete in Phase 4
-    Toast.show({
-      type: 'info',
-      text1: 'Delete feature coming in Phase 4',
-      position: 'bottom',
-    });
+    try {
+      await chatStore.deleteMessage(message.id, message.roomId);
+      Toast.show({
+        type: 'success',
+        text1: 'Message deleted',
+        position: 'bottom',
+      });
+    } catch (error: any) {
+      Toast.show({
+        type: 'error',
+        text1: 'Failed to delete message',
+        text2: error.message,
+        position: 'bottom',
+      });
+    }
   };
 
   const handleReply = () => {
-    // TODO: Implement reply in Phase 4
+    chatStore.setReplyToMessage(message);
     Toast.show({
-      type: 'info',
-      text1: 'Reply feature coming in Phase 4',
+      type: 'success',
+      text1: 'Replying to message',
       position: 'bottom',
     });
   };
 
   const handleForward = () => {
-    // TODO: Implement forward in Phase 4
+    // Navigate to forward screen
+    // This will be handled by the parent navigation
     Toast.show({
       type: 'info',
-      text1: 'Forward feature coming in Phase 4',
+      text1: 'Forward feature',
+      text2: 'Select a room to forward this message',
+      position: 'bottom',
+    });
+  };
+
+  const handleEdit = () => {
+    chatStore.setEditingMessage(message);
+    Toast.show({
+      type: 'success',
+      text1: 'Edit mode',
+      text2: 'Update your message in the input field',
       position: 'bottom',
     });
   };
@@ -279,6 +300,21 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
               <Text style={styles.senderName}>{message.sender?.username || 'Unknown'}</Text>
             )}
 
+            {/* Reply Preview */}
+            {message.replyTo && (
+              <View style={styles.replyPreview}>
+                <View style={styles.replyBar} />
+                <View style={styles.replyContent}>
+                  <Text style={styles.replyUsername}>
+                    {message.replyTo.sender?.username || 'Unknown'}
+                  </Text>
+                  <Text style={styles.replyText} numberOfLines={2}>
+                    {message.replyTo.decryptedContent || '[Message]'}
+                  </Text>
+                </View>
+              </View>
+            )}
+
             <Text style={[styles.messageText, isOwnMessage && styles.messageTextOwn]}>
               {getMessageContent()}
             </Text>
@@ -290,6 +326,9 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
               <Text style={[styles.timestamp, isOwnMessage && styles.timestampOwn]}>
                 {formatTime(message.createdAt)}
               </Text>
+              {message.isEdited && (
+                <Text style={styles.editedBadge}>Edited</Text>
+              )}
               {isOwnMessage && (
                 <Text
                   style={[
@@ -327,6 +366,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         onCopy={handleCopy}
         onDelete={handleDelete}
         onForward={handleForward}
+        onEdit={handleEdit}
         isOwnMessage={isOwnMessage}
       />
     </>
@@ -486,6 +526,37 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#fff',
     fontWeight: '600',
+  },
+  replyPreview: {
+    flexDirection: 'row',
+    marginBottom: 8,
+    paddingLeft: 8,
+  },
+  replyBar: {
+    width: 3,
+    backgroundColor: '#7c3aed',
+    borderRadius: 2,
+    marginRight: 8,
+  },
+  replyContent: {
+    flex: 1,
+  },
+  replyUsername: {
+    color: '#7c3aed',
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  replyText: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 13,
+    fontStyle: 'italic',
+  },
+  editedBadge: {
+    color: '#999',
+    fontSize: 10,
+    fontStyle: 'italic',
+    marginLeft: 4,
   },
 });
 

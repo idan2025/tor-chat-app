@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
+  Text,
   TextInput,
   TouchableOpacity,
   StyleSheet,
@@ -8,6 +9,7 @@ import {
   KeyboardAvoidingView,
 } from 'react-native';
 import { socketService } from '../services/SocketService';
+import { useChatStore } from '../store/chatStore';
 
 interface MessageInputProps {
   roomId: string;
@@ -28,6 +30,21 @@ const MessageInput: React.FC<MessageInputProps> = ({
   const [isTyping, setIsTyping] = useState(false);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const inputRef = useRef<TextInput>(null);
+
+  // Get reply and edit state from chatStore
+  const replyToMessage = useChatStore((state) => state.replyToMessage);
+  const editingMessage = useChatStore((state) => state.editingMessage);
+  const clearReplyToMessage = useChatStore((state) => state.clearReplyToMessage);
+  const clearEditingMessage = useChatStore((state) => state.clearEditingMessage);
+  const chatStore = useChatStore();
+
+  // Load editing message content when edit mode is activated
+  useEffect(() => {
+    if (editingMessage && editingMessage.decryptedContent) {
+      setText(editingMessage.decryptedContent);
+      inputRef.current?.focus();
+    }
+  }, [editingMessage]);
 
   useEffect(() => {
     // Cleanup typing indicator on unmount
@@ -64,7 +81,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
     }, 2000);
   };
 
-  const handleSend = () => {
+  const handleSend = async () => {
     const trimmedText = text.trim();
 
     if (trimmedText.length === 0 || disabled) {
@@ -80,8 +97,23 @@ const MessageInput: React.FC<MessageInputProps> = ({
       socketService.sendStopTyping(roomId);
     }
 
-    // Send message
-    onSend(trimmedText);
+    // Handle edit mode
+    if (editingMessage) {
+      try {
+        await chatStore.editMessage(editingMessage.id, trimmedText);
+        clearEditingMessage();
+      } catch (error) {
+        console.error('Failed to edit message:', error);
+      }
+    } else {
+      // Send message (with optional reply)
+      onSend(trimmedText);
+
+      // Clear reply if any
+      if (replyToMessage) {
+        clearReplyToMessage();
+      }
+    }
 
     // Clear input
     setText('');
@@ -94,11 +126,64 @@ const MessageInput: React.FC<MessageInputProps> = ({
     }
   };
 
+  // Render reply or edit preview
+  const renderPreview = () => {
+    if (editingMessage) {
+      return (
+        <View style={styles.previewContainer}>
+          <View style={styles.previewBar} />
+          <View style={styles.previewContent}>
+            <Text style={styles.previewLabel}>Editing message</Text>
+            <Text style={styles.previewText} numberOfLines={1}>
+              {editingMessage.decryptedContent || '[Message]'}
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={styles.previewClose}
+            onPress={() => {
+              clearEditingMessage();
+              setText('');
+            }}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.previewCloseText}>✕</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    if (replyToMessage) {
+      return (
+        <View style={styles.previewContainer}>
+          <View style={styles.previewBar} />
+          <View style={styles.previewContent}>
+            <Text style={styles.previewLabel}>
+              Replying to {replyToMessage.sender?.username || 'Unknown'}
+            </Text>
+            <Text style={styles.previewText} numberOfLines={1}>
+              {replyToMessage.decryptedContent || '[Message]'}
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={styles.previewClose}
+            onPress={clearReplyToMessage}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.previewCloseText}>✕</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    return null;
+  };
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
+      {renderPreview()}
       <View style={styles.container}>
         {onAttach && (
           <TouchableOpacity
@@ -215,6 +300,43 @@ const styles = StyleSheet.create({
     borderBottomColor: '#fff',
     transform: [{ rotate: '90deg' }],
     marginLeft: 2,
+  },
+  previewContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#2d2d44',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#3d3d54',
+  },
+  previewBar: {
+    width: 3,
+    height: 40,
+    backgroundColor: '#7c3aed',
+    borderRadius: 2,
+    marginRight: 12,
+  },
+  previewContent: {
+    flex: 1,
+  },
+  previewLabel: {
+    color: '#7c3aed',
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  previewText: {
+    color: '#fff',
+    fontSize: 14,
+  },
+  previewClose: {
+    padding: 8,
+  },
+  previewCloseText: {
+    color: '#999',
+    fontSize: 20,
+    fontWeight: '600',
   },
 });
 

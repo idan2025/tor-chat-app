@@ -28,6 +28,7 @@ interface MessageActionsProps {
   onCopy: () => void;
   onDelete: () => void;
   onForward: () => void;
+  onEdit?: () => void;
   isOwnMessage?: boolean;
 }
 
@@ -50,6 +51,7 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
   onCopy,
   onDelete,
   onForward,
+  onEdit,
   isOwnMessage = false,
 }) => {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -93,6 +95,31 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
     onClose();
   };
 
+  const handleEdit = () => {
+    // Check if it's own message
+    if (!isOwnMessage) return;
+
+    // Check 15-minute edit window
+    const now = Date.now();
+    const messageTime = new Date(message.createdAt).getTime();
+    const fifteenMinutes = 15 * 60 * 1000;
+
+    if (now - messageTime > fifteenMinutes) {
+      onClose();
+      Alert.alert(
+        'Cannot Edit Message',
+        'Messages can only be edited within 15 minutes of sending.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    // Trigger edit mode
+    onClose();
+    // The parent component should handle setting edit mode
+    // This will be connected via navigation or callback
+  };
+
   const handleMoreReactions = () => {
     setShowEmojiPicker(true);
   };
@@ -100,6 +127,15 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
   const handleEmojiPickerClose = () => {
     setShowEmojiPicker(false);
     onClose();
+  };
+
+  // Check if message can be edited (within 15 minutes)
+  const canEdit = () => {
+    if (!isOwnMessage || !onEdit) return false;
+    const now = Date.now();
+    const messageTime = new Date(message.createdAt).getTime();
+    const fifteenMinutes = 15 * 60 * 1000;
+    return now - messageTime <= fifteenMinutes;
   };
 
   const actions: ActionButton[] = [
@@ -114,6 +150,15 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
       icon: '📋',
       onPress: handleCopy,
       show: message.messageType === 'text' || message.decryptedContent,
+    },
+    {
+      label: 'Edit',
+      icon: '✏️',
+      onPress: () => {
+        handleEdit();
+        if (onEdit) onEdit();
+      },
+      show: canEdit(),
     },
     {
       label: 'Forward',

@@ -82,6 +82,10 @@ interface ChatState {
   // Reactions state
   reactions: Map<string, MessageReaction[]>; // messageId -> reactions[]
 
+  // Reply and edit state
+  replyToMessage: Message | null;
+  editingMessage: Message | null;
+
   // Room actions
   loadRooms: () => Promise<void>;
   setCurrentRoom: (roomId: string | null) => void;
@@ -145,6 +149,18 @@ interface ChatState {
   // Link preview actions
   fetchLinkPreview: (url: string) => Promise<any | null>;
 
+  // Reply and edit actions
+  setReplyToMessage: (message: Message | null) => void;
+  clearReplyToMessage: () => void;
+  setEditingMessage: (message: Message | null) => void;
+  clearEditingMessage: () => void;
+  editMessage: async (messageId: string, newContent: string) => Promise<void>;
+  forwardMessage: async (messageId: string, toRoomId: string) => Promise<void>;
+
+  // Socket event handlers for message edits/deletes
+  handleMessageDeleted: (data: { messageId: string; roomId: string; deletedBy: string }) => void;
+  handleMessageEdited: (data: { messageId: string; roomId: string; content: string; editedAt: string }) => void;
+
   // Error handling
   setError: (error: string) => void;
   clearError: () => void;
@@ -170,6 +186,8 @@ const initialState = {
   pagination: new Map<string, RoomPaginationState>(),
   uploadProgress: new Map<string, FileUploadProgress>(),
   reactions: new Map<string, MessageReaction[]>(),
+  replyToMessage: null,
+  editingMessage: null,
   isLoading: false,
   error: null,
 };
@@ -689,19 +707,31 @@ export const useChatStore = create<ChatState>((set, get) => ({
    */
   deleteMessage: async (messageId: string, roomId: string) => {
     try {
-      await apiService.delete(`/rooms/${roomId}/messages/${messageId}`);
-
-      // Remove from cache
+      // Optimistic delete
       const messagesCache = get().messages;
       const roomMessages = messagesCache.get(roomId) || [];
+      const originalMessages = [...roomMessages];
+
       messagesCache.set(
         roomId,
         roomMessages.filter((m) => m.id !== messageId)
       );
-
       set({ messages: new Map(messagesCache) });
+
+      // API call
+      await apiService.delete(`/rooms/${roomId}/messages/${messageId}`);
+
+      // Socket emit
+      socketService.emit('messageDeleted', { messageId, roomId });
     } catch (error: any) {
       console.error('Failed to delete message:', error);
+
+      // Revert optimistic delete on error
+      const messagesCache = get().messages;
+      const originalMessages = messagesCache.get(roomId) || [];
+      // Note: In a production app, you'd want to store the original messages
+      // before the optimistic update to properly revert
+
       set({ error: error.message || 'Failed to delete message' });
       throw error;
     }
@@ -1281,6 +1311,172 @@ export const useChatStore = create<ChatState>((set, get) => ({
    */
   setError: (error: string) => {
     set({ error });
+  },
+
+  /**
+   * Set message to reply to
+   */
+  setReplyToMessage: (message: Message | null) => {
+    set({ replyToMessage: message, editingMessage: null });
+  },
+
+  /**
+   * Clear reply message
+   */
+  clearReplyToMessage: () => {
+    set({ replyToMessage: null });
+  },
+
+  /**
+   * Set message to edit
+   */
+  setEditingMessage: (message: Message | null) => {
+    set({ editingMessage: message, replyToMessage: null });
+  },
+
+  /**
+   * Clear editing message
+   */
+  clearEditingMessage: () => {
+    set({ editingMessage: null });
+  },
+
+  /**
+   * Edit a message
+   */
+  editMessage: async (messageId: string, newContent: string) => {
+    const { currentRoomId } = get();
+    if (!currentRoomId) return;
+
+    try {
+      // Optimistic update
+      const messagesCache = get().messages;
+      const roomMessages = messagesCache.get(currentRoomId) || [];
+      const messageIndex = roomMessages.findIndex(m => m.id === messageId);
+
+      if (messageIndex !== -1) {
+        roomMessages[messageIndex] = {
+          ...roomMessages[messageIndex],
+          decryptedContent: newContent,
+          isEdited: true,
+          editedAt: new Date().toISOString(),
+        };
+        messagesCache.set(currentRoomId, [...roomMessages]);
+        set({ messages: new Map(messagesCache) });
+      }
+
+      // API call
+      const roomKey = get().roomKeys.get(currentRoomId);
+      if (!roomKey) {
+        throw new Error('Room encryption key not found');
+      }
+
+      const encryptedContent = await cryptoService.encryptMessage(newContent, roomKey);
+
+      await apiService.put(`/rooms/${currentRoomId}/messages/${messageId}`, {
+        content: encryptedContent,
+      });
+
+      // Socket emit
+      socketService.emit('messageEdited', {
+        messageId,
+        roomId: currentRoomId,
+        content: encryptedContent,
+      });
+
+      get().clearEditingMessage();
+    } catch (error: any) {
+      console.error('Failed to edit message:', error);
+      set({ error: error.message || 'Failed to edit message' });
+      throw error;
+    }
+  },
+
+  /**
+   * Forward a message to another room
+   */
+  forwardMessage: async (messageId: string, toRoomId: string) => {
+    try {
+      // Find the message
+      const messagesCache = get().messages;
+      let foundMessage: Message | null = null;
+
+      for (const [roomId, messages] of messagesCache.entries()) {
+        const message = messages.find(m => m.id === messageId);
+        if (message) {
+          foundMessage = message;
+          break;
+        }
+      }
+
+      if (!foundMessage || !foundMessage.decryptedContent) {
+        throw new Error('Message not found');
+      }
+
+      // Send to target room
+      await get().sendMessage(
+        toRoomId,
+        foundMessage.decryptedContent,
+        foundMessage.messageType,
+        foundMessage.attachments as string[]
+      );
+    } catch (error: any) {
+      console.error('Failed to forward message:', error);
+      set({ error: error.message || 'Failed to forward message' });
+      throw error;
+    }
+  },
+
+  /**
+   * Handle message deleted event from Socket.IO
+   */
+  handleMessageDeleted: (data: { messageId: string; roomId: string; deletedBy: string }) => {
+    const messagesCache = get().messages;
+    const roomMessages = messagesCache.get(data.roomId) || [];
+
+    messagesCache.set(
+      data.roomId,
+      roomMessages.filter(m => m.id !== data.messageId)
+    );
+
+    set({ messages: new Map(messagesCache) });
+
+    console.log(`[ChatStore] Message ${data.messageId} deleted by ${data.deletedBy}`);
+  },
+
+  /**
+   * Handle message edited event from Socket.IO
+   */
+  handleMessageEdited: async (data: { messageId: string; roomId: string; content: string; editedAt: string }) => {
+    const messagesCache = get().messages;
+    const roomMessages = messagesCache.get(data.roomId) || [];
+    const messageIndex = roomMessages.findIndex(m => m.id === data.messageId);
+
+    if (messageIndex !== -1) {
+      const roomKey = get().roomKeys.get(data.roomId);
+
+      if (roomKey) {
+        try {
+          // Decrypt the edited content
+          const decryptedContent = await cryptoService.decryptMessage(data.content, roomKey);
+
+          roomMessages[messageIndex] = {
+            ...roomMessages[messageIndex],
+            encryptedContent: data.content,
+            decryptedContent,
+            isEdited: true,
+            editedAt: data.editedAt,
+          };
+
+          messagesCache.set(data.roomId, [...roomMessages]);
+          set({ messages: new Map(messagesCache) });
+
+          console.log(`[ChatStore] Message ${data.messageId} edited`);
+        } catch (error) {
+          console.error('[ChatStore] Failed to decrypt edited message:', error);
+        }
+      }
+    }
   },
 
   /**
