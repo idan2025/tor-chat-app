@@ -53,6 +53,27 @@ export interface MessageAttachment {
 }
 
 /**
+ * Message reaction structure
+ */
+export interface MessageReaction {
+  emoji: string;
+  users: string[]; // User IDs who reacted
+  count: number;
+}
+
+/**
+ * Reaction event payload (Socket.IO)
+ */
+export interface ReactionEvent {
+  messageId: string;
+  roomId: string;
+  userId: string;
+  username: string;
+  emoji: string;
+  action: 'add' | 'remove';
+}
+
+/**
  * Message metadata (can include link previews, reactions, etc.)
  */
 export interface MessageMetadata {
@@ -319,6 +340,30 @@ export function getMessageDisplayText(message: Message): string {
     default:
       return message.decryptedContent || '';
   }
+}
+
+/**
+ * File upload progress tracking
+ */
+export interface FileUploadProgress {
+  uploadId: string;
+  messageId: string;
+  filename: string;
+  progress: number;
+  status: 'uploading' | 'completed' | 'failed' | 'cancelled';
+  error?: string;
+}
+
+/**
+ * Upload result from backend
+ */
+export interface UploadResult {
+  url: string;
+  filename: string;
+  originalName: string;
+  mimetype: string;
+  size: number;
+  thumbnailUrl?: string;
 }
 
 /**

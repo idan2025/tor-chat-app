@@ -108,12 +108,138 @@ export default function ChatScreen({ route, navigation }: any) {
     }
   };
 
-  const handleAttach = () => {
-    Toast.show({
-      type: 'info',
-      text1: 'Coming Soon',
-      text2: 'File attachments will be available in Phase 3',
-    });
+  const handleAttach = async () => {
+    if (!currentRoom) {
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'No room selected',
+      });
+      return;
+    }
+
+    // Show action sheet on Android/iOS
+    if (Platform.OS === 'android' || Platform.OS === 'ios') {
+      const { ActionSheetIOS, Alert } = require('react-native');
+
+      // For iOS, use ActionSheetIOS
+      if (Platform.OS === 'ios') {
+        ActionSheetIOS.showActionSheetWithOptions(
+          {
+            options: ['Cancel', 'Take Photo', 'Choose Photo', 'Choose File'],
+            cancelButtonIndex: 0,
+          },
+          async (buttonIndex: number) => {
+            try {
+              if (buttonIndex === 1) {
+                // Take photo with camera
+                const { fileService } = await import('../services/FileService');
+                const result = await fileService.launchCamera({ mediaType: 'photo' });
+                if (result.assets && result.assets.length > 0) {
+                  await useChatStore.getState().uploadImage(currentRoom.id, result.assets[0]);
+                }
+              } else if (buttonIndex === 2) {
+                // Choose from gallery
+                const { fileService } = await import('../services/FileService');
+                const result = await fileService.pickImage({ mediaType: 'photo', selectionLimit: 5 });
+                if (result.assets && result.assets.length > 0) {
+                  if (result.assets.length === 1) {
+                    await useChatStore.getState().uploadImage(currentRoom.id, result.assets[0]);
+                  } else {
+                    await useChatStore.getState().uploadMultipleImages(currentRoom.id, result.assets);
+                  }
+                }
+              } else if (buttonIndex === 3) {
+                // Choose file
+                const { fileService } = await import('../services/FileService');
+                const file = await fileService.pickDocument();
+                await useChatStore.getState().uploadFile(currentRoom.id, file);
+              }
+            } catch (error: any) {
+              if (!error.message?.includes('cancelled')) {
+                Toast.show({
+                  type: 'error',
+                  text1: 'Upload Failed',
+                  text2: error.message || 'Please try again',
+                });
+              }
+            }
+          }
+        );
+      } else {
+        // For Android, use custom alert with options
+        Alert.alert(
+          'Attach File',
+          'Choose an option',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Take Photo',
+              onPress: async () => {
+                try {
+                  const { fileService } = await import('../services/FileService');
+                  const result = await fileService.launchCamera({ mediaType: 'photo' });
+                  if (result.assets && result.assets.length > 0) {
+                    await useChatStore.getState().uploadImage(currentRoom.id, result.assets[0]);
+                  }
+                } catch (error: any) {
+                  if (!error.message?.includes('cancelled')) {
+                    Toast.show({
+                      type: 'error',
+                      text1: 'Upload Failed',
+                      text2: error.message || 'Please try again',
+                    });
+                  }
+                }
+              },
+            },
+            {
+              text: 'Choose Photo',
+              onPress: async () => {
+                try {
+                  const { fileService } = await import('../services/FileService');
+                  const result = await fileService.pickImage({ mediaType: 'photo', selectionLimit: 5 });
+                  if (result.assets && result.assets.length > 0) {
+                    if (result.assets.length === 1) {
+                      await useChatStore.getState().uploadImage(currentRoom.id, result.assets[0]);
+                    } else {
+                      await useChatStore.getState().uploadMultipleImages(currentRoom.id, result.assets);
+                    }
+                  }
+                } catch (error: any) {
+                  if (!error.message?.includes('cancelled')) {
+                    Toast.show({
+                      type: 'error',
+                      text1: 'Upload Failed',
+                      text2: error.message || 'Please try again',
+                    });
+                  }
+                }
+              },
+            },
+            {
+              text: 'Choose File',
+              onPress: async () => {
+                try {
+                  const { fileService } = await import('../services/FileService');
+                  const file = await fileService.pickDocument();
+                  await useChatStore.getState().uploadFile(currentRoom.id, file);
+                } catch (error: any) {
+                  if (!error.message?.includes('cancelled')) {
+                    Toast.show({
+                      type: 'error',
+                      text1: 'Upload Failed',
+                      text2: error.message || 'Please try again',
+                    });
+                  }
+                }
+              },
+            },
+          ],
+          { cancelable: true }
+        );
+      }
+    }
   };
 
   const handleSettings = () => {

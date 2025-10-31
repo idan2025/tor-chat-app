@@ -307,6 +307,16 @@ export class SocketService {
     this.socket!.emit('typing', { roomId, isTyping: false });
   }
 
+  /**
+   * Generic emit method for custom events
+   */
+  public emit(event: string, data: any): void {
+    if (!this.ensureConnected()) return;
+
+    console.log(`[SocketService] Emitting event: ${event}`);
+    this.socket!.emit(event, data);
+  }
+
   // ========================================================================
   // EVENT LISTENERS (Server → Client)
   // ========================================================================
@@ -547,6 +557,21 @@ export class SocketService {
     // Error events
     this.socket.on('error', (data: SocketErrorEvent) => {
       this.handleError(data);
+    });
+
+    // Reaction events
+    this.socket.on('reactionAdded', (data: any) => {
+      // Import chatStore dynamically to avoid circular dependency
+      import('../store/chatStore').then(({ useChatStore }) => {
+        useChatStore.getState().handleReactionUpdate(data);
+      });
+    });
+
+    this.socket.on('reactionRemoved', (data: any) => {
+      // Import chatStore dynamically to avoid circular dependency
+      import('../store/chatStore').then(({ useChatStore }) => {
+        useChatStore.getState().handleReactionUpdate(data);
+      });
     });
   }
 

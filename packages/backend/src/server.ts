@@ -15,6 +15,7 @@ import authRoutes from './routes/auth';
 import roomRoutes from './routes/rooms';
 import adminRoutes from './routes/admin';
 import uploadRoutes from './routes/upload';
+import linkPreviewRoutes from './routes/linkPreview';
 
 // Import models to ensure they are registered
 import './models';
@@ -75,6 +76,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/rooms', roomRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/link-preview', linkPreviewRoutes);
 
 // 404 handler
 app.use((_req, res) => {

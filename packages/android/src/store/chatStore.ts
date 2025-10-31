@@ -34,12 +34,18 @@ import {
   SocketTypingEvent,
   SocketUserStatusEvent,
   SocketUserRoomEvent,
+  MessageReaction,
+  ReactionEvent,
   createOptimisticMessage,
+  FileUploadProgress,
+  UploadResult,
 } from '../types/Chat';
 import { apiService } from '../services/ApiService';
 import { socketService } from '../services/SocketService';
 import { cryptoService } from '../services/CryptoService';
+import { fileService, DocumentPickerResponse, ImageAsset } from '../services/FileService';
 import { useServerStore } from './serverStore';
+import { detectURLs } from '../utils/urlDetector';
 
 /**
  * Pagination state for each room
@@ -69,6 +75,12 @@ interface ChatState {
 
   // Pagination state
   pagination: Map<string, RoomPaginationState>;
+
+  // File upload state
+  uploadProgress: Map<string, FileUploadProgress>;
+
+  // Reactions state
+  reactions: Map<string, MessageReaction[]>; // messageId -> reactions[]
 
   // Room actions
   loadRooms: () => Promise<void>;
@@ -115,6 +127,24 @@ interface ChatState {
   incrementUnread: (roomId: string) => void;
   getUnreadCount: (roomId: string) => number;
 
+  // File upload actions
+  uploadFile: (roomId: string, file: DocumentPickerResponse) => Promise<void>;
+  uploadImage: (roomId: string, image: ImageAsset) => Promise<void>;
+  uploadMultipleImages: (roomId: string, images: ImageAsset[]) => Promise<void>;
+  updateUploadProgress: (uploadId: string, progress: number) => void;
+  cancelUpload: (uploadId: string) => void;
+  getUploadProgress: (uploadId: string) => FileUploadProgress | undefined;
+
+  // Reaction actions
+  addReaction: (messageId: string, emoji: string) => Promise<void>;
+  removeReaction: (messageId: string, emoji: string) => Promise<void>;
+  toggleReaction: (messageId: string, emoji: string) => Promise<void>;
+  handleReactionUpdate: (data: ReactionEvent) => void;
+  getReactionsForMessage: (messageId: string) => MessageReaction[];
+
+  // Link preview actions
+  fetchLinkPreview: (url: string) => Promise<any | null>;
+
   // Error handling
   setError: (error: string) => void;
   clearError: () => void;
@@ -138,6 +168,8 @@ const initialState = {
   onlineUsers: new Set<string>(),
   unreadCounts: new Map<string, number>(),
   pagination: new Map<string, RoomPaginationState>(),
+  uploadProgress: new Map<string, FileUploadProgress>(),
+  reactions: new Map<string, MessageReaction[]>(),
   isLoading: false,
   error: null,
 };
@@ -342,6 +374,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
         isAdmin: activeServer.user.isAdmin,
       };
 
+      // Detect URLs and fetch link preview for the first URL
+      let linkPreview = null;
+      const urls = detectURLs(content);
+      if (urls.length > 0) {
+        // Fetch preview for first URL only to avoid spamming the API
+        linkPreview = await get().fetchLinkPreview(urls[0].url);
+      }
+
       // Create optimistic message
       const optimisticMessage = createOptimisticMessage(
         roomId,
@@ -349,6 +389,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
         content,
         messageType
       );
+
+      // Add link preview metadata if available
+      if (linkPreview) {
+        optimisticMessage.metadata = {
+          ...optimisticMessage.metadata,
+          linkPreview,
+        };
+      }
 
       // Add attachments if provided
       if (attachments.length > 0) {
@@ -820,6 +868,415 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   /**
+   * Upload a file to the server
+   * Creates an optimistic message with upload progress tracking
+   */
+  uploadFile: async (roomId: string, file: DocumentPickerResponse) => {
+    try {
+      const activeServer = useServerStore.getState().activeServer;
+      if (!activeServer?.user) {
+        throw new Error('No active user');
+      }
+
+      const currentUser: User = {
+        id: activeServer.user.id,
+        username: activeServer.user.username,
+        displayName: activeServer.user.displayName,
+        publicKey: '',
+        isOnline: true,
+        isAdmin: activeServer.user.isAdmin,
+      };
+
+      const uploadId = `upload-${Date.now()}-${Math.random()}`;
+      const messageId = `temp-${Date.now()}-${Math.random()}`;
+
+      const uploadProgressEntry: FileUploadProgress = {
+        uploadId,
+        messageId,
+        filename: file.name || 'file',
+        progress: 0,
+        status: 'uploading',
+      };
+
+      const uploadProgress = get().uploadProgress;
+      uploadProgress.set(uploadId, uploadProgressEntry);
+      set({ uploadProgress: new Map(uploadProgress) });
+
+      const optimisticMessage = createOptimisticMessage(
+        roomId,
+        currentUser,
+        file.name || 'File',
+        fileService.getFileType(file.type || 'application/octet-stream')
+      );
+      optimisticMessage.id = messageId;
+
+      get().addMessage(optimisticMessage);
+
+      const result = await fileService.uploadFile(file, roomId, (progress) => {
+        get().updateUploadProgress(uploadId, progress);
+      });
+
+      const currentProgress = get().uploadProgress.get(uploadId);
+      if (currentProgress) {
+        currentProgress.status = 'completed';
+        currentProgress.progress = 100;
+        get().uploadProgress.set(uploadId, currentProgress);
+        set({ uploadProgress: new Map(get().uploadProgress) });
+      }
+
+      const roomKey = get().roomKeys.get(roomId);
+      if (!roomKey) {
+        throw new Error('Room encryption key not found');
+      }
+
+      const encryptedContent = await cryptoService.encryptMessage(result.originalName, roomKey);
+
+      const attachment = {
+        id: result.filename,
+        filename: result.filename,
+        originalName: result.originalName,
+        mimeType: result.mimetype,
+        size: result.size,
+        url: result.url,
+        thumbnail: result.thumbnailUrl,
+      };
+
+      socketService.sendMessage(
+        roomId,
+        encryptedContent,
+        fileService.getFileType(result.mimetype),
+        [JSON.stringify(attachment)]
+      );
+
+      get().updateMessage(messageId, {
+        status: 'sent',
+        attachments: [attachment],
+      });
+
+      setTimeout(() => {
+        const uploadProgress = get().uploadProgress;
+        uploadProgress.delete(uploadId);
+        set({ uploadProgress: new Map(uploadProgress) });
+      }, 3000);
+    } catch (error: any) {
+      console.error('[ChatStore] File upload failed:', error);
+      set({ error: error.message || 'Failed to upload file' });
+      throw error;
+    }
+  },
+
+  /**
+   * Upload an image to the server
+   */
+  uploadImage: async (roomId: string, image: ImageAsset) => {
+    try {
+      const activeServer = useServerStore.getState().activeServer;
+      if (!activeServer?.user) {
+        throw new Error('No active user');
+      }
+
+      const currentUser: User = {
+        id: activeServer.user.id,
+        username: activeServer.user.username,
+        displayName: activeServer.user.displayName,
+        publicKey: '',
+        isOnline: true,
+        isAdmin: activeServer.user.isAdmin,
+      };
+
+      const uploadId = `upload-${Date.now()}-${Math.random()}`;
+      const messageId = `temp-${Date.now()}-${Math.random()}`;
+
+      const uploadProgressEntry: FileUploadProgress = {
+        uploadId,
+        messageId,
+        filename: image.fileName || 'image.jpg',
+        progress: 0,
+        status: 'uploading',
+      };
+
+      const uploadProgress = get().uploadProgress;
+      uploadProgress.set(uploadId, uploadProgressEntry);
+      set({ uploadProgress: new Map(uploadProgress) });
+
+      const optimisticMessage = createOptimisticMessage(
+        roomId,
+        currentUser,
+        'Image',
+        MessageType.IMAGE
+      );
+      optimisticMessage.id = messageId;
+
+      get().addMessage(optimisticMessage);
+
+      const result = await fileService.uploadImage(image, roomId, (progress) => {
+        get().updateUploadProgress(uploadId, progress);
+      });
+
+      const currentProgress = get().uploadProgress.get(uploadId);
+      if (currentProgress) {
+        currentProgress.status = 'completed';
+        currentProgress.progress = 100;
+        get().uploadProgress.set(uploadId, currentProgress);
+        set({ uploadProgress: new Map(get().uploadProgress) });
+      }
+
+      const roomKey = get().roomKeys.get(roomId);
+      if (!roomKey) {
+        throw new Error('Room encryption key not found');
+      }
+
+      const encryptedContent = await cryptoService.encryptMessage('Image', roomKey);
+
+      const attachment = {
+        id: result.filename,
+        filename: result.filename,
+        originalName: result.originalName,
+        mimeType: result.mimetype,
+        size: result.size,
+        url: result.url,
+        thumbnail: result.thumbnailUrl,
+      };
+
+      socketService.sendMessage(
+        roomId,
+        encryptedContent,
+        MessageType.IMAGE,
+        [JSON.stringify(attachment)]
+      );
+
+      get().updateMessage(messageId, {
+        status: 'sent',
+        attachments: [attachment],
+      });
+
+      setTimeout(() => {
+        const uploadProgress = get().uploadProgress;
+        uploadProgress.delete(uploadId);
+        set({ uploadProgress: new Map(uploadProgress) });
+      }, 3000);
+    } catch (error: any) {
+      console.error('[ChatStore] Image upload failed:', error);
+      set({ error: error.message || 'Failed to upload image' });
+      throw error;
+    }
+  },
+
+  /**
+   * Upload multiple images
+   */
+  uploadMultipleImages: async (roomId: string, images: ImageAsset[]) => {
+    try {
+      for (const image of images) {
+        await get().uploadImage(roomId, image);
+      }
+    } catch (error: any) {
+      console.error('[ChatStore] Multiple image upload failed:', error);
+      set({ error: error.message || 'Failed to upload images' });
+      throw error;
+    }
+  },
+
+  /**
+   * Update upload progress
+   */
+  updateUploadProgress: (uploadId: string, progress: number) => {
+    const uploadProgress = get().uploadProgress;
+    const current = uploadProgress.get(uploadId);
+
+    if (current) {
+      current.progress = progress;
+      uploadProgress.set(uploadId, current);
+      set({ uploadProgress: new Map(uploadProgress) });
+    }
+  },
+
+  /**
+   * Cancel an active upload
+   */
+  cancelUpload: (uploadId: string) => {
+    try {
+      fileService.cancelUpload(uploadId);
+
+      const uploadProgress = get().uploadProgress;
+      const current = uploadProgress.get(uploadId);
+
+      if (current) {
+        current.status = 'cancelled';
+        uploadProgress.set(uploadId, current);
+        set({ uploadProgress: new Map(uploadProgress) });
+
+        setTimeout(() => {
+          uploadProgress.delete(uploadId);
+          set({ uploadProgress: new Map(uploadProgress) });
+        }, 2000);
+      }
+    } catch (error: any) {
+      console.error('[ChatStore] Cancel upload failed:', error);
+    }
+  },
+
+  /**
+   * Get upload progress
+   */
+  getUploadProgress: (uploadId: string) => {
+    return get().uploadProgress.get(uploadId);
+  },
+
+  /**
+   * Fetch link preview metadata from backend
+   */
+  fetchLinkPreview: async (url: string) => {
+    try {
+      const response = await apiService.post<any>('/link-preview', { url });
+      return response;
+    } catch (error: any) {
+      console.error('Failed to fetch link preview:', error);
+      return null;
+    }
+  },
+
+  /**
+   * Add a reaction to a message
+   */
+  addReaction: async (messageId: string, emoji: string) => {
+    const { currentRoomId } = get();
+    if (!currentRoomId) return;
+
+    const activeServer = useServerStore.getState().activeServer;
+    if (!activeServer?.user) return;
+
+    const currentUserId = activeServer.user.id;
+
+    // Optimistic update
+    const reactions = get().reactions.get(messageId) || [];
+    const existingReaction = reactions.find(r => r.emoji === emoji);
+
+    if (existingReaction) {
+      if (!existingReaction.users.includes(currentUserId)) {
+        existingReaction.users.push(currentUserId);
+        existingReaction.count++;
+      }
+    } else {
+      reactions.push({ emoji, users: [currentUserId], count: 1 });
+    }
+
+    const updatedReactions = new Map(get().reactions);
+    updatedReactions.set(messageId, [...reactions]);
+    set({ reactions: updatedReactions });
+
+    // Emit socket event
+    try {
+      socketService.emit('addReaction', {
+        messageId,
+        roomId: currentRoomId,
+        emoji,
+      });
+    } catch (error) {
+      console.error('Failed to add reaction:', error);
+    }
+  },
+
+  /**
+   * Remove a reaction from a message
+   */
+  removeReaction: async (messageId: string, emoji: string) => {
+    const { currentRoomId } = get();
+    if (!currentRoomId) return;
+
+    const activeServer = useServerStore.getState().activeServer;
+    if (!activeServer?.user) return;
+
+    const currentUserId = activeServer.user.id;
+
+    // Optimistic update
+    const reactions = get().reactions.get(messageId) || [];
+    const reactionIndex = reactions.findIndex(r => r.emoji === emoji);
+
+    if (reactionIndex !== -1) {
+      const reaction = reactions[reactionIndex];
+      reaction.users = reaction.users.filter(id => id !== currentUserId);
+      reaction.count--;
+      if (reaction.count === 0) {
+        reactions.splice(reactionIndex, 1);
+      }
+    }
+
+    const updatedReactions = new Map(get().reactions);
+    updatedReactions.set(messageId, [...reactions]);
+    set({ reactions: updatedReactions });
+
+    // Emit socket event
+    try {
+      socketService.emit('removeReaction', {
+        messageId,
+        roomId: currentRoomId,
+        emoji,
+      });
+    } catch (error) {
+      console.error('Failed to remove reaction:', error);
+    }
+  },
+
+  /**
+   * Toggle a reaction (add if not exists, remove if exists)
+   */
+  toggleReaction: async (messageId: string, emoji: string) => {
+    const activeServer = useServerStore.getState().activeServer;
+    if (!activeServer?.user) return;
+
+    const currentUserId = activeServer.user.id;
+    const reactions = get().reactions.get(messageId) || [];
+    const existingReaction = reactions.find(r => r.emoji === emoji);
+
+    if (existingReaction && existingReaction.users.includes(currentUserId)) {
+      await get().removeReaction(messageId, emoji);
+    } else {
+      await get().addReaction(messageId, emoji);
+    }
+  },
+
+  /**
+   * Handle reaction update from Socket.IO
+   */
+  handleReactionUpdate: (data: ReactionEvent) => {
+    const reactions = get().reactions.get(data.messageId) || [];
+
+    if (data.action === 'add') {
+      const existingReaction = reactions.find(r => r.emoji === data.emoji);
+      if (existingReaction) {
+        if (!existingReaction.users.includes(data.userId)) {
+          existingReaction.users.push(data.userId);
+          existingReaction.count++;
+        }
+      } else {
+        reactions.push({ emoji: data.emoji, users: [data.userId], count: 1 });
+      }
+    } else if (data.action === 'remove') {
+      const reactionIndex = reactions.findIndex(r => r.emoji === data.emoji);
+      if (reactionIndex !== -1) {
+        const reaction = reactions[reactionIndex];
+        reaction.users = reaction.users.filter(id => id !== data.userId);
+        reaction.count--;
+        if (reaction.count === 0) {
+          reactions.splice(reactionIndex, 1);
+        }
+      }
+    }
+
+    const updatedReactions = new Map(get().reactions);
+    updatedReactions.set(data.messageId, [...reactions]);
+    set({ reactions: updatedReactions });
+  },
+
+  /**
+   * Get reactions for a specific message
+   */
+  getReactionsForMessage: (messageId: string) => {
+    return get().reactions.get(messageId) || [];
+  },
+
+  /**
    * Set error message
    */
   setError: (error: string) => {
@@ -830,6 +1287,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
    * Reset store to initial state (on logout)
    */
   reset: () => {
+    fileService.cancelAllUploads();
     set(initialState);
   },
 }));
