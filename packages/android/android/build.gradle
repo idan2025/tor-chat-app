@@ -50,24 +50,16 @@ allprojects {
     }
 }
 
-// Enable BuildConfig and namespace for all React Native library modules
-// This fixes compatibility issues with older RN modules for AGP 8.x
+// Enable BuildConfig for all React Native library modules
+// AGP 8.x compatibility: buildConfig is enabled globally via gradle.properties
+// This ensures all modules work correctly with AGP 8.x
 subprojects { subproject ->
     afterEvaluate {
         if (subproject.plugins.hasPlugin('com.android.library')) {
+            // Ensure buildConfig is enabled
             subproject.android {
-                // Enable buildConfig for modules that use custom BuildConfig fields
                 buildFeatures {
                     buildConfig = true
-                }
-
-                // Add namespace if not specified (required by AGP 8.x)
-                if (namespace == null) {
-                    // Generate namespace from project name
-                    def projectName = subproject.name
-                    // Replace common separators with dots and remove special chars
-                    def cleanName = projectName.replaceAll('[@/-]', '.').replaceAll('\\.+', '.')
-                    namespace = "com.${cleanName}"
                 }
             }
         }
