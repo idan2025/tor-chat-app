@@ -50,6 +50,20 @@ allprojects {
     }
 }
 
+// Enable BuildConfig for all React Native library modules
+// This fixes compatibility issues with older RN modules
+subprojects {
+    afterEvaluate { project ->
+        if (project.hasProperty('android')) {
+            android {
+                buildFeatures {
+                    buildConfig = true
+                }
+            }
+        }
+    }
+}
+
 tasks.register('clean', Delete) {
     delete rootProject.buildDir
 }
