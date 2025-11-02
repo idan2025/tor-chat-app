@@ -50,14 +50,32 @@ allprojects {
     }
 }
 
-// Enable BuildConfig for all React Native library modules
-// This fixes compatibility issues with older RN modules
+// Enable BuildConfig and namespace for all React Native library modules
+// This fixes compatibility issues with older RN modules for AGP 8.x
 subprojects {
     afterEvaluate { project ->
         if (project.hasProperty('android')) {
             android {
+                // Enable buildConfig for modules that use custom BuildConfig fields
                 buildFeatures {
                     buildConfig = true
+                }
+
+                // Add namespace if not specified (required by AGP 8.x)
+                if (namespace == null) {
+                    // Extract package name from AndroidManifest.xml if available
+                    def manifestFile = project.file("src/main/AndroidManifest.xml")
+                    if (manifestFile.exists()) {
+                        def manifest = new XmlSlurper().parse(manifestFile)
+                        def packageName = manifest.'@package'.text()
+                        if (packageName) {
+                            namespace = packageName
+                        }
+                    }
+                    // Fallback: use project name as namespace
+                    if (namespace == null) {
+                        namespace = "com.${project.name.replace('-', '.')}"
+                    }
                 }
             }
         }
