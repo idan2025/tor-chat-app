@@ -1,11 +1,10 @@
+import { User, Server } from './Server';
+
 /**
- * User entity representing authenticated user data
+ * Extended User entity with auth-specific fields
  */
-export interface User {
-  id: string;
-  username: string;
+export interface AuthUser extends User {
   email: string;
-  displayName?: string;
   publicKey: string;
   createdAt?: string;
   updatedAt?: string;
@@ -15,7 +14,7 @@ export interface User {
  * Authentication state interface for Zustand store
  */
 export interface AuthState {
-  user: User | null;
+  user: AuthUser | null;
   token: string | null;
   activeServer: Server | null;
   isAuthenticated: boolean;
@@ -52,24 +51,11 @@ export interface RegisterParams {
 }
 
 /**
- * Server configuration for multi-server support
- */
-export interface Server {
-  id: string;
-  name: string;
-  onionAddress: string;
-  description?: string;
-  isDefault?: boolean;
-  lastConnected?: string;
-  createdAt?: string;
-}
-
-/**
  * Authentication response from API
  */
 export interface AuthResponse {
   token: string;
-  user: User;
+  user: AuthUser;
 }
 
 /**

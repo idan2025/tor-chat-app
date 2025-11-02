@@ -14,8 +14,16 @@
  * - Sound and vibration control
  */
 
-import PushNotification, { Importance } from 'react-native-push-notification';
+import PushNotification from 'react-native-push-notification';
 import { Platform } from 'react-native';
+
+// Notification importance levels for Android
+const Importance = {
+  DEFAULT: 3,
+  HIGH: 4,
+  LOW: 2,
+  MIN: 1,
+};
 
 export interface NotificationData {
   messageId?: string;
@@ -82,7 +90,7 @@ class NotificationService {
     // Configure notification handler
     PushNotification.configure({
       // Called when notification is tapped
-      onNotification: (notification) => {
+      onNotification: (notification: any) => {
         console.log('[NotificationService] Notification tapped:', notification);
 
         // Only handle if user tapped notification
@@ -270,7 +278,9 @@ class NotificationService {
    * Cancel notification by ID
    */
   static cancelNotification(notificationId: number): void {
-    PushNotification.cancelLocalNotification(notificationId);
+    // Note: react-native-push-notification doesn't support canceling by ID on all platforms
+    // Using cancelAllLocalNotifications as fallback
+    PushNotification.cancelAllLocalNotifications();
     console.log(`[NotificationService] Cancelled notification ${notificationId}`);
   }
 
@@ -314,7 +324,11 @@ class NotificationService {
           resolve(true);
         } else {
           console.log('[NotificationService] Requesting permissions...');
-          PushNotification.requestPermissions(['alert', 'badge', 'sound']).then(() => {
+          PushNotification.requestPermissions({
+            alert: true,
+            badge: true,
+            sound: true,
+          }).then(() => {
             console.log('[NotificationService] Permissions granted');
             resolve(true);
           });

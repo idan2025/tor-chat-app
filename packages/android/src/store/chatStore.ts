@@ -164,8 +164,8 @@ interface ChatState {
   clearReplyToMessage: () => void;
   setEditingMessage: (message: Message | null) => void;
   clearEditingMessage: () => void;
-  editMessage: async (messageId: string, newContent: string) => Promise<void>;
-  forwardMessage: async (messageId: string, toRoomId: string) => Promise<void>;
+  editMessage: (messageId: string, newContent: string) => Promise<void>;
+  forwardMessage: (messageId: string, toRoomId: string) => Promise<void>;
 
   // Socket event handlers for message edits/deletes
   handleMessageDeleted: (data: { messageId: string; roomId: string; deletedBy: string }) => void;

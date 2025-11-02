@@ -149,7 +149,7 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
       label: 'Copy',
       icon: '📋',
       onPress: handleCopy,
-      show: message.messageType === 'text' || message.decryptedContent,
+      show: message.messageType === 'text' || !!message.decryptedContent,
     },
     {
       label: 'Edit',
@@ -233,7 +233,7 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
                     <Text
                       style={[
                         styles.actionLabel,
-                        action.color && { color: action.color },
+                        action.color ? { color: action.color } : undefined,
                       ]}
                     >
                       {action.label}

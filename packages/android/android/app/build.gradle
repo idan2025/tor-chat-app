@@ -16,7 +16,7 @@ apply plugin: "org.jetbrains.kotlin.android"
 import com.android.build.OutputFile
 
 def projectRoot = rootProject.projectDir.parent
-def reactNativeRoot = file("$projectRoot/../node_modules/react-native")
+def reactNativeRoot = file("$projectRoot/node_modules/react-native")
 
 /**
  * Set this to true to enable ProGuard in release builds
@@ -188,8 +188,19 @@ dependencies {
     }
 }
 
-// Apply React Native Gradle plugin
-apply from: file("$reactNativeRoot/react.gradle")
+// Apply React Native Gradle plugin (not needed for RN 0.73+)
+// apply from: file("$reactNativeRoot/react.gradle")
+
+// Define react configuration if not already set
+if (!project.hasProperty('react')) {
+    project.ext.react = [:]
+}
+project.ext.react = project.ext.react + [
+    enableHermes: true,
+    bundleCommand: "bundle",
+    bundleConfig: null,
+    bundleAssetName: "index.android.bundle"
+]
 
 // Hermes cleanup
 def hermesEnabled = project.ext.react.get("enableHermes", true)
