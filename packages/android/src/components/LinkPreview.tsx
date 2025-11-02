@@ -26,7 +26,26 @@ export const LinkPreview: React.FC<LinkPreviewProps> = ({ preview, onPress }) =>
     }
   };
 
-  const isYouTube = preview.url.includes('youtube.com') || preview.url.includes('youtu.be');
+  // Security: Properly validate YouTube URLs by checking hostname
+  // This prevents URL spoofing attacks (e.g., evil.com?q=youtube.com)
+  const isYouTube = (() => {
+    try {
+      const url = new URL(preview.url);
+      const hostname = url.hostname.toLowerCase();
+
+      // Only accept legitimate YouTube hostnames
+      const validYouTubeHosts = [
+        'youtube.com',
+        'www.youtube.com',
+        'm.youtube.com',
+        'youtu.be'
+      ];
+
+      return validYouTubeHosts.includes(hostname);
+    } catch (error) {
+      return false;
+    }
+  })();
 
   // Extract hostname from URL
   let hostname = '';

@@ -6,15 +6,75 @@ import { authenticateToken } from '../middleware/auth';
 const router = express.Router();
 
 /**
+ * Security: Validate that URL is not pointing to private/internal resources
+ * This prevents SSRF attacks against internal networks and cloud metadata
+ */
+const isPrivateOrInternalURL = (url: URL): boolean => {
+  const hostname = url.hostname.toLowerCase();
+
+  // Block localhost
+  if (hostname === 'localhost' || hostname === '0.0.0.0') {
+    return true;
+  }
+
+  // Block loopback addresses
+  if (hostname.startsWith('127.') || hostname === '::1') {
+    return true;
+  }
+
+  // Block cloud metadata services
+  if (hostname === '169.254.169.254' || hostname === 'metadata.google.internal') {
+    return true;
+  }
+
+  // Block private IP ranges (IPv4)
+  const ipv4Regex = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
+  const ipMatch = hostname.match(ipv4Regex);
+  if (ipMatch) {
+    const octets = ipMatch.slice(1).map(Number);
+
+    // 10.0.0.0/8
+    if (octets[0] === 10) return true;
+
+    // 172.16.0.0/12
+    if (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31) return true;
+
+    // 192.168.0.0/16
+    if (octets[0] === 192 && octets[1] === 168) return true;
+
+    // 169.254.0.0/16 (link-local)
+    if (octets[0] === 169 && octets[1] === 254) return true;
+  }
+
+  // Block .local and .internal TLDs
+  if (hostname.endsWith('.local') || hostname.endsWith('.internal')) {
+    return true;
+  }
+
+  return false;
+};
+
+/**
  * Helper function to check if URL is YouTube
+ * Security: Properly validates hostname to prevent URL spoofing
  */
 const isYouTubeURL = (url: string): boolean => {
-  return (
-    url.includes('youtube.com/watch') ||
-    url.includes('youtu.be/') ||
-    url.includes('youtube.com/shorts/') ||
-    url.includes('youtube.com/embed/')
-  );
+  try {
+    const parsed = new URL(url);
+    const hostname = parsed.hostname.toLowerCase();
+
+    // Only accept youtube.com, www.youtube.com, m.youtube.com, and youtu.be
+    const validHosts = [
+      'youtube.com',
+      'www.youtube.com',
+      'm.youtube.com',
+      'youtu.be'
+    ];
+
+    return validHosts.includes(hostname);
+  } catch (error) {
+    return false;
+  }
 };
 
 /**
@@ -68,6 +128,12 @@ router.post('/', authenticateToken, async (req: Request, res: Response): Promise
     // Only allow HTTP and HTTPS protocols
     if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
       res.status(400).json({ error: 'Only HTTP and HTTPS URLs are allowed' });
+      return;
+    }
+
+    // Security: Block SSRF attempts to private/internal resources
+    if (isPrivateOrInternalURL(parsedUrl)) {
+      res.status(403).json({ error: 'Access to private or internal URLs is not allowed' });
       return;
     }
 
