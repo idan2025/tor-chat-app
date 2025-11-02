@@ -61,6 +61,32 @@ subprojects { subproject ->
                 buildFeatures {
                     buildConfig = true
                 }
+
+                // AGP 8.x requires namespace to be set
+                // Auto-inject namespace for libraries that don't have it
+                if (subproject.android.namespace == null) {
+                    def manifestFile = subproject.file('src/main/AndroidManifest.xml')
+
+                    if (manifestFile.exists()) {
+                        def manifestText = manifestFile.text
+                        def packageMatch = manifestText =~ /package="([^"]+)"/
+
+                        if (packageMatch) {
+                            // If manifest has package attribute, use it as namespace
+                            def packageName = packageMatch[0][1]
+                            subproject.android.namespace = packageName
+                            logger.info("AGP 8.x: Set namespace from manifest for ${subproject.name}: ${packageName}")
+                        }
+                    }
+
+                    // If still no namespace (no manifest or no package in manifest)
+                    // Generate a namespace from the module name
+                    if (subproject.android.namespace == null) {
+                        def generatedNamespace = "com.${subproject.name.replaceAll(/[^a-zA-Z0-9]/, '').toLowerCase()}"
+                        subproject.android.namespace = generatedNamespace
+                        logger.warn("AGP 8.x: Generated namespace for ${subproject.name}: ${generatedNamespace}")
+                    }
+                }
             }
         }
     }
@@ -68,4 +94,86 @@ subprojects { subproject ->
 
 tasks.register('clean', Delete) {
     delete rootProject.buildDir
+}
+
+// Task to debug namespace configuration for all library modules
+// This checks namespace setup after all projects are evaluated
+tasks.register('checkNamespaces') {
+    group = 'verification'
+    description = 'Checks namespace configuration for all Android library modules'
+
+    doLast {
+        println "=========================================="
+        println "AGP 8.x Namespace Configuration Report"
+        println "=========================================="
+        println ""
+
+        def libraryCount = 0
+        def namespaceCount = 0
+        def issues = []
+
+        rootProject.subprojects { subproject ->
+            subproject.plugins.withId('com.android.library') {
+                libraryCount++
+
+                def namespace = subproject.android.namespace
+                def manifestFile = subproject.file('src/main/AndroidManifest.xml')
+                def packageInManifest = null
+
+                if (manifestFile.exists()) {
+                    def manifestText = manifestFile.text
+                    def packageMatch = manifestText =~ /package="([^"]+)"/
+                    if (packageMatch) {
+                        packageInManifest = packageMatch[0][1]
+                    }
+                }
+
+                if (namespace != null) {
+                    namespaceCount++
+                    println "${subproject.name}"
+                    println "  Namespace: ${namespace}"
+                    if (packageInManifest) {
+                        if (namespace == packageInManifest) {
+                            println "  Manifest:  ${packageInManifest} (matches namespace)"
+                        } else {
+                            println "  Manifest:  ${packageInManifest} (MISMATCH!)"
+                            issues << "${subproject.name}: namespace != package (${namespace} vs ${packageInManifest})"
+                        }
+                    } else {
+                        println "  Manifest:  (no package attribute)"
+                    }
+                    println ""
+                } else {
+                    issues << "${subproject.name}: NO NAMESPACE SET!"
+                    println "${subproject.name}"
+                    println "  WARNING: No namespace configured!"
+                    if (packageInManifest) {
+                        println "  Manifest:  ${packageInManifest} (could be used as namespace)"
+                    }
+                    println ""
+                }
+            }
+        }
+
+        println "=========================================="
+        println "Summary"
+        println "=========================================="
+        println "Total library modules: ${libraryCount}"
+        println "Modules with namespace: ${namespaceCount}"
+
+        if (issues.isEmpty()) {
+            println ""
+            println "SUCCESS: All library modules have namespace configured!"
+            println "Your project is AGP 8.x compliant."
+        } else {
+            println ""
+            println "Issues found (${issues.size()}):"
+            issues.each { issue ->
+                println "  - ${issue}"
+            }
+            println ""
+            println "These issues may cause build failures with AGP 8.x"
+        }
+        println "=========================================="
+    }
 }
