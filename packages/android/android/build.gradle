@@ -36,30 +36,18 @@ allprojects {
         mavenCentral()
         maven {
             // All of React Native (JS, Obj-C sources, Android binaries) is installed from npm
-            // Try multiple possible locations for node_modules
-            def possiblePaths = [
-                file("$rootDir/../node_modules"),  // CI with symlink
-                file("$rootDir/../../node_modules"), // Local workspace
-                file("$rootDir/../../../node_modules") // Fallback
-            ]
-            def nodeModulesDir = possiblePaths.find { it.exists() && file("${it}/react-native").exists() }
-            if (nodeModulesDir == null) {
-                throw new GradleException("Could not find node_modules with react-native. Tried: ${possiblePaths}")
-            }
-            url("${nodeModulesDir}/react-native/android")
+            // Use canonical path to resolve symlinks properly
+            def nodeModulesPath = file("$rootDir/../node_modules").exists() ?
+                file("$rootDir/../node_modules").canonicalPath :
+                file("$rootDir/../../node_modules").canonicalPath
+            url("file://${nodeModulesPath}/react-native/android")
         }
         maven {
             // Android JSC is installed from npm
-            def possiblePaths = [
-                file("$rootDir/../node_modules"),
-                file("$rootDir/../../node_modules"),
-                file("$rootDir/../../../node_modules")
-            ]
-            def nodeModulesDir = possiblePaths.find { it.exists() && file("${it}/jsc-android").exists() }
-            if (nodeModulesDir == null) {
-                throw new GradleException("Could not find node_modules with jsc-android. Tried: ${possiblePaths}")
-            }
-            url("${nodeModulesDir}/jsc-android/dist")
+            def nodeModulesPath = file("$rootDir/../node_modules").exists() ?
+                file("$rootDir/../node_modules").canonicalPath :
+                file("$rootDir/../../node_modules").canonicalPath
+            url("file://${nodeModulesPath}/jsc-android/dist")
         }
         maven {
             // Guardian Project repo for Tor libraries
