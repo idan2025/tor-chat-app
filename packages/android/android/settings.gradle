@@ -6,8 +6,15 @@ include ':app'
 // Define node_modules path (relative to android folder)
 // In CI, a symlink is created at packages/android/node_modules -> ../../node_modules
 // Locally, node_modules is at workspace root (../../node_modules from android/ folder)
-def nodeModulesPath = file("../node_modules").exists() ?
-    file("../node_modules") : file("../../node_modules")
+def possiblePaths = [
+    file("../node_modules"),       // CI with symlink
+    file("../../node_modules"),    // Local workspace
+    file("../../../node_modules")  // Fallback
+]
+def nodeModulesPath = possiblePaths.find { it.exists() && file("${it}/react-native").exists() }
+if (nodeModulesPath == null) {
+    throw new GradleException("Could not find node_modules with react-native. Tried: ${possiblePaths}")
+}
 
 // React Native core (commented out - not needed for RN 0.73)
 // apply from: file("${nodeModulesPath}/react-native/react.settings.gradle")
