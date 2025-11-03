@@ -34,21 +34,8 @@ allprojects {
     repositories {
         google()
         mavenCentral()
-        maven {
-            // All of React Native (JS, Obj-C sources, Android binaries) is installed from npm
-            // Use canonical path to resolve symlinks properly
-            def nodeModulesPath = file("$rootDir/../node_modules").exists() ?
-                file("$rootDir/../node_modules").canonicalPath :
-                file("$rootDir/../../node_modules").canonicalPath
-            url("file://${nodeModulesPath}/react-native/android")
-        }
-        maven {
-            // Android JSC is installed from npm
-            def nodeModulesPath = file("$rootDir/../node_modules").exists() ?
-                file("$rootDir/../node_modules").canonicalPath :
-                file("$rootDir/../../node_modules").canonicalPath
-            url("file://${nodeModulesPath}/jsc-android/dist")
-        }
+        // React Native 0.71+ distributes Android artifacts via Maven Central
+        // No need to point to node_modules/react-native/android anymore
         maven {
             // Guardian Project repo for Tor libraries
             url "https://raw.githubusercontent.com/guardianproject/gpmaven/master"
