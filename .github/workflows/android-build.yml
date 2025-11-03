@@ -61,6 +61,25 @@ jobs:
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
 
+    - name: Verify Android SDK and create local.properties
+      working-directory: ./packages/android/android
+      run: |
+        echo "Verifying Android SDK setup..."
+        if [ -z "$ANDROID_HOME" ] && [ -z "$ANDROID_SDK_ROOT" ]; then
+          echo "Error: Neither ANDROID_HOME nor ANDROID_SDK_ROOT is set!"
+          exit 1
+        fi
+
+        SDK_PATH="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+        echo "Android SDK location: $SDK_PATH"
+
+        echo "Creating local.properties..."
+        echo "sdk.dir=$SDK_PATH" > local.properties
+        echo "✓ local.properties created"
+
+        echo "Contents of local.properties:"
+        cat local.properties
+
     - name: Install dependencies
       working-directory: ./packages/android
       run: |
