@@ -15,8 +15,13 @@ apply plugin: "org.jetbrains.kotlin.android"
 
 import com.android.build.OutputFile
 
+// Determine the correct path to node_modules
+// In CI, a symlink is created at packages/android/node_modules -> ../../node_modules
+// Locally, node_modules is at workspace root (../../node_modules from android/ folder)
 def projectRoot = rootProject.projectDir.parent
-def reactNativeRoot = file("$projectRoot/node_modules/react-native")
+def nodeModulesPath = file("$projectRoot/node_modules").exists() ?
+    "$projectRoot/node_modules" : file("$projectRoot/../node_modules").path
+def reactNativeRoot = file("${nodeModulesPath}/react-native")
 
 /**
  * Set this to true to enable ProGuard in release builds
@@ -29,6 +34,23 @@ def enableProguardInReleaseBuilds = false
  * `def jscFlavor = 'org.webkit:android-jsc-intl:+'`
  */
 def jscFlavor = 'org.webkit:android-jsc:+'
+
+/**
+ * React Native configuration - must be defined before android block
+ */
+if (!project.hasProperty('react')) {
+    project.ext.react = [:]
+}
+project.ext.react = project.ext.react + [
+    enableHermes: true,
+    bundleCommand: "bundle",
+    bundleConfig: null,
+    bundleAssetName: "index.android.bundle"
+]
+
+// Get configuration values
+def hermesEnabled = project.ext.react.get("enableHermes", true)
+def newArchEnabled = project.hasProperty("newArchEnabled") ? newArchEnabled.toBoolean() : false
 
 android {
     ndkVersion rootProject.ext.ndkVersion
@@ -52,6 +74,10 @@ android {
 
         // Vector drawable support
         vectorDrawables.useSupportLibrary = true
+
+        // BuildConfig fields for React Native configuration
+        buildConfigField "boolean", "IS_NEW_ARCHITECTURE_ENABLED", "${newArchEnabled.toString()}"
+        buildConfigField "boolean", "IS_HERMES_ENABLED", "${hermesEnabled.toString()}"
     }
 
     splits {
@@ -136,10 +162,16 @@ android {
 dependencies {
     // React Native
     implementation("com.facebook.react:react-android")
-    implementation("com.facebook.react:hermes-android")
 
-    // JSC (JavaScript Core)
-    implementation jscFlavor
+    // JSC (JavaScript Core) - used if Hermes is disabled
+    if (!hermesEnabled.toBoolean()) {
+        implementation jscFlavor
+    }
+
+    // Hermes engine - use explicit version if enabled
+    if (hermesEnabled.toBoolean()) {
+        implementation("com.facebook.react:hermes-android")
+    }
 
     // Kotlin
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion"
@@ -174,36 +206,18 @@ dependencies {
     implementation "com.google.firebase:firebase-messaging:23.4.0"
     implementation "androidx.work:work-runtime:2.9.0"
 
-    // React Native community packages
+    // React Native community packages (Flipper for debugging)
     debugImplementation("com.facebook.flipper:flipper:0.182.0")
     debugImplementation("com.facebook.flipper:flipper-network-plugin:0.182.0") {
         exclude group:'com.squareup.okhttp3', module:'okhttp'
     }
     debugImplementation("com.facebook.flipper:flipper-fresco-plugin:0.182.0")
-
-    if (hermesEnabled.toBoolean()) {
-        implementation("com.facebook.react:hermes-android")
-    } else {
-        implementation jscFlavor
-    }
 }
 
 // Apply React Native Gradle plugin (not needed for RN 0.73+)
 // apply from: file("$reactNativeRoot/react.gradle")
 
-// Define react configuration if not already set
-if (!project.hasProperty('react')) {
-    project.ext.react = [:]
-}
-project.ext.react = project.ext.react + [
-    enableHermes: true,
-    bundleCommand: "bundle",
-    bundleConfig: null,
-    bundleAssetName: "index.android.bundle"
-]
-
-// Hermes cleanup
-def hermesEnabled = project.ext.react.get("enableHermes", true)
+// Hermes dependency resolution - force specific version for consistency
 if (hermesEnabled) {
     configurations.all {
         resolutionStrategy {

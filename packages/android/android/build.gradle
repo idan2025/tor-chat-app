@@ -36,11 +36,17 @@ allprojects {
         mavenCentral()
         maven {
             // All of React Native (JS, Obj-C sources, Android binaries) is installed from npm
-            url("$rootDir/../node_modules/react-native/android")
+            // In CI, a symlink is created: packages/android/node_modules -> ../../node_modules
+            // Locally, try both ../node_modules and ../../node_modules
+            def nodeModulesPath = file("$rootDir/../node_modules").exists() ?
+                "$rootDir/../node_modules" : "$rootDir/../../node_modules"
+            url("${nodeModulesPath}/react-native/android")
         }
         maven {
             // Android JSC is installed from npm
-            url("$rootDir/../node_modules/jsc-android/dist")
+            def nodeModulesPath = file("$rootDir/../node_modules").exists() ?
+                "$rootDir/../node_modules" : "$rootDir/../../node_modules"
+            url("${nodeModulesPath}/jsc-android/dist")
         }
         maven {
             // Guardian Project repo for Tor libraries
