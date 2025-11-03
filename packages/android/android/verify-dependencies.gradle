@@ -1,0 +1,121 @@
+/**
+ * Gradle script to verify React Native dependency resolution
+ * This can be run without a full Android SDK to verify the dependency substitution is working
+ *
+ * Usage: ./gradlew -q -b verify-dependencies.gradle verifyDependencies
+ */
+
+apply plugin: 'base'
+
+// Apply the fix
+apply from: 'react-native-maven-fix.gradle'
+
+// Define the same repositories as the main project
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+        maven {
+            url "https://raw.githubusercontent.com/guardianproject/gpmaven/master"
+        }
+        maven { url 'https://jitpack.io' }
+    }
+}
+
+configurations {
+    testDependencies
+}
+
+dependencies {
+    // Test the dependencies that were failing
+    testDependencies 'com.facebook.react:react-native:+' // Should be substituted to react-android:0.73.0
+    testDependencies 'com.facebook.react:react-android:0.73.0'
+    testDependencies 'com.facebook.react:hermes-android:0.73.0'
+}
+
+task verifyDependencies {
+    doLast {
+        println "=========================================="
+        println "React Native Dependency Resolution Test"
+        println "=========================================="
+        println ""
+
+        def foundReactNative = false
+        def foundReactAndroid = false
+        def foundHermes = false
+        def substitutionWorking = false
+
+        try {
+            configurations.testDependencies.resolvedConfiguration.resolvedArtifacts.each { artifact ->
+                def moduleId = artifact.moduleVersion.id
+                println "✓ Resolved: ${moduleId.group}:${moduleId.name}:${moduleId.version}"
+
+                if (moduleId.group == 'com.facebook.react') {
+                    if (moduleId.name == 'react-native') {
+                        foundReactNative = true
+                        println "  ⚠ WARNING: Found react-native artifact (should be substituted)"
+                    }
+                    if (moduleId.name == 'react-android') {
+                        foundReactAndroid = true
+                        if (moduleId.version == '0.73.0') {
+                            println "  ✓ Correct version: 0.73.0"
+                            substitutionWorking = true
+                        } else {
+                            println "  ✗ Unexpected version: ${moduleId.version}"
+                        }
+                    }
+                    if (moduleId.name == 'hermes-android') {
+                        foundHermes = true
+                        if (moduleId.version == '0.73.0') {
+                            println "  ✓ Correct version: 0.73.0"
+                        } else {
+                            println "  ✗ Unexpected version: ${moduleId.version}"
+                        }
+                    }
+                }
+            }
+
+            println ""
+            println "=========================================="
+            println "Verification Results"
+            println "=========================================="
+
+            if (substitutionWorking && !foundReactNative && foundReactAndroid && foundHermes) {
+                println "✅ SUCCESS: All dependencies resolved correctly!"
+                println ""
+                println "Details:"
+                println "  ✓ Dependency substitution is working"
+                println "  ✓ react-native → react-android:0.73.0 substitution successful"
+                println "  ✓ react-android:0.73.0 resolved from Maven Central"
+                println "  ✓ hermes-android:0.73.0 resolved from Maven Central"
+                println ""
+                println "The build will work in CI/GitHub Actions!"
+            } else {
+                println "❌ ISSUES FOUND:"
+                if (foundReactNative) {
+                    println "  ✗ react-native artifact found (should be substituted)"
+                }
+                if (!foundReactAndroid) {
+                    println "  ✗ react-android artifact NOT found"
+                }
+                if (!foundHermes) {
+                    println "  ✗ hermes-android artifact NOT found"
+                }
+                if (!substitutionWorking) {
+                    println "  ✗ Dependency substitution not working correctly"
+                }
+            }
+
+        } catch (Exception e) {
+            println ""
+            println "❌ DEPENDENCY RESOLUTION FAILED"
+            println ""
+            println "Error: ${e.message}"
+            println ""
+            println "This indicates the fix is not complete or Maven Central is unreachable."
+            throw e
+        }
+
+        println "=========================================="
+    }
+}

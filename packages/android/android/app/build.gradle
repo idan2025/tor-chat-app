@@ -160,8 +160,8 @@ android {
 }
 
 dependencies {
-    // React Native
-    implementation("com.facebook.react:react-android")
+    // React Native - explicit version required for Maven Central resolution
+    implementation("com.facebook.react:react-android:0.73.0")
 
     // JSC (JavaScript Core) - used if Hermes is disabled
     if (!hermesEnabled.toBoolean()) {
@@ -170,7 +170,7 @@ dependencies {
 
     // Hermes engine - use explicit version if enabled
     if (hermesEnabled.toBoolean()) {
-        implementation("com.facebook.react:hermes-android")
+        implementation("com.facebook.react:hermes-android:0.73.0")
     }
 
     // Kotlin

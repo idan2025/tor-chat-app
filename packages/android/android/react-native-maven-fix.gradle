@@ -4,57 +4,41 @@
  * Problem:
  * - React Native 0.73+ no longer distributes Android artifacts via npm
  * - RN 0.73+ distributes prebuilt artifacts through Maven Central only
- * - React Native community packages still reference node_modules/react-native/android
+ * - React Native community packages reference node_modules/react-native/android as a Maven repo
  * - That directory only contains a README.md in RN 0.73+, causing dependency resolution failures
+ * - Community packages use 'com.facebook.react:react-native:+' which exists on Maven Central
+ * - But Gradle tries the empty local repo FIRST and fails before reaching Maven Central
  *
  * Solution:
- * - Remove the outdated local Maven repository reference from all subprojects
- * - Ensure Maven Central and Google Maven are configured properly
- * - This allows Gradle to find com.facebook.react:react-native from Maven Central
+ * - Override ext.resolveModulePath globally to return null for 'react-native'
+ * - This prevents community packages from adding the broken local Maven repository
+ * - Forces Gradle to use Maven Central where react-native artifacts are available
+ * - React Native 0.71+ supports both old (react-native) and new (react-android) artifact names
  */
 
-allprojects {
-    buildscript {
-        repositories {
-            google()
-            mavenCentral()
+// Override resolveModulePath globally BEFORE any subprojects call it
+// This function is used by React Native community packages to find node_modules paths
+ext.resolveModulePath = { packageName ->
+    import java.nio.file.Paths
+
+    // CRITICAL: For 'react-native', return null to prevent adding the empty local Maven repo
+    // This forces community packages to rely on Maven Central instead
+    if (packageName == 'react-native') {
+        logger.lifecycle("[RN Maven Fix] Blocking react-native local Maven repo - will use Maven Central")
+        return null
+    }
+
+    // For other packages, use the standard Node.js module resolution algorithm
+    def basePath = rootDir.toPath().normalize()
+
+    // Search up the directory tree until we find node_modules/packageName
+    while (basePath) {
+        def candidatePath = Paths.get(basePath.toString(), 'node_modules', packageName)
+        if (candidatePath.toFile().exists()) {
+            return candidatePath.toString()
         }
+        basePath = basePath.getParent()
     }
 
-    repositories {
-        // Remove any repository that points to node_modules/react-native/android
-        // This is done by filtering out repositories after evaluation
-
-        google()
-        mavenCentral()
-    }
-}
-
-// Apply fix to all React Native library subprojects after evaluation
-subprojects { subproject ->
-    afterEvaluate {
-        if (subproject.plugins.hasPlugin('com.android.library')) {
-            // Remove the problematic react-native/android repository
-            subproject.repositories.removeIf { repo ->
-                // Check if this is a Maven repository
-                if (repo.hasProperty('url')) {
-                    def repoUrl = repo.url.toString()
-                    // Remove if it points to node_modules/react-native/android
-                    if (repoUrl.contains('react-native') && repoUrl.contains('android') && repoUrl.contains('node_modules')) {
-                        logger.info("[RN Maven Fix] Removing outdated repo from ${subproject.name}: ${repoUrl}")
-                        return true
-                    }
-                }
-                return false
-            }
-
-            // Ensure proper repositories are at the top
-            subproject.repositories {
-                google()
-                mavenCentral()
-            }
-
-            logger.info("[RN Maven Fix] Fixed repositories for ${subproject.name}")
-        }
-    }
+    return null
 }
