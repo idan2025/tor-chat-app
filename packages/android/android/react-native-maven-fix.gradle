@@ -1,0 +1,60 @@
+/**
+ * React Native 0.73+ Maven Repository Fix
+ *
+ * Problem:
+ * - React Native 0.73+ no longer distributes Android artifacts via npm
+ * - RN 0.73+ distributes prebuilt artifacts through Maven Central only
+ * - React Native community packages still reference node_modules/react-native/android
+ * - That directory only contains a README.md in RN 0.73+, causing dependency resolution failures
+ *
+ * Solution:
+ * - Remove the outdated local Maven repository reference from all subprojects
+ * - Ensure Maven Central and Google Maven are configured properly
+ * - This allows Gradle to find com.facebook.react:react-native from Maven Central
+ */
+
+allprojects {
+    buildscript {
+        repositories {
+            google()
+            mavenCentral()
+        }
+    }
+
+    repositories {
+        // Remove any repository that points to node_modules/react-native/android
+        // This is done by filtering out repositories after evaluation
+
+        google()
+        mavenCentral()
+    }
+}
+
+// Apply fix to all React Native library subprojects after evaluation
+subprojects { subproject ->
+    afterEvaluate {
+        if (subproject.plugins.hasPlugin('com.android.library')) {
+            // Remove the problematic react-native/android repository
+            subproject.repositories.removeIf { repo ->
+                // Check if this is a Maven repository
+                if (repo.hasProperty('url')) {
+                    def repoUrl = repo.url.toString()
+                    // Remove if it points to node_modules/react-native/android
+                    if (repoUrl.contains('react-native') && repoUrl.contains('android') && repoUrl.contains('node_modules')) {
+                        logger.info("[RN Maven Fix] Removing outdated repo from ${subproject.name}: ${repoUrl}")
+                        return true
+                    }
+                }
+                return false
+            }
+
+            // Ensure proper repositories are at the top
+            subproject.repositories {
+                google()
+                mavenCentral()
+            }
+
+            logger.info("[RN Maven Fix] Fixed repositories for ${subproject.name}")
+        }
+    }
+}

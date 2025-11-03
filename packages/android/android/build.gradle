@@ -1,5 +1,9 @@
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
 
+// Apply React Native 0.73+ Maven repository fix
+// This removes outdated node_modules/react-native/android references from all subprojects
+apply from: file("react-native-maven-fix.gradle")
+
 buildscript {
     ext {
         buildToolsVersion = "34.0.0"
