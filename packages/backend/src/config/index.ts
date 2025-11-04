@@ -1,7 +1,13 @@
 import dotenv from 'dotenv';
 import path from 'path';
+import fs from 'fs';
 
-dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+// Only load .env file if it exists (for local development)
+// In production (Docker), environment variables are injected by docker-compose
+const envPath = path.resolve(__dirname, '../../.env');
+if (fs.existsSync(envPath)) {
+  dotenv.config({ path: envPath });
+}
 
 export const config = {
   env: process.env.NODE_ENV || 'development',

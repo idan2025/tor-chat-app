@@ -28,11 +28,12 @@ RUN apk add --no-cache tor wget python3 make g++
 
 WORKDIR /app
 
-# Copy package files
+# Copy package files for metadata
 COPY package*.json ./
 COPY packages/backend/package*.json ./packages/backend/
 
-# Copy node_modules from builder (includes compiled native modules)
+# Copy node_modules from builder (includes all dependencies and compiled native modules)
+# Using workspace installation from builder ensures correct dependency resolution
 COPY --from=builder /app/node_modules ./node_modules
 
 # Copy built files from builder
@@ -42,8 +43,8 @@ COPY --from=builder /app/packages/backend/dist ./packages/backend/dist
 RUN mkdir -p /var/lib/tor/hidden_service && \
     chown -R node:node /var/lib/tor
 
-# Create logs directory
-RUN mkdir -p /app/packages/backend/logs && \
+# Create logs directory and uploads directory
+RUN mkdir -p /app/packages/backend/logs /app/packages/backend/uploads && \
     chown -R node:node /app
 
 # Switch to non-root user
