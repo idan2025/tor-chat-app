@@ -31,7 +31,16 @@ export interface Message {
   messageType: 'text' | 'file' | 'image' | 'video' | 'system';
   metadata?: Record<string, any>;
   attachments?: string[];
+  parentMessageId?: string;
+  isEdited?: boolean;
+  editedAt?: Date;
+  isDeleted?: boolean;
+  deletedAt?: Date;
   createdAt: Date;
+}
+
+export interface MessageReactions {
+  [emoji: string]: string[];
 }
 
 export interface RoomMember {

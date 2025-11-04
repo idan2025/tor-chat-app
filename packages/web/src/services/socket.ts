@@ -48,6 +48,22 @@ class SocketService {
       this.emit('user_typing', data);
     });
 
+    this.socket.on('reaction_added', (data: any) => {
+      this.emit('reaction_added', data);
+    });
+
+    this.socket.on('reaction_removed', (data: any) => {
+      this.emit('reaction_removed', data);
+    });
+
+    this.socket.on('message_edited', (data: any) => {
+      this.emit('message_edited', data);
+    });
+
+    this.socket.on('message_deleted', (data: any) => {
+      this.emit('message_deleted', data);
+    });
+
     this.socket.on('error', (data: any) => {
       this.emit('error', data);
     });
@@ -74,6 +90,22 @@ class SocketService {
 
   sendTyping(roomId: string, isTyping: boolean): void {
     this.socket?.emit('typing', { roomId, isTyping });
+  }
+
+  addReaction(messageId: string, roomId: string, emoji: string): void {
+    this.socket?.emit('add_reaction', { messageId, roomId, emoji });
+  }
+
+  removeReaction(messageId: string, roomId: string, emoji: string): void {
+    this.socket?.emit('remove_reaction', { messageId, roomId, emoji });
+  }
+
+  editMessage(messageId: string, roomId: string, encryptedContent: string): void {
+    this.socket?.emit('edit_message', { messageId, roomId, encryptedContent });
+  }
+
+  deleteMessage(messageId: string, roomId: string): void {
+    this.socket?.emit('delete_message', { messageId, roomId });
   }
 
   on(event: string, callback: Function): void {

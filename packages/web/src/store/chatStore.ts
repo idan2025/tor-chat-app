@@ -10,6 +10,7 @@ interface ChatState {
   messages: Map<string, Message[]>;
   members: Map<string, RoomMember[]>;
   roomKeys: Map<string, string>;
+  typingUsers: Map<string, Map<string, string>>;
   isLoading: boolean;
   error: string | null;
 
@@ -22,10 +23,14 @@ interface ChatState {
   deleteRoom: (roomId: string) => Promise<void>;
   addMember: (roomId: string, userId: string) => Promise<void>;
   removeMember: (roomId: string, userId: string) => Promise<void>;
-  sendMessage: (roomId: string, content: string, attachments?: string[]) => Promise<void>;
+  sendMessage: (roomId: string, content: string, attachments?: string[], parentMessageId?: string) => Promise<void>;
   loadMessages: (roomId: string) => Promise<void>;
   loadMembers: (roomId: string) => Promise<void>;
   addMessage: (message: Message) => void;
+  addReaction: (messageId: string, roomId: string, emoji: string) => void;
+  removeReaction: (messageId: string, roomId: string, emoji: string) => void;
+  editMessage: (messageId: string, roomId: string, content: string) => Promise<void>;
+  deleteMessage: (messageId: string, roomId: string) => void;
   clearError: () => void;
 }
 
@@ -35,6 +40,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   messages: new Map(),
   members: new Map(),
   roomKeys: new Map(),
+  typingUsers: new Map(),
   isLoading: false,
   error: null,
 
@@ -167,7 +173,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
 
-  sendMessage: async (roomId: string, content: string, attachments?: string[]) => {
+  sendMessage: async (roomId: string, content: string, attachments?: string[], _parentMessageId?: string) => {
     try {
       const roomKey = get().roomKeys.get(roomId);
       if (!roomKey) {
@@ -190,7 +196,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         }
       }
 
-      // Send via socket
+      // Send via socket (note: backend needs to be updated to support parentMessageId in send_message)
       socketService.sendMessage(roomId, encryptedContent, messageType, attachments);
     } catch (error: any) {
       set({ error: error.message || 'Failed to send message' });
@@ -251,10 +257,254 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set({ messages: new Map(get().messages) });
   },
 
+  addReaction: (messageId: string, roomId: string, emoji: string) => {
+    socketService.addReaction(messageId, roomId, emoji);
+
+    // Optimistic update
+    const roomMessages = get().messages.get(roomId);
+    if (roomMessages) {
+      const updatedMessages = roomMessages.map((msg) => {
+        if (msg.id === messageId) {
+          const metadata = msg.metadata || {};
+          const reactions = (metadata as any).reactions || {};
+          if (!reactions[emoji]) {
+            reactions[emoji] = [];
+          }
+          if (!reactions[emoji].includes(get().currentRoom?.id || '')) {
+            reactions[emoji].push(get().currentRoom?.id || '');
+          }
+          return { ...msg, metadata: { ...metadata, reactions } };
+        }
+        return msg;
+      });
+      get().messages.set(roomId, updatedMessages);
+      set({ messages: new Map(get().messages) });
+    }
+  },
+
+  removeReaction: (messageId: string, roomId: string, emoji: string) => {
+    socketService.removeReaction(messageId, roomId, emoji);
+
+    // Optimistic update
+    const roomMessages = get().messages.get(roomId);
+    if (roomMessages) {
+      const updatedMessages = roomMessages.map((msg) => {
+        if (msg.id === messageId) {
+          const metadata = msg.metadata || {};
+          const reactions = (metadata as any).reactions || {};
+          if (reactions[emoji]) {
+            reactions[emoji] = reactions[emoji].filter((id: string) => id !== get().currentRoom?.id);
+            if (reactions[emoji].length === 0) {
+              delete reactions[emoji];
+            }
+          }
+          return { ...msg, metadata: { ...metadata, reactions } };
+        }
+        return msg;
+      });
+      get().messages.set(roomId, updatedMessages);
+      set({ messages: new Map(get().messages) });
+    }
+  },
+
+  editMessage: async (messageId: string, roomId: string, content: string) => {
+    try {
+      const roomKey = get().roomKeys.get(roomId);
+      if (!roomKey) {
+        throw new Error('Room encryption key not found');
+      }
+
+      // Encrypt new content
+      const encryptedContent = await cryptoService.encryptRoomMessage(content, roomKey);
+
+      // Send edit via socket
+      socketService.editMessage(messageId, roomId, encryptedContent);
+
+      // Optimistic update
+      const roomMessages = get().messages.get(roomId);
+      if (roomMessages) {
+        const updatedMessages = roomMessages.map((msg) => {
+          if (msg.id === messageId) {
+            return {
+              ...msg,
+              encryptedContent,
+              isEdited: true,
+              editedAt: new Date(),
+            } as any;
+          }
+          return msg;
+        });
+        get().messages.set(roomId, updatedMessages);
+        set({ messages: new Map(get().messages) });
+
+        // Decrypt the updated message
+        const message = updatedMessages.find(m => m.id === messageId);
+        if (message) {
+          try {
+            const decrypted = await cryptoService.decryptRoomMessage(encryptedContent, roomKey);
+            (message as any).decryptedContent = decrypted;
+            set({ messages: new Map(get().messages) });
+          } catch (error) {
+            console.error('Failed to decrypt edited message:', error);
+          }
+        }
+      }
+    } catch (error: any) {
+      set({ error: error.message || 'Failed to edit message' });
+      throw error;
+    }
+  },
+
+  deleteMessage: (messageId: string, roomId: string) => {
+    socketService.deleteMessage(messageId, roomId);
+
+    // Optimistic update
+    const roomMessages = get().messages.get(roomId);
+    if (roomMessages) {
+      const updatedMessages = roomMessages.map((msg) => {
+        if (msg.id === messageId) {
+          return {
+            ...msg,
+            isDeleted: true,
+            deletedAt: new Date(),
+          } as any;
+        }
+        return msg;
+      });
+      get().messages.set(roomId, updatedMessages);
+      set({ messages: new Map(get().messages) });
+    }
+  },
+
   clearError: () => set({ error: null }),
 }));
 
 // Listen to socket messages
 socketService.on('message', (message: Message) => {
   useChatStore.getState().addMessage(message);
+});
+
+// Listen to reaction events
+socketService.on('reaction_added', async (data: { messageId: string; userId: string; emoji: string; roomId: string }) => {
+  const state = useChatStore.getState();
+  const roomMessages = state.messages.get(data.roomId);
+
+  if (roomMessages) {
+    const updatedMessages = roomMessages.map((msg) => {
+      if (msg.id === data.messageId) {
+        const metadata = msg.metadata || {};
+        const reactions = (metadata as any).reactions || {};
+        if (!reactions[data.emoji]) {
+          reactions[data.emoji] = [];
+        }
+        if (!reactions[data.emoji].includes(data.userId)) {
+          reactions[data.emoji].push(data.userId);
+        }
+        return { ...msg, metadata: { ...metadata, reactions } };
+      }
+      return msg;
+    });
+    state.messages.set(data.roomId, updatedMessages);
+    useChatStore.setState({ messages: new Map(state.messages) });
+  }
+});
+
+socketService.on('reaction_removed', (data: { messageId: string; userId: string; emoji: string; roomId: string }) => {
+  const state = useChatStore.getState();
+  const roomMessages = state.messages.get(data.roomId);
+
+  if (roomMessages) {
+    const updatedMessages = roomMessages.map((msg) => {
+      if (msg.id === data.messageId) {
+        const metadata = msg.metadata || {};
+        const reactions = (metadata as any).reactions || {};
+        if (reactions[data.emoji]) {
+          reactions[data.emoji] = reactions[data.emoji].filter((id: string) => id !== data.userId);
+          if (reactions[data.emoji].length === 0) {
+            delete reactions[data.emoji];
+          }
+        }
+        return { ...msg, metadata: { ...metadata, reactions } };
+      }
+      return msg;
+    });
+    state.messages.set(data.roomId, updatedMessages);
+    useChatStore.setState({ messages: new Map(state.messages) });
+  }
+});
+
+// Listen to message edit events
+socketService.on('message_edited', async (data: { messageId: string; roomId: string; encryptedContent: string; editedAt: Date }) => {
+  const state = useChatStore.getState();
+  const roomMessages = state.messages.get(data.roomId);
+  const roomKey = state.roomKeys.get(data.roomId);
+
+  if (roomMessages && roomKey) {
+    const updatedMessages = roomMessages.map((msg) => {
+      if (msg.id === data.messageId) {
+        return {
+          ...msg,
+          encryptedContent: data.encryptedContent,
+          isEdited: true,
+          editedAt: data.editedAt,
+        } as any;
+      }
+      return msg;
+    });
+    state.messages.set(data.roomId, updatedMessages);
+    useChatStore.setState({ messages: new Map(state.messages) });
+
+    // Decrypt the updated message
+    const message = updatedMessages.find(m => m.id === data.messageId);
+    if (message) {
+      try {
+        const { cryptoService } = await import('../services/crypto');
+        const decrypted = await cryptoService.decryptRoomMessage(data.encryptedContent, roomKey);
+        (message as any).decryptedContent = decrypted;
+        useChatStore.setState({ messages: new Map(state.messages) });
+      } catch (error) {
+        console.error('Failed to decrypt edited message:', error);
+      }
+    }
+  }
+});
+
+// Listen to message delete events
+socketService.on('message_deleted', (data: { messageId: string; roomId: string }) => {
+  const state = useChatStore.getState();
+  const roomMessages = state.messages.get(data.roomId);
+
+  if (roomMessages) {
+    const updatedMessages = roomMessages.map((msg) => {
+      if (msg.id === data.messageId) {
+        return {
+          ...msg,
+          isDeleted: true,
+          deletedAt: new Date(),
+        } as any;
+      }
+      return msg;
+    });
+    state.messages.set(data.roomId, updatedMessages);
+    useChatStore.setState({ messages: new Map(state.messages) });
+  }
+});
+
+// Listen to typing events
+socketService.on('user_typing', (data: { userId: string; username: string; roomId: string; isTyping: boolean }) => {
+  const state = useChatStore.getState();
+
+  if (!state.typingUsers.has(data.roomId)) {
+    state.typingUsers.set(data.roomId, new Map());
+  }
+
+  const roomTypingUsers = state.typingUsers.get(data.roomId)!;
+
+  if (data.isTyping) {
+    roomTypingUsers.set(data.userId, data.username);
+  } else {
+    roomTypingUsers.delete(data.userId);
+  }
+
+  useChatStore.setState({ typingUsers: new Map(state.typingUsers) });
 });

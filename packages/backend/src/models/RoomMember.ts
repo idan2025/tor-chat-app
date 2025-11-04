@@ -7,6 +7,8 @@ interface RoomMemberAttributes {
   userId: string;
   role: 'admin' | 'moderator' | 'member';
   joinedAt: Date;
+  lastReadMessageId?: string; // Track last read message for unread counts
+  lastReadAt?: Date; // Timestamp of last read
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -19,6 +21,8 @@ export class RoomMember extends Model<RoomMemberAttributes, RoomMemberCreationAt
   declare userId: string;
   declare role: 'admin' | 'moderator' | 'member';
   declare joinedAt: Date;
+  declare lastReadMessageId?: string;
+  declare lastReadAt?: Date;
 
   declare readonly createdAt: Date;
   declare readonly updatedAt: Date;
@@ -56,6 +60,18 @@ RoomMember.init(
       type: DataTypes.DATE,
       defaultValue: DataTypes.NOW,
     },
+    lastReadMessageId: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      references: {
+        model: 'messages',
+        key: 'id',
+      },
+    },
+    lastReadAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
   },
   {
     sequelize,
@@ -65,6 +81,7 @@ RoomMember.init(
       { fields: ['roomId'] },
       { fields: ['userId'] },
       { unique: true, fields: ['roomId', 'userId'] },
+      { fields: ['lastReadMessageId'] },
     ],
   }
 );

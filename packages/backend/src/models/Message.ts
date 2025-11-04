@@ -9,6 +9,11 @@ interface MessageAttributes {
   messageType: 'text' | 'file' | 'image' | 'video' | 'system';
   metadata?: object;
   attachments?: string[];
+  parentMessageId?: string; // For threaded replies
+  isEdited?: boolean;
+  editedAt?: Date;
+  isDeleted?: boolean;
+  deletedAt?: Date;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -23,6 +28,11 @@ export class Message extends Model<MessageAttributes, MessageCreationAttributes>
   declare messageType: 'text' | 'file' | 'image' | 'video' | 'system';
   declare metadata?: object;
   declare attachments?: string[];
+  declare parentMessageId?: string;
+  declare isEdited?: boolean;
+  declare editedAt?: Date;
+  declare isDeleted?: boolean;
+  declare deletedAt?: Date;
 
   declare readonly createdAt: Date;
   declare readonly updatedAt: Date;
@@ -68,6 +78,32 @@ Message.init(
       type: DataTypes.ARRAY(DataTypes.TEXT),
       allowNull: true,
     },
+    parentMessageId: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      references: {
+        model: 'messages',
+        key: 'id',
+      },
+    },
+    isEdited: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+      allowNull: false,
+    },
+    editedAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    isDeleted: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+      allowNull: false,
+    },
+    deletedAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
   },
   {
     sequelize,
@@ -77,6 +113,8 @@ Message.init(
       { fields: ['roomId'] },
       { fields: ['senderId'] },
       { fields: ['createdAt'] },
+      { fields: ['parentMessageId'] },
+      { fields: ['isDeleted'] },
     ],
   }
 );

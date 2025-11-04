@@ -1,12 +1,15 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useChatStore } from '../store/chatStore';
 import { useAuthStore } from '../store/authStore';
 import { apiService } from '../services/api';
-import { format } from 'date-fns';
+import { socketService } from '../services/socket';
 import RoomSettings from './RoomSettings';
+import MessageBubble from './MessageBubble';
+import TypingIndicator from './TypingIndicator';
+import { Message } from '../types';
 
 export default function ChatRoom() {
-  const { currentRoom, messages, members, sendMessage } = useChatStore();
+  const { currentRoom, messages, members, sendMessage, addReaction, removeReaction, editMessage, deleteMessage, typingUsers } = useChatStore();
   const { user } = useAuthStore();
   const [messageInput, setMessageInput] = useState('');
   const [showSettings, setShowSettings] = useState(false);
@@ -14,15 +17,85 @@ export default function ChatRoom() {
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [replyingTo, setReplyingTo] = useState<Message & { decryptedContent?: string } | null>(null);
+  const [editingMessage, setEditingMessage] = useState<Message & { decryptedContent?: string } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messageContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messageInputRef = useRef<HTMLInputElement>(null);
+  const typingTimeoutRef = useRef<number | null>(null);
 
   const roomMessages = currentRoom ? messages.get(currentRoom.id) || [] : [];
   const roomMembers = currentRoom ? members.get(currentRoom.id) || [] : [];
+  const currentRoomTypingUsers = currentRoom && typingUsers.has(currentRoom.id)
+    ? Array.from(typingUsers.get(currentRoom.id)!.values()).filter(username => username !== user?.username)
+    : [];
 
   const canManageRoom = currentRoom && (user?.id === currentRoom.creatorId || user?.isAdmin);
+
+  // Handle typing indicator
+  const handleTyping = useCallback(() => {
+    if (!currentRoom) return;
+
+    // Clear existing timeout
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    // Send typing start
+    socketService.sendTyping(currentRoom.id, true);
+
+    // Set timeout to send typing stop after 3 seconds
+    typingTimeoutRef.current = setTimeout(() => {
+      socketService.sendTyping(currentRoom.id, false);
+    }, 3000);
+  }, [currentRoom]);
+
+  // Clear typing on component unmount
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+      if (currentRoom) {
+        socketService.sendTyping(currentRoom.id, false);
+      }
+    };
+  }, [currentRoom]);
+
+  // Handle reply
+  const handleReply = (message: Message) => {
+    setReplyingTo(message as Message & { decryptedContent?: string });
+    messageInputRef.current?.focus();
+  };
+
+  // Handle edit
+  const handleEdit = (message: Message) => {
+    setEditingMessage(message as Message & { decryptedContent?: string });
+    setMessageInput((message as any).decryptedContent || '');
+    messageInputRef.current?.focus();
+  };
+
+  // Handle delete
+  const handleDelete = (messageId: string) => {
+    if (currentRoom && window.confirm('Are you sure you want to delete this message?')) {
+      deleteMessage(messageId, currentRoom.id);
+    }
+  };
+
+  // Handle reaction
+  const handleReact = (messageId: string, emoji: string) => {
+    if (currentRoom) {
+      addReaction(messageId, currentRoom.id, emoji);
+    }
+  };
+
+  // Handle remove reaction
+  const handleRemoveReaction = (messageId: string, emoji: string) => {
+    if (currentRoom) {
+      removeReaction(messageId, currentRoom.id, emoji);
+    }
+  };
 
   // Check if user is at bottom of scroll
   const checkIfAtBottom = () => {
@@ -77,6 +150,11 @@ export default function ChatRoom() {
     setSelectedFiles((prev) => [...prev, ...files]);
   };
 
+  const handleMessageInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setMessageInput(e.target.value);
+    handleTyping();
+  };
+
   const handleRemoveFile = (index: number) => {
     setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
   };
@@ -86,6 +164,21 @@ export default function ChatRoom() {
     if ((!messageInput.trim() && selectedFiles.length === 0) || !currentRoom) return;
 
     try {
+      // Stop typing indicator
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+      socketService.sendTyping(currentRoom.id, false);
+
+      // Handle edit
+      if (editingMessage) {
+        await editMessage(editingMessage.id, currentRoom.id, messageInput);
+        setMessageInput('');
+        setEditingMessage(null);
+        messageInputRef.current?.focus();
+        return;
+      }
+
       setUploadingFiles(true);
 
       // Upload files if any
@@ -103,10 +196,16 @@ export default function ChatRoom() {
         }
       }
 
-      // Send message with attachments
-      await sendMessage(currentRoom.id, messageInput || ' ', attachments.length > 0 ? attachments : undefined);
+      // Send message with attachments and optional parent
+      await sendMessage(
+        currentRoom.id,
+        messageInput || ' ',
+        attachments.length > 0 ? attachments : undefined,
+        replyingTo?.id
+      );
       setMessageInput('');
       setSelectedFiles([]);
+      setReplyingTo(null);
       setUploadingFiles(false);
 
       // Keep focus on input after sending
@@ -233,124 +332,27 @@ export default function ChatRoom() {
         className="flex-1 overflow-y-auto p-2 md:p-4 space-y-3 md:space-y-4 bg-gray-900 relative"
         style={{ minHeight: 0 }}
       >
-        {roomMessages.map((message) => (
-          <div key={message.id} className="flex items-start space-x-2 md:space-x-3">
-            <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-purple-600 flex items-center justify-center text-white font-semibold flex-shrink-0 text-sm md:text-base">
-              {message.sender.displayName?.[0] || message.sender.username[0]}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-baseline space-x-2">
-                <span className="font-semibold text-white text-sm md:text-base truncate">
-                  {message.sender.displayName || message.sender.username}
-                </span>
-                <span className="text-xs text-gray-500 flex-shrink-0">
-                  {format(new Date(message.createdAt), 'HH:mm')}
-                </span>
-              </div>
-              <p className="text-gray-300 mt-1 break-words">{(message as any).decryptedContent}</p>
+        {roomMessages.map((message) => {
+          const parentMessage = message.parentMessageId
+            ? roomMessages.find(m => m.id === message.parentMessageId)
+            : undefined;
 
-              {/* YouTube Preview */}
-              {(() => {
-                const youtubePreview = getYouTubePreview((message as any).decryptedContent || '');
-                if (youtubePreview) {
-                  return (
-                    <a
-                      href={youtubePreview.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="mt-2 block max-w-sm rounded-lg overflow-hidden bg-gray-800 border border-gray-600 hover:border-purple-500 transition"
-                    >
-                      <div className="relative">
-                        <img
-                          src={youtubePreview.thumbnail}
-                          alt="YouTube video"
-                          className="w-full"
-                        />
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <div className="bg-red-600 bg-opacity-90 rounded-full p-3">
-                            <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M8 5v14l11-7z" />
-                            </svg>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="p-2 bg-gray-800">
-                        <p className="text-sm text-gray-300 flex items-center">
-                          <svg className="w-4 h-4 mr-1 text-red-600" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
-                          </svg>
-                          YouTube Video
-                        </p>
-                      </div>
-                    </a>
-                  );
-                }
-                return null;
-              })()}
-
-              {/* Attachments */}
-              {message.attachments && message.attachments.length > 0 && (
-                <div className="mt-2 space-y-2">
-                  {message.attachments.map((attachment, idx) => {
-                    const isImage = attachment.match(/\.(jpg|jpeg|png|gif|webp)$/i);
-                    const isVideo = attachment.match(/\.(mp4|webm|ogg)$/i);
-                    const fileName = attachment.split('/').pop() || 'file';
-
-                    const safeUrl = sanitizeUrl(attachment);
-
-                    if (isImage) {
-                      return (
-                        <div key={idx}>
-                          <img
-                            src={safeUrl}
-                            alt="Attachment"
-                            className="max-w-sm rounded border border-gray-600 cursor-pointer hover:opacity-90"
-                            onClick={() => window.open(safeUrl, '_blank', 'noopener,noreferrer')}
-                          />
-                        </div>
-                      );
-                    } else if (isVideo) {
-                      return (
-                        <div key={idx}>
-                          <video
-                            src={safeUrl}
-                            controls
-                            className="max-w-sm rounded border border-gray-600"
-                          />
-                        </div>
-                      );
-                    } else {
-                      return (
-                        <a
-                          key={idx}
-                          href={safeUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center space-x-2 px-3 py-2 bg-gray-700 rounded hover:bg-gray-600 transition max-w-sm"
-                        >
-                          <svg
-                            className="w-5 h-5 text-gray-400"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
-                            />
-                          </svg>
-                          <span className="text-sm text-white truncate">{fileName}</span>
-                        </a>
-                      );
-                    }
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-        ))}
+          return (
+            <MessageBubble
+              key={message.id}
+              message={message as Message & { decryptedContent?: string }}
+              currentUserId={user?.id || ''}
+              parentMessage={parentMessage as Message & { decryptedContent?: string } | undefined}
+              onReact={handleReact}
+              onRemoveReaction={handleRemoveReaction}
+              onReply={handleReply}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              sanitizeUrl={sanitizeUrl}
+              getYouTubePreview={getYouTubePreview}
+            />
+          );
+        })}
         <div ref={messagesEndRef} />
 
         {/* Go to bottom button with unread counter */}
@@ -371,8 +373,75 @@ export default function ChatRoom() {
         )}
       </div>
 
+      {/* Typing indicator */}
+      {currentRoomTypingUsers.length > 0 && (
+        <TypingIndicator typingUsers={currentRoomTypingUsers} />
+      )}
+
       {/* Message input */}
       <form onSubmit={handleSendMessage} className="flex-shrink-0 p-2 md:p-4 border-t border-gray-700 bg-gray-800">
+        {/* Reply preview */}
+        {replyingTo && (
+          <div className="mb-2 px-3 py-2 bg-gray-700 rounded flex items-start justify-between">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center space-x-2 mb-1">
+                <svg className="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"
+                  />
+                </svg>
+                <span className="text-sm font-semibold text-purple-400">
+                  Replying to {replyingTo.sender.displayName || replyingTo.sender.username}
+                </span>
+              </div>
+              <p className="text-sm text-gray-300 truncate">{replyingTo.decryptedContent}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setReplyingTo(null)}
+              className="ml-2 text-gray-400 hover:text-white"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        )}
+
+        {/* Edit preview */}
+        {editingMessage && (
+          <div className="mb-2 px-3 py-2 bg-gray-700 rounded flex items-start justify-between">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center space-x-2 mb-1">
+                <svg className="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                  />
+                </svg>
+                <span className="text-sm font-semibold text-purple-400">Editing message</span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setEditingMessage(null);
+                setMessageInput('');
+              }}
+              className="ml-2 text-gray-400 hover:text-white"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        )}
+
         {/* File previews */}
         {selectedFiles.length > 0 && (
           <div className="mb-2 md:mb-3 flex flex-wrap gap-1.5 md:gap-2">
@@ -459,8 +528,8 @@ export default function ChatRoom() {
             ref={messageInputRef}
             type="text"
             value={messageInput}
-            onChange={(e) => setMessageInput(e.target.value)}
-            placeholder="Type a message..."
+            onChange={handleMessageInputChange}
+            placeholder={editingMessage ? "Edit message..." : "Type a message..."}
             disabled={uploadingFiles}
             className="flex-1 px-3 py-2 md:px-4 md:py-2 bg-gray-700 border border-gray-600 rounded focus:outline-none focus:border-purple-500 text-white disabled:opacity-50 text-sm md:text-base min-w-0"
           />
