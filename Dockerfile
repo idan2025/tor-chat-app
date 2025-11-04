@@ -1,5 +1,5 @@
 # Multi-stage build for TOR Chat Backend
-FROM node:18-alpine AS builder
+FROM node:20-alpine AS builder
 
 # Install build dependencies for native modules (bcrypt, etc)
 RUN apk add --no-cache python3 make g++
@@ -21,7 +21,7 @@ WORKDIR /app/packages/backend
 RUN npm run build
 
 # Production stage
-FROM node:18-alpine
+FROM node:20-alpine
 
 # Install TOR, wget (for health check), and build dependencies for native modules
 RUN apk add --no-cache tor wget python3 make g++
