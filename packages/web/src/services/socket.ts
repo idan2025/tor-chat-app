@@ -108,6 +108,14 @@ class SocketService {
     this.socket?.emit('delete_message', { messageId, roomId });
   }
 
+  markRead(roomId: string, messageId: string): void {
+    this.socket?.emit('mark_read', { roomId, messageId });
+  }
+
+  forwardMessage(messageId: string, roomIds: string[]): void {
+    this.socket?.emit('forward_message', { messageId, roomIds });
+  }
+
   on(event: string, callback: Function): void {
     if (!this.listeners.has(event)) {
       this.listeners.set(event, new Set());

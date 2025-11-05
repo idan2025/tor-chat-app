@@ -8,10 +8,11 @@ import CreateRoomModal from '../components/CreateRoomModal';
 
 export default function ChatPage() {
   const { user, logout } = useAuthStore();
-  const { loadRooms, currentRoom } = useChatStore();
+  const { loadRooms, currentRoom, getTotalUnreadCount } = useChatStore();
   const navigate = useNavigate();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const totalUnread = getTotalUnreadCount();
 
   useEffect(() => {
     loadRooms();
@@ -44,7 +45,14 @@ export default function ChatPage() {
         {/* User header */}
         <div className="p-3 md:p-4 border-b border-gray-700">
           <div className="flex items-center justify-between mb-2">
-            <h2 className="text-lg md:text-xl font-bold text-white">TOR Chat</h2>
+            <div className="flex items-center">
+              <h2 className="text-lg md:text-xl font-bold text-white">TOR Chat</h2>
+              {totalUnread > 0 && (
+                <span className="ml-2 bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 px-2 flex items-center justify-center">
+                  {totalUnread > 99 ? '99+' : totalUnread}
+                </span>
+              )}
+            </div>
             <button
               onClick={() => setSidebarOpen(false)}
               className="md:hidden text-gray-400 hover:text-white"
@@ -100,11 +108,16 @@ export default function ChatPage() {
         <div className="md:hidden flex items-center p-3 bg-gray-800 border-b border-gray-700">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="text-white mr-3"
+            className="text-white mr-3 relative"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
+            {totalUnread > 0 && (
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center">
+                {totalUnread > 9 ? '9+' : totalUnread}
+              </span>
+            )}
           </button>
           <h1 className="text-lg font-bold text-white truncate">
             {currentRoom ? currentRoom.name : 'TOR Chat'}

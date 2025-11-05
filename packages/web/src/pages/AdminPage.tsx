@@ -47,10 +47,40 @@ export default function AdminPage() {
 
   const handleToggleAdmin = async (userId: string, currentIsAdmin: boolean) => {
     try {
-      await apiService.toggleUserAdmin(userId, !currentIsAdmin);
+      if (currentIsAdmin) {
+        await apiService.demoteUser(userId);
+      } else {
+        await apiService.promoteUser(userId);
+      }
       loadData();
     } catch (error: any) {
       setError(error.response?.data?.error || 'Failed to toggle admin status');
+    }
+  };
+
+  const handleBanUser = async (userId: string, username: string) => {
+    if (!confirm(`Are you sure you want to ban user "${username}"? They will be unable to login.`)) {
+      return;
+    }
+
+    try {
+      await apiService.banUser(userId);
+      loadData();
+    } catch (error: any) {
+      setError(error.response?.data?.error || 'Failed to ban user');
+    }
+  };
+
+  const handleUnbanUser = async (userId: string, username: string) => {
+    if (!confirm(`Are you sure you want to unban user "${username}"?`)) {
+      return;
+    }
+
+    try {
+      await apiService.unbanUser(userId);
+      loadData();
+    } catch (error: any) {
+      setError(error.response?.data?.error || 'Failed to unban user');
     }
   };
 
@@ -191,6 +221,11 @@ export default function AdminPage() {
                               ADMIN
                             </span>
                           )}
+                          {u.isBanned && (
+                            <span className="ml-2 px-2 py-1 text-xs bg-red-600 text-white rounded">
+                              BANNED
+                            </span>
+                          )}
                         </p>
                         <p className="text-gray-400 text-sm">@{u.username}</p>
                         <p className="text-gray-500 text-xs">
@@ -202,12 +237,12 @@ export default function AdminPage() {
                         </p>
                       </div>
                     </div>
-                    <div className="flex space-x-2">
+                    <div className="flex flex-wrap gap-2">
                       {u.id !== user.id && (
                         <>
                           <button
                             onClick={() => handleToggleAdmin(u.id, u.isAdmin)}
-                            className={`px-4 py-2 rounded transition ${
+                            className={`px-3 py-2 rounded transition text-sm ${
                               u.isAdmin
                                 ? 'bg-yellow-600 hover:bg-yellow-700 text-white'
                                 : 'bg-blue-600 hover:bg-blue-700 text-white'
@@ -215,9 +250,24 @@ export default function AdminPage() {
                           >
                             {u.isAdmin ? 'Demote' : 'Promote'}
                           </button>
+                          {u.isBanned ? (
+                            <button
+                              onClick={() => handleUnbanUser(u.id, u.username)}
+                              className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded transition text-sm"
+                            >
+                              Unban
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleBanUser(u.id, u.username)}
+                              className="px-3 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded transition text-sm"
+                            >
+                              Ban
+                            </button>
+                          )}
                           <button
                             onClick={() => handleDeleteUser(u.id, u.username)}
-                            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded transition"
+                            className="px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded transition text-sm"
                           >
                             Delete
                           </button>

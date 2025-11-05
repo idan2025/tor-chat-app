@@ -30,7 +30,7 @@ const requireAdmin = async (req: AuthRequest, res: Response, next: express.NextF
 router.get('/users', authenticateToken, requireAdmin, async (_req: AuthRequest, res: Response) => {
   try {
     const users = await User.findAll({
-      attributes: ['id', 'username', 'email', 'displayName', 'avatar', 'isOnline', 'lastSeen', 'isAdmin', 'createdAt'],
+      attributes: ['id', 'username', 'email', 'displayName', 'avatar', 'isOnline', 'lastSeen', 'isAdmin', 'isBanned', 'createdAt'],
       order: [['createdAt', 'DESC']],
     });
 
@@ -200,6 +200,163 @@ router.get('/stats', authenticateToken, requireAdmin, async (_req: AuthRequest, 
   } catch (error) {
     logger.error('Get stats error:', error);
     res.status(500).json({ error: 'Failed to get statistics' });
+  }
+});
+
+/**
+ * PUT /api/admin/users/:id/promote
+ * Promote user to admin (Android app compatibility)
+ */
+router.put('/users/:id/promote', authenticateToken, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const user = await User.findByPk(id);
+
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    if (user.isAdmin) {
+      res.status(400).json({ error: 'User is already an admin' });
+      return;
+    }
+
+    user.isAdmin = true;
+    await user.save();
+
+    logger.info(`User ${id} promoted to admin by ${req.userId}`);
+
+    res.json({
+      success: true,
+      message: 'User promoted to admin',
+      user: user.toJSON(),
+    });
+  } catch (error) {
+    logger.error('Promote user error:', error);
+    res.status(500).json({ error: 'Failed to promote user' });
+  }
+});
+
+/**
+ * PUT /api/admin/users/:id/demote
+ * Demote user from admin (Android app compatibility)
+ */
+router.put('/users/:id/demote', authenticateToken, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    // Can't demote yourself
+    if (id === req.userId) {
+      res.status(403).json({ error: 'Cannot remove your own admin status' });
+      return;
+    }
+
+    const user = await User.findByPk(id);
+
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    if (!user.isAdmin) {
+      res.status(400).json({ error: 'User is not an admin' });
+      return;
+    }
+
+    user.isAdmin = false;
+    await user.save();
+
+    logger.info(`User ${id} demoted from admin by ${req.userId}`);
+
+    res.json({
+      success: true,
+      message: 'User demoted from admin',
+      user: user.toJSON(),
+    });
+  } catch (error) {
+    logger.error('Demote user error:', error);
+    res.status(500).json({ error: 'Failed to demote user' });
+  }
+});
+
+/**
+ * PUT /api/admin/users/:id/ban
+ * Ban a user (prevents login and access)
+ */
+router.put('/users/:id/ban', authenticateToken, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    // Can't ban yourself
+    if (id === req.userId) {
+      res.status(403).json({ error: 'Cannot ban your own account' });
+      return;
+    }
+
+    const user = await User.findByPk(id);
+
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    if (user.isBanned) {
+      res.status(400).json({ error: 'User is already banned' });
+      return;
+    }
+
+    user.isBanned = true;
+    user.isOnline = false;
+    await user.save();
+
+    logger.info(`User ${id} banned by admin ${req.userId}`);
+
+    res.json({
+      success: true,
+      message: 'User banned successfully',
+      user: user.toJSON(),
+    });
+  } catch (error) {
+    logger.error('Ban user error:', error);
+    res.status(500).json({ error: 'Failed to ban user' });
+  }
+});
+
+/**
+ * PUT /api/admin/users/:id/unban
+ * Unban a user (restores access)
+ */
+router.put('/users/:id/unban', authenticateToken, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const user = await User.findByPk(id);
+
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    if (!user.isBanned) {
+      res.status(400).json({ error: 'User is not banned' });
+      return;
+    }
+
+    user.isBanned = false;
+    await user.save();
+
+    logger.info(`User ${id} unbanned by admin ${req.userId}`);
+
+    res.json({
+      success: true,
+      message: 'User unbanned successfully',
+      user: user.toJSON(),
+    });
+  } catch (error) {
+    logger.error('Unban user error:', error);
+    res.status(500).json({ error: 'Failed to unban user' });
   }
 });
 

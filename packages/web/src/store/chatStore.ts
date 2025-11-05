@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Room, Message, RoomMember } from '../types';
+import { Room, Message, RoomMember, UploadProgress } from '../types';
 import { apiService } from '../services/api';
 import { socketService } from '../services/socket';
 import { cryptoService } from '../services/crypto';
@@ -11,6 +11,9 @@ interface ChatState {
   members: Map<string, RoomMember[]>;
   roomKeys: Map<string, string>;
   typingUsers: Map<string, Map<string, string>>;
+  unreadCounts: Map<string, number>;
+  lastReadMessageId: Map<string, string>;
+  uploadProgress: Map<string, UploadProgress>;
   isLoading: boolean;
   error: string | null;
 
@@ -31,6 +34,13 @@ interface ChatState {
   removeReaction: (messageId: string, roomId: string, emoji: string) => void;
   editMessage: (messageId: string, roomId: string, content: string) => Promise<void>;
   deleteMessage: (messageId: string, roomId: string) => void;
+  markRoomAsRead: (roomId: string) => void;
+  updateUnreadCount: (roomId: string) => void;
+  getTotalUnreadCount: () => number;
+  addUploadProgress: (upload: UploadProgress) => void;
+  updateUploadProgress: (id: string, progress: number) => void;
+  removeUploadProgress: (id: string) => void;
+  setUploadStatus: (id: string, status: 'uploading' | 'complete' | 'failed') => void;
   clearError: () => void;
 }
 
@@ -41,6 +51,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
   members: new Map(),
   roomKeys: new Map(),
   typingUsers: new Map(),
+  unreadCounts: new Map(),
+  lastReadMessageId: new Map(),
+  uploadProgress: new Map(),
   isLoading: false,
   error: null,
 
@@ -71,6 +84,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
       // Load messages and members
       await get().loadMessages(roomId);
       await get().loadMembers(roomId);
+
+      // Mark room as read
+      get().markRoomAsRead(roomId);
     } catch (error: any) {
       set({ error: error.response?.data?.error || 'Failed to select room', isLoading: false });
     }
@@ -376,12 +392,94 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
 
+  markRoomAsRead: (roomId: string) => {
+    const roomMessages = get().messages.get(roomId);
+    if (roomMessages && roomMessages.length > 0) {
+      const lastMessage = roomMessages[roomMessages.length - 1];
+      get().lastReadMessageId.set(roomId, lastMessage.id);
+      get().unreadCounts.set(roomId, 0);
+      set({
+        lastReadMessageId: new Map(get().lastReadMessageId),
+        unreadCounts: new Map(get().unreadCounts)
+      });
+
+      // Emit mark_read event to backend
+      socketService.markRead(roomId, lastMessage.id);
+    }
+  },
+
+  updateUnreadCount: (roomId: string) => {
+    const roomMessages = get().messages.get(roomId);
+    const lastReadId = get().lastReadMessageId.get(roomId);
+
+    if (!roomMessages || roomMessages.length === 0) {
+      get().unreadCounts.set(roomId, 0);
+      set({ unreadCounts: new Map(get().unreadCounts) });
+      return;
+    }
+
+    if (!lastReadId) {
+      // Never read any message in this room
+      get().unreadCounts.set(roomId, roomMessages.length);
+      set({ unreadCounts: new Map(get().unreadCounts) });
+      return;
+    }
+
+    // Count messages after lastReadId
+    const lastReadIndex = roomMessages.findIndex(m => m.id === lastReadId);
+    const unreadCount = lastReadIndex >= 0 ? roomMessages.length - lastReadIndex - 1 : roomMessages.length;
+    get().unreadCounts.set(roomId, Math.max(0, unreadCount));
+    set({ unreadCounts: new Map(get().unreadCounts) });
+  },
+
+  getTotalUnreadCount: () => {
+    let total = 0;
+    get().unreadCounts.forEach(count => {
+      total += count;
+    });
+    return total;
+  },
+
+  addUploadProgress: (upload: UploadProgress) => {
+    get().uploadProgress.set(upload.id, upload);
+    set({ uploadProgress: new Map(get().uploadProgress) });
+  },
+
+  updateUploadProgress: (id: string, progress: number) => {
+    const upload = get().uploadProgress.get(id);
+    if (upload) {
+      upload.progress = progress;
+      get().uploadProgress.set(id, upload);
+      set({ uploadProgress: new Map(get().uploadProgress) });
+    }
+  },
+
+  removeUploadProgress: (id: string) => {
+    get().uploadProgress.delete(id);
+    set({ uploadProgress: new Map(get().uploadProgress) });
+  },
+
+  setUploadStatus: (id: string, status: 'uploading' | 'complete' | 'failed') => {
+    const upload = get().uploadProgress.get(id);
+    if (upload) {
+      upload.status = status;
+      get().uploadProgress.set(id, upload);
+      set({ uploadProgress: new Map(get().uploadProgress) });
+    }
+  },
+
   clearError: () => set({ error: null }),
 }));
 
 // Listen to socket messages
 socketService.on('message', (message: Message) => {
-  useChatStore.getState().addMessage(message);
+  const state = useChatStore.getState();
+  state.addMessage(message);
+
+  // Update unread count if message is not in current room
+  if (state.currentRoom?.id !== message.roomId) {
+    state.updateUnreadCount(message.roomId);
+  }
 });
 
 // Listen to reaction events

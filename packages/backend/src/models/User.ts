@@ -15,6 +15,7 @@ interface UserAttributes {
   isOnline: boolean;
   lastSeen: Date;
   isAdmin: boolean;
+  isBanned: boolean;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -33,6 +34,7 @@ export class User extends Model<UserAttributes, UserCreationAttributes> implemen
   declare isOnline: boolean;
   declare lastSeen: Date;
   declare isAdmin: boolean;
+  declare isBanned: boolean;
 
   declare readonly createdAt: Date;
   declare readonly updatedAt: Date;
@@ -119,6 +121,11 @@ User.init(
       defaultValue: false,
       allowNull: false,
     },
+    isBanned: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+      allowNull: false,
+    },
   },
   {
     sequelize,
@@ -128,6 +135,7 @@ User.init(
       { fields: ['username'] },
       { fields: ['email'] },
       { fields: ['isAdmin'] },
+      { fields: ['isBanned'] },
     ],
   }
 );

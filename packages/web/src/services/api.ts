@@ -148,6 +148,26 @@ class ApiService {
     return response.data;
   }
 
+  async promoteUser(userId: string) {
+    const response = await this.api.put(`/admin/users/${userId}/promote`);
+    return response.data;
+  }
+
+  async demoteUser(userId: string) {
+    const response = await this.api.put(`/admin/users/${userId}/demote`);
+    return response.data;
+  }
+
+  async banUser(userId: string) {
+    const response = await this.api.put(`/admin/users/${userId}/ban`);
+    return response.data;
+  }
+
+  async unbanUser(userId: string) {
+    const response = await this.api.put(`/admin/users/${userId}/unban`);
+    return response.data;
+  }
+
   // Upload file
   async uploadFile(file: File): Promise<{ file: { url: string; filename: string; originalName: string; mimetype: string; size: number } }> {
     const formData = new FormData();

@@ -8,6 +8,7 @@ export interface User {
   isOnline: boolean;
   lastSeen: Date;
   isAdmin: boolean;
+  isBanned?: boolean;
 }
 
 export interface Room {
@@ -36,6 +37,7 @@ export interface Message {
   editedAt?: Date;
   isDeleted?: boolean;
   deletedAt?: Date;
+  status?: 'sending' | 'sent' | 'failed';
   createdAt: Date;
 }
 
@@ -49,4 +51,20 @@ export interface RoomMember {
   user: User;
   role: 'admin' | 'moderator' | 'member';
   joinedAt: Date;
+}
+
+export interface UploadProgress {
+  id: string;
+  filename: string;
+  size: number;
+  progress: number;
+  status: 'uploading' | 'complete' | 'failed';
+}
+
+export interface LinkPreview {
+  url: string;
+  title?: string;
+  description?: string;
+  image?: string;
+  siteName?: string;
 }

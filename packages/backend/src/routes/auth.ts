@@ -113,6 +113,12 @@ router.post('/login', validateBody(loginSchema), async (req: Request, res: Respo
       return;
     }
 
+    // Check if user is banned
+    if (user.isBanned) {
+      res.status(403).json({ error: 'Your account has been banned. Please contact an administrator.' });
+      return;
+    }
+
     // Update last seen
     user.lastSeen = new Date();
     await user.save();
