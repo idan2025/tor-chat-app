@@ -1,5 +1,6 @@
 import express, { Response } from 'express';
 import { z } from 'zod';
+import { Op } from 'sequelize';
 import { Room, RoomMember, User, Message } from '../models';
 import { AuthRequest, authenticateToken } from '../middleware/auth';
 import { validateBody } from '../middleware/validation';
@@ -473,6 +474,60 @@ router.delete('/:id/members/:userId', authenticateToken, async (req: AuthRequest
   } catch (error) {
     logger.error('Remove member error:', error);
     res.status(500).json({ error: 'Failed to remove member' });
+  }
+});
+
+/**
+ * GET /api/rooms/:id/search
+ * Search messages in a room
+ */
+router.get('/:id/search', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id: roomId } = req.params;
+    const userId = req.userId!;
+    const { query, limit = 50 } = req.query;
+
+    if (!query || typeof query !== 'string' || query.trim().length === 0) {
+      res.status(400).json({ error: 'Search query is required' });
+      return;
+    }
+
+    // Verify user is a member of the room
+    const membership = await RoomMember.findOne({
+      where: { roomId, userId },
+    });
+
+    if (!membership) {
+      res.status(403).json({ error: 'Not a member of this room' });
+      return;
+    }
+
+    // Search messages (encrypted content search)
+    // Note: This searches encrypted content, so it will only find exact matches
+    // For better search, you'd need to implement client-side search after decryption
+    const messages = await Message.findAll({
+      where: {
+        roomId,
+        isDeleted: false,
+        encryptedContent: {
+          [Op.iLike]: `%${query}%`,
+        },
+      },
+      include: [
+        {
+          model: User,
+          as: 'sender',
+          attributes: ['id', 'username', 'displayName', 'avatar'],
+        },
+      ],
+      order: [['createdAt', 'DESC']],
+      limit: Number(limit) || 50,
+    });
+
+    res.json({ messages });
+  } catch (error) {
+    logger.error('Search messages error:', error);
+    res.status(500).json({ error: 'Failed to search messages' });
   }
 });
 

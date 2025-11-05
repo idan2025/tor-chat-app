@@ -455,13 +455,13 @@ export class SocketService {
         return;
       }
 
-      // Check if within 15 minute window
+      // Check if within 20 minute window
       const now = new Date();
       const messageAge = now.getTime() - message.createdAt.getTime();
-      const fifteenMinutes = 15 * 60 * 1000;
+      const twentyMinutes = 20 * 60 * 1000;
 
-      if (messageAge > fifteenMinutes) {
-        socket.emit('error', { message: 'Cannot edit message after 15 minutes' });
+      if (messageAge > twentyMinutes) {
+        socket.emit('error', { message: 'Cannot edit message after 20 minutes' });
         return;
       }
 

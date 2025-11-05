@@ -13,6 +13,7 @@ interface MessageBubbleProps {
   onReply: (message: Message) => void;
   onEdit: (message: Message) => void;
   onDelete: (messageId: string) => void;
+  onForward: (message: Message) => void;
   sanitizeUrl?: (url: string) => string;
   getYouTubePreview?: (text: string) => { id: string; thumbnail: string; url: string } | null;
 }
@@ -26,6 +27,7 @@ export default function MessageBubble({
   onReply,
   onEdit,
   onDelete,
+  onForward,
   sanitizeUrl,
   getYouTubePreview,
 }: MessageBubbleProps) {
@@ -281,6 +283,7 @@ export default function MessageBubble({
           onReply={() => onReply(message)}
           onEdit={() => onEdit(message)}
           onDelete={() => onDelete(message.id)}
+          onForward={() => onForward(message)}
           onCopy={handleCopyText}
           onClose={() => setShowActions(false)}
           position={actionsPosition}

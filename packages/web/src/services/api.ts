@@ -92,6 +92,17 @@ class ApiService {
     return response.data;
   }
 
+  async searchRoomMessages(
+    roomId: string,
+    query: string,
+    limit: number = 50
+  ): Promise<{ messages: Message[] }> {
+    const response = await this.api.get(`/rooms/${roomId}/search`, {
+      params: { query, limit },
+    });
+    return response.data;
+  }
+
   async getRoomMembers(roomId: string): Promise<{ members: RoomMember[] }> {
     const response = await this.api.get(`/rooms/${roomId}/members`);
     return response.data;

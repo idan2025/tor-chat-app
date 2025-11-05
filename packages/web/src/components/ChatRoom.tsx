@@ -6,10 +6,12 @@ import { socketService } from '../services/socket';
 import RoomSettings from './RoomSettings';
 import MessageBubble from './MessageBubble';
 import TypingIndicator from './TypingIndicator';
+import ForwardMessageModal from './ForwardMessageModal';
+import MessageSearch from './MessageSearch';
 import { Message } from '../types';
 
 export default function ChatRoom() {
-  const { currentRoom, messages, members, sendMessage, addReaction, removeReaction, editMessage, deleteMessage, typingUsers } = useChatStore();
+  const { currentRoom, messages, members, rooms, sendMessage, addReaction, removeReaction, editMessage, deleteMessage, typingUsers } = useChatStore();
   const { user } = useAuthStore();
   const [messageInput, setMessageInput] = useState('');
   const [showSettings, setShowSettings] = useState(false);
@@ -19,6 +21,8 @@ export default function ChatRoom() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [replyingTo, setReplyingTo] = useState<Message & { decryptedContent?: string } | null>(null);
   const [editingMessage, setEditingMessage] = useState<Message & { decryptedContent?: string } | null>(null);
+  const [forwardingMessage, setForwardingMessage] = useState<Message & { decryptedContent?: string } | null>(null);
+  const [showSearch, setShowSearch] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messageContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -80,6 +84,39 @@ export default function ChatRoom() {
   const handleDelete = (messageId: string) => {
     if (currentRoom && window.confirm('Are you sure you want to delete this message?')) {
       deleteMessage(messageId, currentRoom.id);
+    }
+  };
+
+  // Handle forward
+  const handleForward = (message: Message) => {
+    setForwardingMessage(message as Message & { decryptedContent?: string });
+  };
+
+  const handleForwardSubmit = (roomIds: string[]) => {
+    if (!forwardingMessage) return;
+
+    roomIds.forEach(roomId => {
+      socketService.forwardMessage(forwardingMessage.id, [roomId]);
+    });
+
+    setForwardingMessage(null);
+
+    // Show success message
+    const roomCount = roomIds.length;
+    alert(`Message forwarded to ${roomCount} room${roomCount !== 1 ? 's' : ''}`);
+  };
+
+  // Handle search message selection
+  const handleSearchMessageSelect = (messageId: string) => {
+    // Find the message element and scroll to it
+    const messageElement = document.getElementById(`message-${messageId}`);
+    if (messageElement) {
+      messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Highlight the message briefly
+      messageElement.classList.add('ring-2', 'ring-purple-500');
+      setTimeout(() => {
+        messageElement.classList.remove('ring-2', 'ring-purple-500');
+      }, 2000);
     }
   };
 
@@ -294,14 +331,25 @@ export default function ChatRoom() {
               <p className="text-sm text-gray-400">{currentRoom.description}</p>
             )}
           </div>
-          {canManageRoom && (
+          <div className="flex space-x-2">
             <button
-              onClick={() => setShowSettings(true)}
+              onClick={() => setShowSearch(true)}
               className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition whitespace-nowrap"
+              title="Search messages"
             >
-              Settings
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
             </button>
-          )}
+            {canManageRoom && (
+              <button
+                onClick={() => setShowSettings(true)}
+                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition whitespace-nowrap"
+              >
+                Settings
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -312,17 +360,28 @@ export default function ChatRoom() {
             <p className="text-xs text-gray-400 truncate">{currentRoom.description}</p>
           )}
         </div>
-        {canManageRoom && (
+        <div className="flex space-x-2">
           <button
-            onClick={() => setShowSettings(true)}
-            className="ml-2 p-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition"
+            onClick={() => setShowSearch(true)}
+            className="p-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition"
+            title="Search messages"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
           </button>
-        )}
+          {canManageRoom && (
+            <button
+              onClick={() => setShowSettings(true)}
+              className="p-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Messages */}
@@ -338,19 +397,21 @@ export default function ChatRoom() {
             : undefined;
 
           return (
-            <MessageBubble
-              key={message.id}
-              message={message as Message & { decryptedContent?: string }}
-              currentUserId={user?.id || ''}
-              parentMessage={parentMessage as Message & { decryptedContent?: string } | undefined}
-              onReact={handleReact}
-              onRemoveReaction={handleRemoveReaction}
-              onReply={handleReply}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-              sanitizeUrl={sanitizeUrl}
-              getYouTubePreview={getYouTubePreview}
-            />
+            <div key={message.id} id={`message-${message.id}`} className="transition-all">
+              <MessageBubble
+                message={message as Message & { decryptedContent?: string }}
+                currentUserId={user?.id || ''}
+                parentMessage={parentMessage as Message & { decryptedContent?: string } | undefined}
+                onReact={handleReact}
+                onRemoveReaction={handleRemoveReaction}
+                onReply={handleReply}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+                onForward={handleForward}
+                sanitizeUrl={sanitizeUrl}
+                getYouTubePreview={getYouTubePreview}
+              />
+            </div>
           );
         })}
         <div ref={messagesEndRef} />
@@ -557,6 +618,27 @@ export default function ChatRoom() {
           room={currentRoom}
           members={roomMembers}
           onClose={() => setShowSettings(false)}
+        />
+      )}
+
+      {/* Forward Message Modal */}
+      {forwardingMessage && currentRoom && (
+        <ForwardMessageModal
+          message={forwardingMessage}
+          rooms={rooms}
+          currentRoomId={currentRoom.id}
+          onForward={handleForwardSubmit}
+          onClose={() => setForwardingMessage(null)}
+        />
+      )}
+
+      {/* Message Search Modal */}
+      {showSearch && currentRoom && (
+        <MessageSearch
+          roomId={currentRoom.id}
+          roomKey={currentRoom.encryptionKey || ''}
+          onClose={() => setShowSearch(false)}
+          onSelectMessage={handleSearchMessageSelect}
         />
       )}
     </div>

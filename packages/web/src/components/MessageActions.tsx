@@ -9,6 +9,7 @@ interface MessageActionsProps {
   onEdit: () => void;
   onDelete: () => void;
   onCopy: () => void;
+  onForward: () => void;
   onClose: () => void;
   position?: { x: number; y: number };
 }
@@ -21,6 +22,7 @@ export default function MessageActions({
   onEdit,
   onDelete,
   onCopy,
+  onForward,
   onClose,
   position,
 }: MessageActionsProps) {
@@ -29,8 +31,8 @@ export default function MessageActions({
 
   const isOwnMessage = message.sender.id === currentUserId;
   const messageAge = new Date().getTime() - new Date(message.createdAt).getTime();
-  const fifteenMinutes = 15 * 60 * 1000;
-  const canEdit = isOwnMessage && messageAge < fifteenMinutes && !message.isDeleted;
+  const twentyMinutes = 20 * 60 * 1000;
+  const canEdit = isOwnMessage && messageAge < twentyMinutes && !message.isDeleted;
   const canDelete = isOwnMessage && !message.isDeleted;
 
   useEffect(() => {
@@ -154,6 +156,21 @@ export default function MessageActions({
       )}
 
       <div className="border-t border-gray-700 my-1"></div>
+
+      <button
+        onClick={() => handleAction(onForward)}
+        className="w-full px-4 py-2 text-left text-sm text-white hover:bg-gray-700 transition flex items-center space-x-2"
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M13 7l5 5m0 0l-5 5m5-5H6"
+          />
+        </svg>
+        <span>Forward</span>
+      </button>
 
       <button
         onClick={() => handleAction(onCopy)}

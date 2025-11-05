@@ -5,14 +5,18 @@ import { useChatStore } from '../store/chatStore';
 import RoomList from '../components/RoomList';
 import ChatRoom from '../components/ChatRoom';
 import CreateRoomModal from '../components/CreateRoomModal';
+import NotificationToast from '../components/NotificationToast';
+import { useNotifications } from '../hooks/useNotifications';
+import { socketService } from '../services/socket';
 
 export default function ChatPage() {
   const { user, logout } = useAuthStore();
-  const { loadRooms, currentRoom, getTotalUnreadCount } = useChatStore();
+  const { loadRooms, currentRoom, getTotalUnreadCount, rooms, selectRoom } = useChatStore();
   const navigate = useNavigate();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const totalUnread = getTotalUnreadCount();
+  const { notifications, addNotification, dismissNotification } = useNotifications();
 
   useEffect(() => {
     loadRooms();
@@ -24,6 +28,49 @@ export default function ChatPage() {
       setSidebarOpen(false);
     }
   }, [currentRoom]);
+
+  // Listen for new messages and show notifications
+  useEffect(() => {
+    const handleMessage = (message: any) => {
+      // Only show notification if:
+      // 1. Message is not from current user
+      // 2. Message is in a different room than currently viewing
+      if (
+        message.sender.id !== user?.id &&
+        message.roomId !== currentRoom?.id
+      ) {
+        const room = rooms.find(r => r.id === message.roomId);
+        const roomName = room?.name || 'Unknown Room';
+
+        addNotification({
+          title: `${message.sender.displayName || message.sender.username} in ${roomName}`,
+          message: message.encryptedContent?.substring(0, 100) || 'New message',
+          roomId: message.roomId,
+          onClick: () => {
+            selectRoom(message.roomId);
+            setSidebarOpen(false);
+          },
+        });
+
+        // Play notification sound (optional)
+        try {
+          const audio = new Audio('/notification.mp3');
+          audio.volume = 0.5;
+          audio.play().catch(() => {
+            // Ignore autoplay restrictions
+          });
+        } catch {
+          // Ignore audio errors
+        }
+      }
+    };
+
+    socketService.on('message', handleMessage);
+
+    return () => {
+      socketService.off('message', handleMessage);
+    };
+  }, [user?.id, currentRoom?.id, rooms, addNotification, selectRoom]);
 
   return (
     <div className="flex h-screen bg-gray-900 overflow-hidden" style={{ height: '100dvh' }}>
@@ -129,6 +176,9 @@ export default function ChatPage() {
 
       {/* Create room modal */}
       {showCreateModal && <CreateRoomModal onClose={() => setShowCreateModal(false)} />}
+
+      {/* Notification Toasts */}
+      <NotificationToast notifications={notifications} onDismiss={dismissNotification} />
     </div>
   );
 }
