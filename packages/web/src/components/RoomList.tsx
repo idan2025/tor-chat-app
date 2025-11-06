@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
 import { useChatStore } from '../store/chatStore';
-import { Room } from '../types';
 
 export default function RoomList() {
   const { rooms, currentRoom, selectRoom, isLoading, unreadCounts, messages } = useChatStore();

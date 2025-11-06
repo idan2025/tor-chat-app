@@ -20,7 +20,7 @@ interface UserAttributes {
   updatedAt?: Date;
 }
 
-interface UserCreationAttributes extends Optional<UserAttributes, 'id' | 'isOnline' | 'lastSeen'> {}
+interface UserCreationAttributes extends Optional<UserAttributes, 'id' | 'isOnline' | 'lastSeen' | 'isAdmin' | 'isBanned'> {}
 
 export class User extends Model<UserAttributes, UserCreationAttributes> implements UserAttributes {
   declare id: string;

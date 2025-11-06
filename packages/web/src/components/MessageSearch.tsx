@@ -39,7 +39,7 @@ export default function MessageSearch({ roomId, roomKey, onClose, onSelectMessag
       const decryptedMessages = await Promise.all(
         messages.map(async (msg) => {
           try {
-            const decryptedContent = await cryptoService.decrypt(msg.encryptedContent, roomKey);
+            const decryptedContent = await cryptoService.decryptRoomMessage(msg.encryptedContent, roomKey);
             return { ...msg, decryptedContent };
           } catch {
             return { ...msg, decryptedContent: '[Decryption failed]' };

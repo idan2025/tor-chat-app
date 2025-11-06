@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Notification } from '../components/NotificationToast';
+import type { Notification } from '../components/NotificationToast';
 
 const MAX_NOTIFICATIONS = 5;
 const AUTO_DISMISS_DELAY = 5000; // 5 seconds
