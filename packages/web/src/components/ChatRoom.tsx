@@ -8,6 +8,7 @@ import MessageBubble from './MessageBubble';
 import TypingIndicator from './TypingIndicator';
 import ForwardMessageModal from './ForwardMessageModal';
 import MessageSearch from './MessageSearch';
+import EmojiPicker from './EmojiPicker';
 import { Message } from '../types';
 
 export default function ChatRoom() {
@@ -23,6 +24,7 @@ export default function ChatRoom() {
   const [editingMessage, setEditingMessage] = useState<Message & { decryptedContent?: string } | null>(null);
   const [forwardingMessage, setForwardingMessage] = useState<Message & { decryptedContent?: string } | null>(null);
   const [showSearch, setShowSearch] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messageContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -132,6 +134,13 @@ export default function ChatRoom() {
     if (currentRoom) {
       removeReaction(messageId, currentRoom.id, emoji);
     }
+  };
+
+  // Handle emoji selection for message input
+  const handleEmojiSelect = (emoji: string) => {
+    setMessageInput((prev) => prev + emoji);
+    setShowEmojiPicker(false);
+    messageInputRef.current?.focus();
   };
 
   // Check if user is at bottom of scroll
@@ -585,6 +594,36 @@ export default function ChatRoom() {
               />
             </svg>
           </button>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+              className="p-2 md:px-4 md:py-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition flex-shrink-0"
+              title="Insert emoji"
+            >
+              <svg
+                className="w-5 h-5 md:w-5 md:h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+            </button>
+            {showEmojiPicker && (
+              <div className="absolute bottom-full mb-2 right-0 z-50">
+                <EmojiPicker
+                  onSelect={handleEmojiSelect}
+                  onClose={() => setShowEmojiPicker(false)}
+                />
+              </div>
+            )}
+          </div>
           <input
             ref={messageInputRef}
             type="text"

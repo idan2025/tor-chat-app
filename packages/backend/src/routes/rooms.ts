@@ -1,6 +1,5 @@
 import express, { Response } from 'express';
 import { z } from 'zod';
-import { Op } from 'sequelize';
 import { Room, RoomMember, User, Message } from '../models';
 import { AuthRequest, authenticateToken } from '../middleware/auth';
 import { validateBody } from '../middleware/validation';
@@ -480,12 +479,13 @@ router.delete('/:id/members/:userId', authenticateToken, async (req: AuthRequest
 /**
  * GET /api/rooms/:id/search
  * Search messages in a room
+ * Returns all messages for client-side search after decryption
  */
 router.get('/:id/search', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const { id: roomId } = req.params;
     const userId = req.userId!;
-    const { query, limit = 50 } = req.query;
+    const { query, limit = 1000 } = req.query;
 
     if (!query || typeof query !== 'string' || query.trim().length === 0) {
       res.status(400).json({ error: 'Search query is required' });
@@ -502,16 +502,13 @@ router.get('/:id/search', authenticateToken, async (req: AuthRequest, res: Respo
       return;
     }
 
-    // Search messages (encrypted content search)
-    // Note: This searches encrypted content, so it will only find exact matches
-    // For better search, you'd need to implement client-side search after decryption
+    // Return all messages for client-side search after decryption
+    // We can't search encrypted content on the server, so we return messages
+    // and let the client decrypt and filter them
     const messages = await Message.findAll({
       where: {
         roomId,
         isDeleted: false,
-        encryptedContent: {
-          [Op.iLike]: `%${query}%`,
-        },
       },
       include: [
         {
@@ -521,7 +518,7 @@ router.get('/:id/search', authenticateToken, async (req: AuthRequest, res: Respo
         },
       ],
       order: [['createdAt', 'DESC']],
-      limit: Number(limit) || 50,
+      limit: Number(limit) || 1000,
     });
 
     res.json({ messages });
