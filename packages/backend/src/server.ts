@@ -45,6 +45,9 @@ const limiter = rateLimit({
   max: config.rateLimit.maxRequests,
   standardHeaders: true,
   legacyHeaders: false,
+  // For TOR application: don't trust proxy headers for rate limiting
+  // to prevent IP spoofing attacks, even though Express trusts the proxy
+  validate: { trustProxy: false },
 });
 
 app.use('/api/', limiter);
