@@ -113,7 +113,7 @@ export class SocketService {
     });
 
     // Handle send message
-    socket.on('send_message', async (data: { roomId: string; encryptedContent: string; messageType?: string; attachments?: string[] }) => {
+    socket.on('send_message', async (data: { roomId: string; encryptedContent: string; messageType?: string; attachments?: string[]; parentMessageId?: string }) => {
       await this.handleSendMessage(socket, data);
     });
 
@@ -153,7 +153,7 @@ export class SocketService {
     });
 
     // Handle forward message
-    socket.on('forward_message', async (data: { messageId: string; targetRoomId: string }) => {
+    socket.on('forward_message', async (data: { messageId: string; roomIds: string[] }) => {
       await this.handleForwardMessage(socket, data);
     });
 
@@ -228,11 +228,11 @@ export class SocketService {
    */
   private async handleSendMessage(
     socket: AuthSocket,
-    data: { roomId: string; encryptedContent: string; messageType?: string; attachments?: string[] }
+    data: { roomId: string; encryptedContent: string; messageType?: string; attachments?: string[]; parentMessageId?: string }
   ): Promise<void> {
     try {
       const userId = socket.data.userId;
-      const { roomId, encryptedContent, messageType = 'text', attachments } = data;
+      const { roomId, encryptedContent, messageType = 'text', attachments, parentMessageId } = data;
 
       // Verify membership
       const membership = await RoomMember.findOne({
@@ -251,6 +251,7 @@ export class SocketService {
         encryptedContent,
         messageType: messageType as 'text' | 'file' | 'image' | 'video' | 'system',
         attachments: attachments || [],
+        parentMessageId: parentMessageId || undefined,
       });
 
       // Load sender info
@@ -272,6 +273,7 @@ export class SocketService {
         encryptedContent: message.encryptedContent,
         messageType: message.messageType,
         attachments: message.attachments,
+        parentMessageId: message.parentMessageId,
         createdAt: message.createdAt,
       });
 
@@ -597,11 +599,11 @@ export class SocketService {
    */
   private async handleForwardMessage(
     socket: AuthSocket,
-    data: { messageId: string; targetRoomId: string }
+    data: { messageId: string; roomIds: string[] }
   ): Promise<void> {
     try {
       const userId = socket.data.userId;
-      const { messageId, targetRoomId } = data;
+      const { messageId, roomIds } = data;
 
       // Find original message
       const originalMessage = await Message.findByPk(messageId);
@@ -621,56 +623,59 @@ export class SocketService {
         return;
       }
 
-      // Verify user is member of target room
-      const targetMembership = await RoomMember.findOne({
-        where: { roomId: targetRoomId, userId },
-      });
-
-      if (!targetMembership) {
-        socket.emit('error', { message: 'Not a member of the target room' });
-        return;
-      }
-
       // Check if original message is deleted
       if (originalMessage.isDeleted) {
         socket.emit('error', { message: 'Cannot forward deleted message' });
         return;
       }
 
-      // Create forwarded message in target room
-      const forwardedMessage = await Message.create({
-        roomId: targetRoomId,
-        senderId: userId,
-        encryptedContent: originalMessage.encryptedContent,
-        messageType: originalMessage.messageType,
-        attachments: originalMessage.attachments || [],
-        parentMessageId: originalMessage.id,
-      });
+      // Forward to each target room
+      for (const targetRoomId of roomIds) {
+        // Verify user is member of target room
+        const targetMembership = await RoomMember.findOne({
+          where: { roomId: targetRoomId, userId },
+        });
 
-      // Load sender info
-      await forwardedMessage.reload({
-        include: [
-          {
-            model: User,
-            as: 'sender',
-            attributes: ['id', 'username', 'displayName', 'avatar'],
-          },
-        ],
-      });
+        if (!targetMembership) {
+          logger.warn(`User ${userId} tried to forward to room ${targetRoomId} without membership`);
+          continue; // Skip this room but continue with others
+        }
 
-      // Broadcast forwarded message to target room
-      this.io.to(`room:${targetRoomId}`).emit('message', {
-        id: forwardedMessage.id,
-        roomId: forwardedMessage.roomId,
-        sender: forwardedMessage.get('sender'),
-        encryptedContent: forwardedMessage.encryptedContent,
-        messageType: forwardedMessage.messageType,
-        attachments: forwardedMessage.attachments,
-        parentMessageId: forwardedMessage.parentMessageId,
-        createdAt: forwardedMessage.createdAt,
-      });
+        // Create forwarded message in target room
+        const forwardedMessage = await Message.create({
+          roomId: targetRoomId,
+          senderId: userId,
+          encryptedContent: originalMessage.encryptedContent,
+          messageType: originalMessage.messageType,
+          attachments: originalMessage.attachments || [],
+          parentMessageId: originalMessage.id,
+        });
 
-      logger.info(`User ${userId} forwarded message ${messageId} to room ${targetRoomId}`);
+        // Load sender info
+        await forwardedMessage.reload({
+          include: [
+            {
+              model: User,
+              as: 'sender',
+              attributes: ['id', 'username', 'displayName', 'avatar'],
+            },
+          ],
+        });
+
+        // Broadcast forwarded message to target room
+        this.io.to(`room:${targetRoomId}`).emit('message', {
+          id: forwardedMessage.id,
+          roomId: forwardedMessage.roomId,
+          sender: forwardedMessage.get('sender'),
+          encryptedContent: forwardedMessage.encryptedContent,
+          messageType: forwardedMessage.messageType,
+          attachments: forwardedMessage.attachments,
+          parentMessageId: forwardedMessage.parentMessageId,
+          createdAt: forwardedMessage.createdAt,
+        });
+
+        logger.info(`User ${userId} forwarded message ${messageId} to room ${targetRoomId}`);
+      }
     } catch (error) {
       logger.error('Forward message error:', error);
       socket.emit('error', { message: 'Failed to forward message' });

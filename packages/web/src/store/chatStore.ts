@@ -3,6 +3,7 @@ import { Room, Message, RoomMember, UploadProgress } from '../types';
 import { apiService } from '../services/api';
 import { socketService } from '../services/socket';
 import { cryptoService } from '../services/crypto';
+import { useAuthStore } from './authStore';
 
 interface ChatState {
   rooms: Room[];
@@ -189,7 +190,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
 
-  sendMessage: async (roomId: string, content: string, attachments?: string[], _parentMessageId?: string) => {
+  sendMessage: async (roomId: string, content: string, attachments?: string[], parentMessageId?: string) => {
     try {
       const roomKey = get().roomKeys.get(roomId);
       if (!roomKey) {
@@ -212,8 +213,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
         }
       }
 
-      // Send via socket (note: backend needs to be updated to support parentMessageId in send_message)
-      socketService.sendMessage(roomId, encryptedContent, messageType, attachments);
+      // Send via socket with parentMessageId for replies
+      socketService.sendMessage(roomId, encryptedContent, messageType, attachments, parentMessageId);
     } catch (error: any) {
       set({ error: error.message || 'Failed to send message' });
       throw error;
@@ -277,6 +278,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
     socketService.addReaction(messageId, roomId, emoji);
 
     // Optimistic update
+    const userId = useAuthStore.getState().user?.id;
+    if (!userId) return;
+
     const roomMessages = get().messages.get(roomId);
     if (roomMessages) {
       const updatedMessages = roomMessages.map((msg) => {
@@ -286,8 +290,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
           if (!reactions[emoji]) {
             reactions[emoji] = [];
           }
-          if (!reactions[emoji].includes(get().currentRoom?.id || '')) {
-            reactions[emoji].push(get().currentRoom?.id || '');
+          if (!reactions[emoji].includes(userId)) {
+            reactions[emoji].push(userId);
           }
           return { ...msg, metadata: { ...metadata, reactions } };
         }
@@ -302,6 +306,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
     socketService.removeReaction(messageId, roomId, emoji);
 
     // Optimistic update
+    const userId = useAuthStore.getState().user?.id;
+    if (!userId) return;
+
     const roomMessages = get().messages.get(roomId);
     if (roomMessages) {
       const updatedMessages = roomMessages.map((msg) => {
@@ -309,7 +316,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           const metadata = msg.metadata || {};
           const reactions = (metadata as any).reactions || {};
           if (reactions[emoji]) {
-            reactions[emoji] = reactions[emoji].filter((id: string) => id !== get().currentRoom?.id);
+            reactions[emoji] = reactions[emoji].filter((id: string) => id !== userId);
             if (reactions[emoji].length === 0) {
               delete reactions[emoji];
             }
