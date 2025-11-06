@@ -28,6 +28,7 @@ interface ChatState {
   addMember: (roomId: string, userId: string) => Promise<void>;
   removeMember: (roomId: string, userId: string) => Promise<void>;
   sendMessage: (roomId: string, content: string, attachments?: string[], parentMessageId?: string) => Promise<void>;
+  forwardMessageToRooms: (content: string, attachments: string[], messageType: string, targetRoomIds: string[]) => Promise<void>;
   loadMessages: (roomId: string) => Promise<void>;
   loadMembers: (roomId: string) => Promise<void>;
   addMessage: (message: Message) => void;
@@ -217,6 +218,29 @@ export const useChatStore = create<ChatState>((set, get) => ({
       socketService.sendMessage(roomId, encryptedContent, messageType, attachments, parentMessageId);
     } catch (error: any) {
       set({ error: error.message || 'Failed to send message' });
+      throw error;
+    }
+  },
+
+  forwardMessageToRooms: async (content: string, attachments: string[], messageType: string, targetRoomIds: string[]) => {
+    try {
+      // Forward message by re-encrypting for each target room
+      // This maintains E2E encryption - server never sees plaintext
+      for (const roomId of targetRoomIds) {
+        const roomKey = get().roomKeys.get(roomId);
+        if (!roomKey) {
+          console.warn(`Room key not found for room ${roomId}, skipping`);
+          continue;
+        }
+
+        // Re-encrypt the message content with the target room's key
+        const encryptedContent = await cryptoService.encryptRoomMessage(content, roomKey);
+
+        // Send the re-encrypted message to the target room
+        socketService.sendMessage(roomId, encryptedContent, messageType, attachments);
+      }
+    } catch (error: any) {
+      set({ error: error.message || 'Failed to forward message' });
       throw error;
     }
   },

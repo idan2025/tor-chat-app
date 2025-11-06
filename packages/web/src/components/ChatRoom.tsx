@@ -94,18 +94,28 @@ export default function ChatRoom() {
     setForwardingMessage(message as Message & { decryptedContent?: string });
   };
 
-  const handleForwardSubmit = (roomIds: string[]) => {
-    if (!forwardingMessage) return;
+  const handleForwardSubmit = async (roomIds: string[]) => {
+    if (!forwardingMessage || !forwardingMessage.decryptedContent) return;
 
-    roomIds.forEach(roomId => {
-      socketService.forwardMessage(forwardingMessage.id, [roomId]);
-    });
+    try {
+      // Forward message with client-side re-encryption for E2E security
+      const { forwardMessageToRooms } = useChatStore.getState();
+      await forwardMessageToRooms(
+        forwardingMessage.decryptedContent,
+        forwardingMessage.attachments || [],
+        forwardingMessage.messageType,
+        roomIds
+      );
 
-    setForwardingMessage(null);
+      setForwardingMessage(null);
 
-    // Show success message
-    const roomCount = roomIds.length;
-    alert(`Message forwarded to ${roomCount} room${roomCount !== 1 ? 's' : ''}`);
+      // Show success message
+      const roomCount = roomIds.length;
+      alert(`Message forwarded to ${roomCount} room${roomCount !== 1 ? 's' : ''}`);
+    } catch (error) {
+      console.error('Failed to forward message:', error);
+      alert('Failed to forward message. Please try again.');
+    }
   };
 
   // Handle search message selection
