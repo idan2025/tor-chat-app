@@ -82,11 +82,11 @@ subprojects { subproject ->
                     buildConfig = true
                 }
 
-                // Force Java 17 for all modules to prevent JVM target mismatch
-                // Java 17 requires compileSdkVersion 30+, which we enforce above
+                // Force Java 11 for all modules to prevent JVM target mismatch
+                // Java 11 is more compatible with older React Native libraries
                 compileOptions {
-                    sourceCompatibility JavaVersion.VERSION_17
-                    targetCompatibility JavaVersion.VERSION_17
+                    sourceCompatibility JavaVersion.VERSION_11
+                    targetCompatibility JavaVersion.VERSION_11
                 }
 
                 // AGP 8.x requires namespace to be set
@@ -116,11 +116,11 @@ subprojects { subproject ->
                 }
             }
 
-            // Force Kotlin JVM target 17 for all Kotlin modules
+            // Force Kotlin JVM target 11 for all Kotlin modules
             if (subproject.plugins.hasPlugin('org.jetbrains.kotlin.android')) {
                 subproject.tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
                     kotlinOptions {
-                        jvmTarget = '17'
+                        jvmTarget = '11'
                     }
                 }
             }
