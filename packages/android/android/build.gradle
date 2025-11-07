@@ -46,6 +46,19 @@ allprojects {
         }
         maven { url 'https://jitpack.io' }
     }
+
+    // React Native 0.73+ artifact name change fix
+    // RN 0.73+ changed from 'com.facebook.react:react-native' to 'com.facebook.react:react-android'
+    // Community packages still reference the old artifact name, so we redirect it
+    configurations.all {
+        resolutionStrategy {
+            dependencySubstitution {
+                substitute(module('com.facebook.react:react-native'))
+                    .using(module('com.facebook.react:react-android:0.73.0'))
+                    .because('React Native 0.73+ uses react-android artifact on Maven Central')
+            }
+        }
+    }
 }
 
 // Enable BuildConfig for all React Native library modules
