@@ -71,11 +71,17 @@ allprojects {
 // This ensures all modules work correctly with AGP 8.x
 subprojects { subproject ->
     afterEvaluate {
-        if (subproject.plugins.hasPlugin('com.android.library')) {
+        if (subproject.plugins.hasPlugin('com.android.library') || subproject.plugins.hasPlugin('com.android.application')) {
             // Ensure buildConfig is enabled
             subproject.android {
                 buildFeatures {
                     buildConfig = true
+                }
+
+                // Force Java 17 for all modules to prevent JVM target mismatch
+                compileOptions {
+                    sourceCompatibility JavaVersion.VERSION_17
+                    targetCompatibility JavaVersion.VERSION_17
                 }
 
                 // AGP 8.x requires namespace to be set
@@ -101,6 +107,15 @@ subprojects { subproject ->
                         def generatedNamespace = "com.${subproject.name.replaceAll(/[^a-zA-Z0-9]/, '').toLowerCase()}"
                         subproject.android.namespace = generatedNamespace
                         logger.warn("AGP 8.x: Generated namespace for ${subproject.name}: ${generatedNamespace}")
+                    }
+                }
+            }
+
+            // Force Kotlin JVM target 17 for all Kotlin modules
+            if (subproject.plugins.hasPlugin('org.jetbrains.kotlin.android')) {
+                subproject.tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+                    kotlinOptions {
+                        jvmTarget = '17'
                     }
                 }
             }
