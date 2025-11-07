@@ -39,6 +39,10 @@
     "typescript": "^5.3.3"
   },
   "overrides": {
-    "tmp": ">=0.2.4"
+    "tmp": ">=0.2.4",
+    "react-native": {
+      "@react-native-community/cli": "17.0.1"
+    },
+    "@react-native-community/cli-server-api": "20.0.0"
   }
 }
