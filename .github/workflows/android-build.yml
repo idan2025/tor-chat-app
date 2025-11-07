@@ -296,7 +296,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: app-debug
-        path: packages/android/android/app/build/outputs/apk/debug/app-debug.apk
+        path: packages/android/android/app/build/outputs/apk/debug/app-*-debug.apk
         retention-days: 30
         if-no-files-found: warn
 
@@ -304,26 +304,28 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: app-release
-        path: packages/android/android/app/build/outputs/apk/release/app-release*.apk
+        path: packages/android/android/app/build/outputs/apk/release/app-*-release.apk
         retention-days: 30
         if-no-files-found: error
 
     - name: Verify APK exists for release
       if: startsWith(github.ref, 'refs/tags/v')
       run: |
-        if [ ! -f packages/android/android/app/build/outputs/apk/release/app-release-unsigned.apk ] && [ ! -f packages/android/android/app/build/outputs/apk/release/app-release.apk ]; then
-          echo "Error: Release APK not found!"
+        APK_COUNT=$(find packages/android/android/app/build/outputs/apk/release -name "app-*-release.apk" -type f | wc -l)
+        if [ "$APK_COUNT" -eq 0 ]; then
+          echo "Error: No release APKs found!"
           ls -la packages/android/android/app/build/outputs/apk/release/ || true
           exit 1
         fi
-        echo "Release APK found successfully"
+        echo "Found $APK_COUNT release APK(s)"
+        find packages/android/android/app/build/outputs/apk/release -name "app-*-release.apk" -type f -exec ls -lh {} \;
 
     - name: Upload APK to Release
       if: startsWith(github.ref, 'refs/tags/v')
       uses: softprops/action-gh-release@v2
       with:
         files: |
-          packages/android/android/app/build/outputs/apk/release/app-release*.apk
+          packages/android/android/app/build/outputs/apk/release/app-*-release.apk
         fail_on_unmatched_files: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
