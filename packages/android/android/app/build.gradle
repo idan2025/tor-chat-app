@@ -184,11 +184,13 @@ dependencies {
 
     // TOR Integration (IPtProxy dependencies)
     // Note: react-native-iptproxy will handle Tor binaries
-    implementation "info.guardianproject:tor-android:0.4.8.10"
+    // Using version available on Maven Central
+    implementation "info.guardianproject:tor-android:0.4.7.14"
     implementation "info.guardianproject:jtorctl:0.4.5.7"
 
     // Crypto (libsodium) for E2E encryption
-    implementation "com.goterl:lazysodium-android:5.1.4@aar"
+    // Using latest stable version available on Maven Central
+    implementation "com.goterl:lazysodium-android:5.1.0@aar"
     implementation "net.java.dev.jna:jna:5.14.0@aar"
 
     // Image loading for react-native-fast-image
