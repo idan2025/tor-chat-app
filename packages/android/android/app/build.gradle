@@ -23,6 +23,9 @@ def nodeModulesPath = file("$projectRoot/node_modules").exists() ?
     "$projectRoot/node_modules" : file("$projectRoot/../node_modules").path
 def reactNativeRoot = file("${nodeModulesPath}/react-native")
 
+// Set node_modules path for react-native-screens and other libraries
+project.ext.REACT_NATIVE_NODE_MODULES_DIR = nodeModulesPath
+
 /**
  * Set this to true to enable ProGuard in release builds
  */
