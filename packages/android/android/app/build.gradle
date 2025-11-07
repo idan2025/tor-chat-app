@@ -115,7 +115,13 @@ android {
             shrinkResources false
         }
         release {
-            signingConfig signingConfigs.release
+            // Only use release signing if configured, otherwise use debug signing
+            if (project.hasProperty('SIGNING_STORE_FILE')) {
+                signingConfig signingConfigs.release
+            } else {
+                // Use debug signing for unsigned release builds (CI/CD)
+                signingConfig signingConfigs.debug
+            }
             minifyEnabled enableProguardInReleaseBuilds
             shrinkResources enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
