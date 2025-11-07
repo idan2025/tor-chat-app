@@ -6,15 +6,15 @@ apply from: file("react-native-maven-fix.gradle")
 
 buildscript {
     ext {
-        buildToolsVersion = "34.0.0"
-        minSdkVersion = 24
-        compileSdkVersion = 34
-        targetSdkVersion = 34
-        ndkVersion = "25.1.8937393"
+        buildToolsVersion = "35.0.0"
+        minSdkVersion = 32
+        compileSdkVersion = 35
+        targetSdkVersion = 35
+        ndkVersion = "27.0.12077973"
 
         // Dependency versions
-        kotlinVersion = "1.9.22"
-        googleServicesVersion = "4.4.0"
+        kotlinVersion = "2.1.0"
+        googleServicesVersion = "4.4.2"
 
         // React Native compatibility
         supportLibVersion = "28.0.0"
@@ -27,7 +27,7 @@ buildscript {
     }
 
     dependencies {
-        classpath("com.android.tools.build:gradle:8.1.1")
+        classpath("com.android.tools.build:gradle:8.7.3")
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
         // NOTE: Do not place your application dependencies here; they belong
         // in the individual module build.gradle files
@@ -47,7 +47,7 @@ allprojects {
         maven { url 'https://jitpack.io' }
     }
 
-    // React Native 0.73+ dependency resolution fix
+    // React Native 0.82+ dependency resolution fix
     // RN 0.73+ changed from 'com.facebook.react:react-native' to 'com.facebook.react:react-android'
     // Community packages still reference the old artifact name, so we redirect it
     configurations.all {
@@ -55,13 +55,13 @@ allprojects {
             // Substitute old artifact name with new one
             dependencySubstitution {
                 substitute(module('com.facebook.react:react-native'))
-                    .using(module('com.facebook.react:react-android:0.73.0'))
+                    .using(module('com.facebook.react:react-android:0.82.1'))
                     .because('React Native 0.73+ uses react-android artifact on Maven Central')
             }
 
             // Force consistent versions for React Native dependencies
-            force 'com.facebook.react:react-android:0.73.0'
-            force 'com.facebook.react:hermes-android:0.73.0'
+            force 'com.facebook.react:react-android:0.82.1'
+            force 'com.facebook.react:hermes-android:0.82.1'
         }
     }
 }

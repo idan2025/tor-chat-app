@@ -19,12 +19,14 @@ import com.android.build.OutputFile
 // In CI, a symlink is created at packages/android/node_modules -> ../../node_modules
 // Locally, node_modules is at workspace root (../../node_modules from android/ folder)
 def projectRoot = rootProject.projectDir.parent
-def nodeModulesPath = file("$projectRoot/node_modules").exists() ?
-    "$projectRoot/node_modules" : file("$projectRoot/../node_modules").path
+// Check if react-native exists in node_modules to find the correct path
+def nodeModulesPath = file("$projectRoot/node_modules/react-native").exists() ?
+    "$projectRoot/node_modules" : file("$projectRoot/../../node_modules").path
 def reactNativeRoot = file("${nodeModulesPath}/react-native")
 
-// Set node_modules path for react-native-screens and other libraries
-project.ext.REACT_NATIVE_NODE_MODULES_DIR = nodeModulesPath
+// Set react-native path for react-native-screens and other libraries
+// Despite the confusing name, this should point to the react-native directory
+project.ext.REACT_NATIVE_NODE_MODULES_DIR = reactNativeRoot.path
 
 /**
  * Set this to true to enable ProGuard in release builds
@@ -64,8 +66,8 @@ android {
         applicationId "com.torchat"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 2
-        versionName "0.1.2"
+        versionCode 3
+        versionName "0.1.3"
 
         // Permissions for TOR and file access
         manifestPlaceholders = [
@@ -170,7 +172,7 @@ android {
 
 dependencies {
     // React Native - explicit version required for Maven Central resolution
-    implementation("com.facebook.react:react-android:0.73.0")
+    implementation("com.facebook.react:react-android:0.82.1")
 
     // JSC (JavaScript Core) - used if Hermes is disabled
     if (!hermesEnabled.toBoolean()) {
@@ -179,7 +181,7 @@ dependencies {
 
     // Hermes engine - use explicit version if enabled
     if (hermesEnabled.toBoolean()) {
-        implementation("com.facebook.react:hermes-android:0.73.0")
+        implementation("com.facebook.react:hermes-android:0.82.1")
     }
 
     // Kotlin
@@ -232,7 +234,7 @@ dependencies {
 if (hermesEnabled) {
     configurations.all {
         resolutionStrategy {
-            force 'com.facebook.react:hermes-android:0.73.0'
+            force 'com.facebook.react:hermes-android:0.82.1'
         }
     }
 }
