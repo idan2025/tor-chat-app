@@ -74,11 +74,16 @@ subprojects { subproject ->
         if (subproject.plugins.hasPlugin('com.android.library') || subproject.plugins.hasPlugin('com.android.application')) {
             // Ensure buildConfig is enabled
             subproject.android {
+                // Force consistent SDK versions across all modules
+                // This prevents issues where old packages use lower compileSdkVersion
+                compileSdkVersion rootProject.ext.compileSdkVersion
+
                 buildFeatures {
                     buildConfig = true
                 }
 
                 // Force Java 17 for all modules to prevent JVM target mismatch
+                // Java 17 requires compileSdkVersion 30+, which we enforce above
                 compileOptions {
                     sourceCompatibility JavaVersion.VERSION_17
                     targetCompatibility JavaVersion.VERSION_17
