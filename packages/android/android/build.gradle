@@ -62,9 +62,6 @@ allprojects {
             // Force consistent versions for React Native dependencies
             force 'com.facebook.react:react-android:0.73.0'
             force 'com.facebook.react:hermes-android:0.73.0'
-
-            // Exclude duplicate resources and libraries
-            exclude group: 'com.facebook.react', module: 'react-native'
         }
     }
 }
