@@ -10,7 +10,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   token: null,
   activeServer: null,
   isAuthenticated: false,
-  isLoading: true,
+  isLoading: false,
   error: null,
 
   /**
@@ -158,6 +158,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
    * Restores session if valid token exists
    */
   loadUser: async () => {
+    set({ isLoading: true });
     try {
       const token = await AsyncStorage.getItem('token');
       const activeServerJson = await AsyncStorage.getItem('activeServer');
@@ -176,18 +177,25 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
           // Initialize TOR if using onion address
           if (activeServer && !torService.isReady()) {
-            await torService.start().catch((err) => {
-              console.warn('TOR initialization failed:', err);
-              // Continue without TOR (will fallback to direct connection)
+            // Don't wait for TOR on startup, just try to start it
+            torService.start().catch((err) => {
+              console.warn('[AuthStore] TOR initialization failed:', err);
             });
           }
         } catch (error) {
-          console.error('Failed to parse active server:', error);
+          console.error('[AuthStore] Failed to parse active server:', error);
         }
       }
 
-      // Fetch current user info
-      const response = await apiService.get<{ user: User }>('/auth/me');
+      // Fetch current user info with timeout
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Session validation timeout')), 5000)
+      );
+
+      const response = await Promise.race([
+        apiService.get<{ user: AuthUser }>('/auth/me'),
+        timeoutPromise
+      ]) as { user: AuthUser };
 
       set({
         user: response.user,
@@ -198,7 +206,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         error: null,
       });
     } catch (error: any) {
-      console.error('Load user error:', error);
+      console.error('[AuthStore] Load user error:', error);
       // Clear invalid session
       await AsyncStorage.multiRemove(['token', 'activeServerId', 'activeServer']);
       set({

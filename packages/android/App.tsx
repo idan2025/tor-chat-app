@@ -27,8 +27,13 @@ function App(): JSX.Element {
   const navigationRef = useRef<NavigationContainerRef<any>>(null);
 
   useEffect(() => {
-    loadUser();
-  }, [loadUser]);
+    // Only load user if we're not already loaded
+    if (!isAuthenticated && !isLoading) {
+      loadUser().catch((err) => {
+        console.error('[App] Failed to load user:', err);
+      });
+    }
+  }, []);
 
   // Initialize notifications
   useEffect(() => {
