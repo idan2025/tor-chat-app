@@ -43,6 +43,7 @@
     "react-native": {
       "@react-native-community/cli": "17.0.1"
     },
-    "@react-native-community/cli-server-api": "20.0.0"
+    "@react-native-community/cli-server-api": "20.0.0",
+    "react-native-screens": "3.31.1"
   }
 }
