@@ -12,6 +12,8 @@ jobs:
   build:
     name: Build Desktop App
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
 
     strategy:
       matrix:
@@ -39,6 +41,7 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: ${{ matrix.node-version }}
+        cache: 'npm'
 
     - name: Update package.json version
       working-directory: ./packages/desktop
@@ -46,7 +49,10 @@ jobs:
         npm version ${{ steps.version.outputs.version }} --no-git-tag-version --allow-same-version
       shell: bash
 
-    - name: Install dependencies
+    - name: Install workspace dependencies
+      run: npm install
+
+    - name: Install desktop dependencies
       working-directory: ./packages/desktop
       run: npm install
 
