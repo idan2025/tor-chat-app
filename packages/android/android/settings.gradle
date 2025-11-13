@@ -1,69 +1,23 @@
 rootProject.name = 'TorChat'
 
+// React Native Gradle Plugin for autolinking (RN 0.76+)
+pluginManagement {
+    repositories {
+        mavenCentral()
+        google()
+        gradlePluginPortal()
+    }
+    includeBuild("../node_modules/@react-native/gradle-plugin")
+}
+
+plugins {
+    id("com.facebook.react.settings")
+}
+
+// Configure autolinking
+extensions.configure(com.facebook.react.ReactSettingsExtension){ ex ->
+    ex.autolinkLibrariesFromCommand()
+}
+
 // Include the app module
 include ':app'
-
-// Define node_modules path (relative to android folder)
-// In CI, a symlink is created at packages/android/node_modules -> ../../node_modules
-// Locally, node_modules is at workspace root (../../node_modules from android/ folder)
-// Use canonical path to properly resolve symlinks
-def nodeModulesPath = file("../node_modules").exists() ?
-    file("../node_modules") : file("../../node_modules")
-
-// React Native core (commented out - not needed for RN 0.73)
-// apply from: file("${nodeModulesPath}/react-native/react.settings.gradle")
-
-// React Native community packages
-include ':@react-native-async-storage_async-storage'
-project(':@react-native-async-storage_async-storage').projectDir =
-    new File(nodeModulesPath, '@react-native-async-storage/async-storage/android')
-
-// Removed: iOS-specific package that doesn't exist on Android
-// include ':@react-native-community_push-notification-ios'
-// project(':@react-native-community_push-notification-ios').projectDir =
-//     new File(nodeModulesPath, '@react-native-community/push-notification-ios/android')
-
-include ':react-native-document-picker'
-project(':react-native-document-picker').projectDir =
-    new File(nodeModulesPath, 'react-native-document-picker/android')
-
-include ':react-native-fast-image'
-project(':react-native-fast-image').projectDir =
-    new File(nodeModulesPath, 'react-native-fast-image/android')
-
-include ':react-native-image-picker'
-project(':react-native-image-picker').projectDir =
-    new File(nodeModulesPath, 'react-native-image-picker/android')
-
-// Removed: react-native-iptproxy (not installed, using mock TOR implementation)
-// include ':react-native-iptproxy'
-// project(':react-native-iptproxy').projectDir =
-//     new File(nodeModulesPath, 'react-native-iptproxy/android')
-
-include ':react-native-permissions'
-project(':react-native-permissions').projectDir =
-    new File(nodeModulesPath, 'react-native-permissions/android')
-
-include ':react-native-push-notification'
-project(':react-native-push-notification').projectDir =
-    new File(nodeModulesPath, 'react-native-push-notification/android')
-
-include ':react-native-safe-area-context'
-project(':react-native-safe-area-context').projectDir =
-    new File(nodeModulesPath, 'react-native-safe-area-context/android')
-
-include ':react-native-screens'
-project(':react-native-screens').projectDir =
-    new File(nodeModulesPath, 'react-native-screens/android')
-
-include ':react-native-sodium'
-project(':react-native-sodium').projectDir =
-    new File(nodeModulesPath, 'react-native-sodium/android')
-
-include ':react-native-vector-icons'
-project(':react-native-vector-icons').projectDir =
-    new File(nodeModulesPath, 'react-native-vector-icons/android')
-
-include ':react-native-video'
-project(':react-native-video').projectDir =
-    new File(nodeModulesPath, 'react-native-video/android')
