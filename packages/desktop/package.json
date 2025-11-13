@@ -27,6 +27,7 @@
   "config": {
     "forge": {
       "packagerConfig": {
+        "name": "tor-chat-desktop",
         "executableName": "tor-chat-desktop"
       },
       "makers": [
