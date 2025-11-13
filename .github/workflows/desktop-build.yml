@@ -52,28 +52,20 @@ jobs:
     - name: Install workspace dependencies
       run: npm install
 
-    - name: Install desktop dependencies
-      working-directory: ./packages/desktop
-      run: npm install
-
     - name: Build TypeScript
-      working-directory: ./packages/desktop
-      run: npm run build
+      run: npm run build --workspace=@tor-chat/desktop
 
     - name: Package application (Linux)
       if: runner.os == 'Linux'
-      working-directory: ./packages/desktop
-      run: npm run make -- --platform=linux
+      run: npm run make --workspace=@tor-chat/desktop -- --platform=linux
 
     - name: Package application (Windows)
       if: runner.os == 'Windows'
-      working-directory: ./packages/desktop
-      run: npm run make -- --platform=win32
+      run: npm run make --workspace=@tor-chat/desktop -- --platform=win32
 
     - name: Package application (macOS)
       if: runner.os == 'macOS'
-      working-directory: ./packages/desktop
-      run: npm run make -- --platform=darwin
+      run: npm run make --workspace=@tor-chat/desktop -- --platform=darwin
 
     - name: Upload artifacts (Linux)
       if: runner.os == 'Linux'
