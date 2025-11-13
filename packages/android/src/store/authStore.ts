@@ -27,8 +27,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       // Ensure TOR is connected if using .onion address
       if (server && !torService.isReady()) {
-        const torConnected = await torService.start();
-        if (!torConnected) {
+        try {
+          await torService.start();
+        } catch (error) {
           throw new Error('Failed to connect to TOR network. Please ensure Orbot is running.');
         }
       }
@@ -80,8 +81,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       // Ensure TOR is connected if using .onion address
       if (server && !torService.isReady()) {
-        const torConnected = await torService.start();
-        if (!torConnected) {
+        try {
+          await torService.start();
+        } catch (error) {
           throw new Error('Failed to connect to TOR network. Please ensure Orbot is running.');
         }
       }
