@@ -49,23 +49,28 @@ jobs:
         npm version ${{ steps.version.outputs.version }} --no-git-tag-version --allow-same-version
       shell: bash
 
-    - name: Install workspace dependencies
+    - name: Install desktop dependencies
+      working-directory: ./packages/desktop
       run: npm install
 
     - name: Build TypeScript
-      run: npm run build --workspace=@tor-chat/desktop
+      working-directory: ./packages/desktop
+      run: npm run build
 
     - name: Package application (Linux)
       if: runner.os == 'Linux'
-      run: npm run make --workspace=@tor-chat/desktop -- --platform=linux
+      working-directory: ./packages/desktop
+      run: npm run make -- --platform=linux
 
     - name: Package application (Windows)
       if: runner.os == 'Windows'
-      run: npm run make --workspace=@tor-chat/desktop -- --platform=win32
+      working-directory: ./packages/desktop
+      run: npm run make -- --platform=win32
 
     - name: Package application (macOS)
       if: runner.os == 'macOS'
-      run: npm run make --workspace=@tor-chat/desktop -- --platform=darwin
+      working-directory: ./packages/desktop
+      run: npm run make -- --platform=darwin
 
     - name: Upload artifacts (Linux)
       if: runner.os == 'Linux'
