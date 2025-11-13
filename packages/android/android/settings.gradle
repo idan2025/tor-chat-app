@@ -1,6 +1,5 @@
-rootProject.name = 'TorChat'
-
 // React Native Gradle Plugin for autolinking (RN 0.76+)
+// IMPORTANT: pluginManagement must be the first block in settings.gradle
 pluginManagement {
     repositories {
         mavenCentral()
@@ -13,6 +12,8 @@ pluginManagement {
 plugins {
     id("com.facebook.react.settings")
 }
+
+rootProject.name = 'TorChat'
 
 // Configure autolinking
 extensions.configure(com.facebook.react.ReactSettingsExtension){ ex ->
