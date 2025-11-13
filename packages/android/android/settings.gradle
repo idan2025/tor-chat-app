@@ -34,9 +34,10 @@ include ':react-native-image-picker'
 project(':react-native-image-picker').projectDir =
     new File(nodeModulesPath, 'react-native-image-picker/android')
 
-include ':react-native-iptproxy'
-project(':react-native-iptproxy').projectDir =
-    new File(nodeModulesPath, 'react-native-iptproxy/android')
+// Removed: react-native-iptproxy (not installed, using mock TOR implementation)
+// include ':react-native-iptproxy'
+// project(':react-native-iptproxy').projectDir =
+//     new File(nodeModulesPath, 'react-native-iptproxy/android')
 
 include ':react-native-permissions'
 project(':react-native-permissions').projectDir =
