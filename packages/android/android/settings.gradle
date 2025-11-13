@@ -18,9 +18,10 @@ include ':@react-native-async-storage_async-storage'
 project(':@react-native-async-storage_async-storage').projectDir =
     new File(nodeModulesPath, '@react-native-async-storage/async-storage/android')
 
-include ':@react-native-community_push-notification-ios'
-project(':@react-native-community_push-notification-ios').projectDir =
-    new File(nodeModulesPath, '@react-native-community/push-notification-ios/android')
+// Removed: iOS-specific package that doesn't exist on Android
+// include ':@react-native-community_push-notification-ios'
+// project(':@react-native-community_push-notification-ios').projectDir =
+//     new File(nodeModulesPath, '@react-native-community/push-notification-ios/android')
 
 include ':react-native-document-picker'
 project(':react-native-document-picker').projectDir =
