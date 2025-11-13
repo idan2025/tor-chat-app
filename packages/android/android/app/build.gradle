@@ -57,13 +57,7 @@ project.ext.react = project.ext.react + [
 def hermesEnabled = project.ext.react.get("enableHermes", true)
 def newArchEnabled = project.hasProperty("newArchEnabled") ? newArchEnabled.toBoolean() : false
 
-// Enable React Native autolinking for native modules
-apply plugin: "com.facebook.react"
-
-react {
-    // Enable autolinking
-    autolinkLibrariesWithApp()
-}
+// React Native autolinking is handled automatically by settings.gradle plugin (RN 0.76+)
 
 android {
     ndkVersion rootProject.ext.ndkVersion

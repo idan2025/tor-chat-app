@@ -8,10 +8,12 @@ pluginManagement {
     }
 
     // Determine node_modules location
-    // In CI: workspace root (../../node_modules from android/ folder)
-    // Locally: workspace root (../../node_modules from android/ folder)
-    def nodeModulesPath = file("../../node_modules").exists() ?
-        "../../node_modules" : "../node_modules"
+    // Directory structure: packages/android/android/settings.gradle
+    // In CI: packages/android/node_modules -> ../../node_modules (symlink)
+    // Locally: ../../../node_modules (workspace root)
+    // Check for the specific gradle-plugin directory
+    def nodeModulesPath = file("../node_modules/@react-native/gradle-plugin").exists() ?
+        "../node_modules" : "../../../node_modules"
 
     includeBuild("${nodeModulesPath}/@react-native/gradle-plugin")
 }
