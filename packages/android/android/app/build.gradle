@@ -257,9 +257,59 @@ task printBuildInfo {
     }
 }
 
-// Run printBuildInfo before assembling
+// Task to bundle JavaScript for React Native
+task bundleReleaseJsAndAssets(type: Exec) {
+    group = 'react'
+    description = 'Bundle JavaScript and assets for release build'
+
+    workingDir projectRoot
+
+    def bundleOutput = "$projectRoot/android/app/src/main/assets/index.android.bundle"
+    def assetsOutput = "$projectRoot/android/app/src/main/res"
+
+    // Create assets directory if it doesn't exist
+    doFirst {
+        file("$projectRoot/android/app/src/main/assets").mkdirs()
+    }
+
+    commandLine 'npx', 'react-native', 'bundle',
+        '--platform', 'android',
+        '--dev', 'false',
+        '--entry-file', 'index.js',
+        '--bundle-output', bundleOutput,
+        '--assets-dest', assetsOutput
+}
+
+task bundleDebugJsAndAssets(type: Exec) {
+    group = 'react'
+    description = 'Bundle JavaScript and assets for debug build'
+
+    workingDir projectRoot
+
+    def bundleOutput = "$projectRoot/android/app/src/main/assets/index.android.bundle"
+    def assetsOutput = "$projectRoot/android/app/src/main/res"
+
+    // Create assets directory if it doesn't exist
+    doFirst {
+        file("$projectRoot/android/app/src/main/assets").mkdirs()
+    }
+
+    commandLine 'npx', 'react-native', 'bundle',
+        '--platform', 'android',
+        '--dev', 'true',
+        '--entry-file', 'index.js',
+        '--bundle-output', bundleOutput,
+        '--assets-dest', assetsOutput
+}
+
+// Run printBuildInfo and bundle JS before assembling
 tasks.whenTaskAdded { task ->
-    if (task.name == 'assembleDebug' || task.name == 'assembleRelease') {
+    if (task.name == 'assembleDebug') {
+        task.dependsOn bundleDebugJsAndAssets
+        task.dependsOn printBuildInfo
+    }
+    if (task.name == 'assembleRelease') {
+        task.dependsOn bundleReleaseJsAndAssets
         task.dependsOn printBuildInfo
     }
 }
