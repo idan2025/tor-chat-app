@@ -6,7 +6,14 @@ pluginManagement {
         google()
         gradlePluginPortal()
     }
-    includeBuild("../node_modules/@react-native/gradle-plugin")
+
+    // Determine node_modules location
+    // In CI: workspace root (../../node_modules from android/ folder)
+    // Locally: workspace root (../../node_modules from android/ folder)
+    def nodeModulesPath = file("../../node_modules").exists() ?
+        "../../node_modules" : "../node_modules"
+
+    includeBuild("${nodeModulesPath}/@react-native/gradle-plugin")
 }
 
 plugins {
