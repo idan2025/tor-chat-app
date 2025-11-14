@@ -20,6 +20,33 @@ android {
         }
     }
 
+    signingConfigs {
+        // Debug signing - uses default debug keystore
+        getByName("debug") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+
+        // Release signing - configured via gradle.properties or defaults to debug
+        create("release") {
+            val keystoreFile = project.findProperty("RELEASE_STORE_FILE") as String?
+            if (keystoreFile != null && file(keystoreFile).exists()) {
+                storeFile = file(keystoreFile)
+                storePassword = project.findProperty("RELEASE_STORE_PASSWORD") as String
+                keyAlias = project.findProperty("RELEASE_KEY_ALIAS") as String
+                keyPassword = project.findProperty("RELEASE_KEY_PASSWORD") as String
+            } else {
+                // Fallback to debug signing if no release keystore configured
+                storeFile = file("debug.keystore")
+                storePassword = "android"
+                keyAlias = "androiddebugkey"
+                keyPassword = "android"
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -28,10 +55,12 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = signingConfigs.getByName("release")
         }
         debug {
             applicationIdSuffix = ".debug"
             isDebuggable = true
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
 
