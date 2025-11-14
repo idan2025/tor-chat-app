@@ -38,9 +38,10 @@ kotlin {
                 implementation("io.ktor:ktor-client-okhttp:3.0.2")
 
                 // TOR Integration - Guardian Project
-                // tor-android-binary contains the actual TOR native libraries (.so files)
-                implementation("info.guardianproject:tor-android-binary:0.4.7.14")
-                implementation("info.guardianproject:jtorctl:0.4.5.7")
+                // tor-android includes TOR binaries and control library
+                implementation("info.guardianproject.topl:tor-android:0.4.8.12")
+                // Alternative: can also use separate binary package if needed
+                // implementation("info.guardianproject:tor-android-binary:0.4.7.13")
 
                 // Crypto (libsodium)
                 implementation("com.goterl:lazysodium-android:5.1.0@aar")
