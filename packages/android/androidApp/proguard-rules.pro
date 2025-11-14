@@ -10,6 +10,11 @@
 -keep class com.sun.jna.** { *; }
 -keep class net.java.dev.jna.** { *; }
 
+# JNA - Ignore AWT references (not available on Android)
+-dontwarn java.awt.**
+-dontwarn javax.swing.**
+-dontwarn com.sun.jna.platform.**
+
 # Kotlinx Serialization
 -keepattributes *Annotation*, InnerClasses
 -dontnote kotlinx.serialization.AnnotationsKt
