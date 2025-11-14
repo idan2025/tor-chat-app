@@ -218,7 +218,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: android-release-apk
-          path: ${{ steps.rename.outputs.new_path }}
+          path: packages/android/${{ steps.rename.outputs.new_path }}
           retention-days: 90
           compression-level: 0
 
@@ -290,7 +290,7 @@ jobs:
           draft: false
           prerelease: ${{ contains(steps.version.outputs.version, 'alpha') || contains(steps.version.outputs.version, 'beta') || contains(steps.version.outputs.version, 'rc') }}
           files: |
-            ${{ steps.rename.outputs.new_path }}
+            packages/android/${{ steps.rename.outputs.new_path }}
           fail_on_unmatched_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
