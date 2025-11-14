@@ -132,23 +132,44 @@ class TorManager(private val context: Context) {
     private fun extractTorBinary(): File {
         val torBinary = File(context.filesDir, "tor/tor")
 
-        // Guardian Project's tor-android-binary includes native libs
+        // Guardian Project's tor-android includes native libs
         // They are automatically extracted by the system to nativeLibraryDir
         val nativeLibDir = context.applicationInfo.nativeLibraryDir
-        val systemTorBinary = File(nativeLibDir, "libtor.so")
 
-        if (systemTorBinary.exists()) {
-            // Copy to our tor directory for execution
-            systemTorBinary.copyTo(torBinary, overwrite = true)
-            torBinary.setExecutable(true)
-            Log.d(TAG, "TOR binary extracted: ${torBinary.absolutePath}")
-            return torBinary
-        } else {
-            throw RuntimeException(
-                "TOR binary not found in native library directory. " +
-                        "Ensure tor-android-binary dependency is included in build.gradle"
-            )
+        // Try different possible names for TOR binary
+        val possibleNames = listOf(
+            "libtor.so",
+            "libtor-android.so",
+            "libtorservice.so",
+            "tor"
+        )
+
+        // List all native libraries for debugging
+        Log.d(TAG, "Scanning native library directory: $nativeLibDir")
+        File(nativeLibDir).listFiles()?.forEach { file ->
+            Log.d(TAG, "Found native library: ${file.name}")
         }
+
+        // Try to find TOR binary
+        for (name in possibleNames) {
+            val systemTorBinary = File(nativeLibDir, name)
+            if (systemTorBinary.exists()) {
+                // Copy to our tor directory for execution
+                systemTorBinary.copyTo(torBinary, overwrite = true)
+                torBinary.setExecutable(true)
+                Log.i(TAG, "TOR binary found and extracted: $name -> ${torBinary.absolutePath}")
+                return torBinary
+            }
+        }
+
+        // If not found, list what's available and throw error
+        val availableLibs = File(nativeLibDir).listFiles()?.joinToString(", ") { it.name } ?: "none"
+        throw RuntimeException(
+            "TOR binary not found in native library directory.\n" +
+            "Searched for: ${possibleNames.joinToString(", ")}\n" +
+            "Available libraries: $availableLibs\n" +
+            "Native lib dir: $nativeLibDir"
+        )
     }
 
     /**
