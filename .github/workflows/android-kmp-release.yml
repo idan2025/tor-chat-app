@@ -1,6 +1,6 @@
 name: Android KMP Release
 
-# Trigger on version tags or manual workflow dispatch
+# Trigger on version tags, manual workflow dispatch, or when called by other workflows
 on:
   push:
     tags:
@@ -16,6 +16,7 @@ on:
         required: true
         type: boolean
         default: true
+  workflow_call:
 
 jobs:
   release:
