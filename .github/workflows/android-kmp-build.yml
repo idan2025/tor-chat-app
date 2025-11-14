@@ -52,6 +52,9 @@ jobs:
             platform-tools
             platforms;android-35
             build-tools;35.0.0
+          cmdline-tools-version: 12266719
+          accept-android-sdk-licenses: true
+          log-accepted-android-sdk-licenses: true
 
       # =====================================================
       # GRADLE CACHING - Optimized for faster builds
