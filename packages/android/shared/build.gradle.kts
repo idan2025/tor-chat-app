@@ -38,8 +38,9 @@ kotlin {
                 implementation("io.ktor:ktor-client-okhttp:3.0.2")
 
                 // TOR Integration - Guardian Project
-                // Using older stable version with TOR binaries included
-                implementation("info.guardianproject:tor-android:0.4.7.13")
+                // Latest stable version with TOR binaries (0.4.8.19)
+                implementation("info.guardianproject:tor-android:0.4.8.18")
+                implementation("info.guardianproject:jtorctl:0.4.5.7")
 
                 // Crypto (libsodium)
                 implementation("com.goterl:lazysodium-android:5.1.0@aar")
