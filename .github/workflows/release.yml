@@ -51,7 +51,7 @@ jobs:
   android-release:
     name: Release Android App
     needs: create-release
-    uses: ./.github/workflows/android-build.yml
+    uses: ./.github/workflows/android-kmp-release.yml
     secrets: inherit
 
   notify:

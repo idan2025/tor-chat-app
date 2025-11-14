@@ -38,6 +38,9 @@
 -keep class io.ktor.** { *; }
 -keepclassmembers class io.ktor.** { volatile <fields>; }
 
+# Ktor - Ignore JVM management classes (not available on Android)
+-dontwarn java.lang.management.**
+
 # OkHttp
 -dontwarn okhttp3.**
 -dontwarn okio.**
