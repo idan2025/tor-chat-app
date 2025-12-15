@@ -50,7 +50,7 @@
     "@babel/preset-env": "^7.26.0",
     "@react-native-community/cli": "^20.0.2",
     "@react-native-community/cli-server-api": "^20.0.0",
-    "@react-native/babel-preset": "0.76.6",
+    "@react-native/babel-preset": "0.83.0",
     "@react-native/eslint-config": "0.76.6",
     "@react-native/metro-config": "0.76.6",
     "@react-native/typescript-config": "0.76.6",
