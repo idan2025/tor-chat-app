@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="app_name">TOR Chat</string>
-    <string name="tor_connecting">Connecting to TOR network…</string>
-    <string name="tor_connected">Connected to TOR</string>
-    <string name="tor_disconnected">TOR disconnected</string>
-    <string name="tor_error">TOR connection error</string>
-</resources>
