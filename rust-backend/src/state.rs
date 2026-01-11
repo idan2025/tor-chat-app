@@ -26,7 +26,10 @@ impl AppState {
 
     pub async fn add_user_socket(&self, user_id: Uuid, socket_id: String) {
         let mut sockets = self.user_sockets.write().await;
-        sockets.entry(user_id).or_insert_with(Vec::new).push(socket_id);
+        sockets
+            .entry(user_id)
+            .or_insert_with(Vec::new)
+            .push(socket_id);
     }
 
     pub async fn remove_user_socket(&self, user_id: Uuid, socket_id: &str) -> bool {

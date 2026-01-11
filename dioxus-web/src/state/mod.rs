@@ -1,7 +1,7 @@
 pub mod auth;
 
 use crate::api::ApiClient;
-use crate::models::{Room, Message, User};
+use crate::models::{Message, Room, User};
 use crate::socket::SocketClient;
 use std::sync::Arc;
 use tokio::sync::RwLock;

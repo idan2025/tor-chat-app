@@ -685,61 +685,71 @@ pub fn broadcast_room_created(
 }
 
 // 14. room_deleted - Broadcast when a room is deleted
-pub fn broadcast_room_deleted(
-    socket: &SocketRef,
-    room_id: Uuid,
-) {
-    socket.broadcast().emit("room_deleted", serde_json::json!({
-        "roomId": room_id
-    })).ok();
+pub fn broadcast_room_deleted(socket: &SocketRef, room_id: Uuid) {
+    socket
+        .broadcast()
+        .emit(
+            "room_deleted",
+            serde_json::json!({
+                "roomId": room_id
+            }),
+        )
+        .ok();
 }
 
 // 15. member_joined - Broadcast when a user joins a room
-pub fn broadcast_member_joined(
-    socket: &SocketRef,
-    room_id: Uuid,
-    user_id: Uuid,
-    username: &str,
-) {
-    socket.within(room_id.to_string()).emit("member_joined", serde_json::json!({
-        "roomId": room_id,
-        "userId": user_id,
-        "username": username
-    })).ok();
+pub fn broadcast_member_joined(socket: &SocketRef, room_id: Uuid, user_id: Uuid, username: &str) {
+    socket
+        .within(room_id.to_string())
+        .emit(
+            "member_joined",
+            serde_json::json!({
+                "roomId": room_id,
+                "userId": user_id,
+                "username": username
+            }),
+        )
+        .ok();
 }
 
 // 16. member_left - Broadcast when a user leaves a room
-pub fn broadcast_member_left(
-    socket: &SocketRef,
-    room_id: Uuid,
-    user_id: Uuid,
-    username: &str,
-) {
-    socket.within(room_id.to_string()).emit("member_left", serde_json::json!({
-        "roomId": room_id,
-        "userId": user_id,
-        "username": username
-    })).ok();
+pub fn broadcast_member_left(socket: &SocketRef, room_id: Uuid, user_id: Uuid, username: &str) {
+    socket
+        .within(room_id.to_string())
+        .emit(
+            "member_left",
+            serde_json::json!({
+                "roomId": room_id,
+                "userId": user_id,
+                "username": username
+            }),
+        )
+        .ok();
 }
 
 // 17. member_removed - Broadcast when a user is removed from a room
-pub fn broadcast_member_removed(
-    socket: &SocketRef,
-    room_id: Uuid,
-    user_id: Uuid,
-) {
-    socket.within(room_id.to_string()).emit("member_removed", serde_json::json!({
-        "roomId": room_id,
-        "userId": user_id
-    })).ok();
+pub fn broadcast_member_removed(socket: &SocketRef, room_id: Uuid, user_id: Uuid) {
+    socket
+        .within(room_id.to_string())
+        .emit(
+            "member_removed",
+            serde_json::json!({
+                "roomId": room_id,
+                "userId": user_id
+            }),
+        )
+        .ok();
 }
 
 // 18. user_banned - Broadcast when a user is banned
-pub fn broadcast_user_banned(
-    socket: &SocketRef,
-    user_id: Uuid,
-) {
-    socket.broadcast().emit("user_banned", serde_json::json!({
-        "userId": user_id
-    })).ok();
+pub fn broadcast_user_banned(socket: &SocketRef, user_id: Uuid) {
+    socket
+        .broadcast()
+        .emit(
+            "user_banned",
+            serde_json::json!({
+                "userId": user_id
+            }),
+        )
+        .ok();
 }

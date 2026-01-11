@@ -18,7 +18,10 @@ impl SocketClient {
     }
 
     pub async fn connect(&self, token: &str) {
-        let ws_url = self.base_url.replace("http://", "ws://").replace("https://", "wss://");
+        let ws_url = self
+            .base_url
+            .replace("http://", "ws://")
+            .replace("https://", "wss://");
         let socket_url = format!("{}/socket.io/?EIO=4&transport=websocket", ws_url);
 
         match WebSocket::open(&socket_url) {
@@ -52,11 +55,13 @@ impl SocketClient {
     }
 
     pub async fn join_room(&self, room_id: &str) {
-        self.emit("join_room", serde_json::json!({ "roomId": room_id })).await;
+        self.emit("join_room", serde_json::json!({ "roomId": room_id }))
+            .await;
     }
 
     pub async fn leave_room(&self, room_id: &str) {
-        self.emit("leave_room", serde_json::json!({ "roomId": room_id })).await;
+        self.emit("leave_room", serde_json::json!({ "roomId": room_id }))
+            .await;
     }
 
     pub async fn send_message(&self, room_id: &str, content: &str) {

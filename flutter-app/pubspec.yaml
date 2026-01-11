@@ -31,7 +31,9 @@ dependencies:
   flutter_sodium: ^0.2.0
 
   # TOR Integration
-  tor_flutter: ^0.3.0
+  # Note: TOR integration will be handled via SOCKS5 proxy at network level
+  # tor_flutter package is not available on pub.dev
+  # Will use Dart's native Socket with SOCKS5 proxy configuration
 
   # UI Components
   cupertino_icons: ^1.0.6
