@@ -1,4 +1,5 @@
 use gloo_net::websocket::{futures::WebSocket, Message as WsMessage};
+use futures::SinkExt;
 use serde_json::Value;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -41,7 +42,8 @@ impl SocketClient {
     }
 
     pub async fn emit(&self, event: &str, data: Value) {
-        if let Some(ws) = self.ws.borrow_mut().as_mut() {
+        let ws_opt = self.ws.borrow_mut().take();
+        if let Some(mut ws) = ws_opt {
             let msg = serde_json::json!({
                 "event": event,
                 "data": data
@@ -50,6 +52,7 @@ impl SocketClient {
             if let Ok(json_str) = serde_json::to_string(&msg) {
                 let _ = ws.send(WsMessage::Text(json_str)).await;
             }
+            *self.ws.borrow_mut() = Some(ws);
         }
     }
 
