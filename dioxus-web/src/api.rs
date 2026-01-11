@@ -203,8 +203,7 @@ impl ApiClient {
 
         if response.status().is_success() {
             let data: Value = response.json().await.map_err(|e| e.to_string())?;
-            serde_json::from_value(data["users"].clone())
-                .map_err(|e| e.to_string())
+            serde_json::from_value(data["users"].clone()).map_err(|e| e.to_string())
         } else {
             Err(format!("Failed to get users: {}", response.status()))
         }
@@ -212,7 +211,10 @@ impl ApiClient {
 
     pub async fn admin_ban_user(&self, user_id: &str) -> Result<(), String> {
         let response = self
-            .request(reqwest::Method::POST, &format!("/api/admin/users/{}/ban", user_id))
+            .request(
+                reqwest::Method::POST,
+                &format!("/api/admin/users/{}/ban", user_id),
+            )
             .await
             .send()
             .await

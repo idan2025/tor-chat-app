@@ -1,6 +1,6 @@
-use dioxus::prelude::*;
 use crate::models::Message;
 use crate::utils;
+use dioxus::prelude::*;
 
 #[component]
 pub fn MessageBubble(message: ReadOnlySignal<Message>) -> Element {

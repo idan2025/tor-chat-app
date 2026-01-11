@@ -28,7 +28,8 @@ dependencies:
   cryptography: ^2.7.0
   crypto: ^3.0.3
   sodium_libs: ^2.2.0
-  flutter_sodium: ^0.2.0
+  # Note: flutter_sodium has dependency conflict with file_picker (ffi version mismatch)
+  # Using sodium_libs directly instead
 
   # TOR Integration
   # Note: TOR integration will be handled via SOCKS5 proxy at network level
