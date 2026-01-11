@@ -1,6 +1,9 @@
-# Documentation (ignore all .md except README)
+# Documentation (ignore all .md except specific ones)
 *.md
 !README.md
+!SECURITY.md
+!DOCKER.md
+!LICENSE.md
 
 # Dependencies
 node_modules/

@@ -1,0 +1,65 @@
+version: '3.8'
+
+# Production docker-compose configuration
+# Use pre-built images from Docker Hub
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: tor-chat-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-tor_chat}
+      POSTGRES_USER: ${POSTGRES_USER:-toruser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-torpass}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - tor-chat-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-toruser}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    image: idan2025/tor-chat-backend:latest
+    container_name: tor-chat-backend
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-toruser}:${POSTGRES_PASSWORD:-torpass}@postgres:5432/${POSTGRES_DB:-tor_chat}
+      JWT_SECRET: ${JWT_SECRET}
+      RUST_LOG: ${RUST_LOG:-info}
+      TOR_SOCKS_HOST: ${TOR_SOCKS_HOST:-127.0.0.1}
+      TOR_SOCKS_PORT: ${TOR_SOCKS_PORT:-9050}
+      PORT: 3000
+    ports:
+      - "${BACKEND_PORT:-3000}:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - backend_uploads:/app/uploads
+    networks:
+      - tor-chat-network
+    restart: unless-stopped
+
+  web:
+    image: idan2025/tor-chat-web:latest
+    container_name: tor-chat-web
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    depends_on:
+      - backend
+    networks:
+      - tor-chat-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+  backend_uploads:
+    driver: local
+
+networks:
+  tor-chat-network:
+    driver: bridge
