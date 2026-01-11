@@ -28,7 +28,7 @@ jobs:
           channel: 'stable'
 
       - name: Cache pub dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.pub-cache
@@ -62,7 +62,7 @@ jobs:
           channel: 'stable'
 
       - name: Cache pub dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.pub-cache
@@ -86,7 +86,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Setup Java
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '17'
@@ -98,7 +98,7 @@ jobs:
           channel: 'stable'
 
       - name: Cache pub dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.pub-cache
@@ -112,7 +112,7 @@ jobs:
         run: flutter build apk --release
 
       - name: Upload APK
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: tor-chat-android-apk
           path: flutter-app/build/app/outputs/flutter-apk/app-release.apk
@@ -130,7 +130,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Setup Java
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '17'
@@ -142,7 +142,7 @@ jobs:
           channel: 'stable'
 
       - name: Cache pub dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.pub-cache
@@ -173,7 +173,7 @@ jobs:
         run: flutter build appbundle --release
 
       - name: Upload App Bundle
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: tor-chat-android-aab
           path: flutter-app/build/app/outputs/bundle/release/app-release.aab
