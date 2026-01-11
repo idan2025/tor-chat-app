@@ -92,7 +92,7 @@ jobs:
           ./linuxdeploy --appdir AppDir --output appimage
 
       - name: Upload Linux binary
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v6
         with:
           name: tor-chat-desktop-linux
           path: |
@@ -132,7 +132,7 @@ jobs:
           arguments: "/V3"
 
       - name: Upload Windows binary
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v6
         with:
           name: tor-chat-desktop-windows
           path: |
@@ -204,7 +204,7 @@ jobs:
             "TorChat.app"
 
       - name: Upload macOS binary
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v6
         with:
           name: tor-chat-desktop-macos
           path: |

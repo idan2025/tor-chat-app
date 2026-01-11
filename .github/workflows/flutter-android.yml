@@ -112,7 +112,7 @@ jobs:
         run: flutter build apk --release
 
       - name: Upload APK
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v6
         with:
           name: tor-chat-android-apk
           path: flutter-app/build/app/outputs/flutter-apk/app-release.apk
@@ -173,7 +173,7 @@ jobs:
         run: flutter build appbundle --release
 
       - name: Upload App Bundle
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v6
         with:
           name: tor-chat-android-aab
           path: flutter-app/build/app/outputs/bundle/release/app-release.aab

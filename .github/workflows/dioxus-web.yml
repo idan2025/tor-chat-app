@@ -80,7 +80,7 @@ jobs:
         run: trunk build --release
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v6
         with:
           name: dioxus-web-build
           path: dioxus-web/dist/

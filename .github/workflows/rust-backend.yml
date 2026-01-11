@@ -127,7 +127,7 @@ jobs:
         run: cargo build --release --verbose
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v6
         with:
           name: tor-chat-backend
           path: rust-backend/target/release/tor-chat-backend
