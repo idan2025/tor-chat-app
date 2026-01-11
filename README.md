@@ -112,6 +112,31 @@ If you do not agree with this disclaimer, **DO NOT USE THIS SOFTWARE**.
 
 ---
 
+## 🚀 Quick Start with Docker
+
+The fastest way to get TOR Chat running:
+
+```bash
+# Clone repository
+git clone https://github.com/idan2025/tor-chat-app.git
+cd tor-chat-app
+
+# Copy and configure environment
+cp .env.example .env
+nano .env  # Set JWT_SECRET to a secure random value
+
+# Start with pre-built images (recommended)
+docker-compose -f docker-compose.prod.yml up -d
+
+# Access the application
+# Web UI: http://localhost:8080
+# Backend API: http://localhost:3000
+```
+
+**See [DOCKER.md](DOCKER.md) for complete Docker deployment guide.**
+
+---
+
 ## Quick Start
 
 ### Prerequisites
@@ -528,7 +553,25 @@ sqlx migrate revert
 
 ## Production Deployment
 
-### 1. Backend Deployment
+**Recommended: Docker Deployment**
+
+The easiest way to deploy to production is using Docker Compose:
+
+```bash
+# Use pre-built images from Docker Hub
+docker-compose -f docker-compose.prod.yml up -d
+```
+
+See **[DOCKER.md](DOCKER.md)** for complete production deployment guide including:
+- SSL/TLS setup with reverse proxy
+- Database backups
+- Security hardening
+- Monitoring and logging
+- Performance tuning
+
+### Alternative: Manual Deployment
+
+#### 1. Backend Deployment
 
 ```bash
 # Using Docker
@@ -538,11 +581,18 @@ docker run -d \
   -e JWT_SECRET=your-secret-key \
   idan2025/tor-chat-backend:latest
 
-# Or using docker-compose
-docker-compose up -d
+# Or build from source
+cd rust-backend
+cargo build --release
+./target/release/tor-chat-backend
 ```
 
-### 2. Web Deployment
+#### 2. Web Deployment
+
+**Docker (Recommended)**:
+```bash
+docker run -d -p 8080:80 idan2025/tor-chat-web:latest
+```
 
 **GitHub Pages**:
 ```bash
@@ -557,7 +607,9 @@ trunk build --release
 # Publish directory: dioxus-web/dist
 ```
 
-### 3. Android Deployment
+#### 3. Android Deployment
+
+Download APK from [GitHub Actions artifacts](https://github.com/idan2025/tor-chat-app/actions/workflows/flutter-android.yml) or build from source:
 
 ```bash
 cd flutter-app
@@ -569,9 +621,14 @@ flutter build apk --release
 flutter build appbundle --release
 ```
 
-### 4. Desktop Deployment
+#### 4. Desktop Deployment
 
-Download pre-built binaries from [GitHub Releases](https://github.com/idan2025/tor-chat-app/releases) or build from source:
+Download pre-built binaries from:
+- **Linux AppImage**: [GitHub Actions artifacts](https://github.com/idan2025/tor-chat-app/actions/workflows/dioxus-desktop.yml)
+- **Windows Installer**: [GitHub Actions artifacts](https://github.com/idan2025/tor-chat-app/actions/workflows/dioxus-desktop.yml)
+- **macOS DMG**: [GitHub Actions artifacts](https://github.com/idan2025/tor-chat-app/actions/workflows/dioxus-desktop.yml)
+
+Or build from source:
 
 ```bash
 cd dioxus-desktop
