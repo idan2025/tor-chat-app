@@ -1,4 +1,4 @@
-name: Code Quality
+name: Code Quality & Security
 
 on:
   push:
@@ -6,108 +6,163 @@ on:
   pull_request:
     branches: [ main, develop ]
   schedule:
-    - cron: '0 0 * * 1'  # Weekly on Monday
+    - cron: '0 0 * * 0' # Weekly on Sunday
 
 jobs:
-  security:
-    name: Security Audit
+  security-audit-rust:
+    name: Rust Security Audit
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Run npm audit (Backend)
-      working-directory: ./packages/backend
-      run: |
-        npm audit --audit-level=moderate || true
-        npm audit fix --dry-run || true
-      continue-on-error: true
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
 
-    - name: Run npm audit (Web)
-      working-directory: ./packages/web
-      run: |
-        npm audit --audit-level=moderate || true
-        npm audit fix --dry-run || true
-      continue-on-error: true
+      - name: Install cargo-audit
+        run: cargo install cargo-audit
 
-    - name: Run Snyk Security Scan
-      uses: snyk/actions/node@master
-      continue-on-error: true
-      env:
-        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-      with:
-        args: --all-projects --severity-threshold=high
+      - name: Run security audit (Backend)
+        working-directory: ./rust-backend
+        run: cargo audit
 
-  codeql:
-    name: CodeQL Analysis
-    runs-on: ubuntu-latest
-    permissions:
-      actions: read
-      contents: read
-      security-events: write
+      - name: Run security audit (Dioxus Web)
+        working-directory: ./dioxus-web
+        run: cargo audit
 
-    strategy:
-      matrix:
-        language: [ 'typescript' ]
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Initialize CodeQL
-      uses: github/codeql-action/init@v4
-      with:
-        languages: ${{ matrix.language }}
-
-    - name: Autobuild
-      uses: github/codeql-action/autobuild@v4
-
-    - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v4
-      continue-on-error: true
+      - name: Run security audit (Dioxus Desktop)
+        working-directory: ./dioxus-desktop
+        run: cargo audit
 
   dependency-review:
     name: Dependency Review
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
-
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Dependency Review
-      uses: actions/dependency-review-action@v4
-      with:
-        fail-on-severity: moderate
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v3
+        with:
+          fail-on-severity: moderate
 
-  linter:
-    name: Lint All Packages
+  codeql-rust:
+    name: CodeQL Rust Analysis
     runs-on: ubuntu-latest
-
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20.x'
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: 'rust'
 
-    - name: Install dependencies (Backend)
-      working-directory: ./packages/backend
-      run: npm install
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
 
-    - name: Lint Backend
-      working-directory: ./packages/backend
-      run: npm run lint
-      continue-on-error: true
+      - name: Install libsodium
+        run: sudo apt-get update && sudo apt-get install -y libsodium-dev
 
-    - name: Install dependencies (Web)
-      working-directory: ./packages/web
-      run: npm install
+      - name: Build Rust Backend
+        working-directory: ./rust-backend
+        run: cargo build --release
 
-    - name: Lint Web
-      working-directory: ./packages/web
-      run: npm run lint
-      continue-on-error: true
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+
+  flutter-security:
+    name: Flutter Security Scan
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./flutter-app
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.16.0'
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Run Flutter analyze
+        run: flutter analyze
+
+      - name: Check for outdated dependencies
+        run: flutter pub outdated
+
+  license-check:
+    name: License Compliance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-license
+        run: cargo install cargo-license
+
+      - name: Check Rust Backend licenses
+        working-directory: ./rust-backend
+        run: cargo license --json > licenses-backend.json
+
+      - name: Check Dioxus Web licenses
+        working-directory: ./dioxus-web
+        run: cargo license --json > licenses-web.json
+
+      - name: Upload license reports
+        uses: actions/upload-artifact@v3
+        with:
+          name: license-reports
+          path: |
+            rust-backend/licenses-*.json
+            dioxus-web/licenses-*.json
+
+  coverage:
+    name: Code Coverage
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: tor_chat_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install libsodium
+        run: sudo apt-get update && sudo apt-get install -y libsodium-dev
+
+      - name: Install cargo-tarpaulin
+        run: cargo install cargo-tarpaulin
+
+      - name: Run coverage
+        working-directory: ./rust-backend
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/tor_chat_test
+          JWT_SECRET: test-secret-key-for-ci
+        run: cargo tarpaulin --out Xml --output-dir coverage
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./rust-backend/coverage/cobertura.xml
+          flags: rust-backend
+          name: rust-backend-coverage

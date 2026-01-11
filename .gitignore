@@ -1,11 +1,42 @@
+# Documentation (ignore all .md except README)
+*.md
+!README.md
+
 # Dependencies
 node_modules/
 */node_modules/
 **/node_modules/
 
+# Rust
+rust-backend/target/
+rust-backend/Cargo.lock
+dioxus-web/target/
+dioxus-web/Cargo.lock
+dioxus-desktop/target/
+dioxus-desktop/Cargo.lock
+**/*.rs.bk
+**/*.pdb
+
+# Flutter/Dart
+flutter-app/.dart_tool/
+flutter-app/.flutter-plugins
+flutter-app/.flutter-plugins-dependencies
+flutter-app/.packages
+flutter-app/build/
+flutter-app/ios/Pods/
+flutter-app/ios/.symlinks/
+flutter-app/android/.gradle/
+flutter-app/android/app/build/
+flutter-app/android/captures/
+flutter-app/android/key.properties
+flutter-app/android/app/keystore.jks
+flutter-app/.metadata
+flutter-app/pubspec.lock
+
 # Build outputs
 dist/
 build/
+out/
 *.log
 *.tgz
 
@@ -20,38 +51,54 @@ build/
 *.swp
 *.swo
 *~
+.fleet/
 
 # OS
 .DS_Store
 Thumbs.db
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
 
 # TOR
 tor-data/
 hidden_service/
+service1/
+service2/
 
 # Database
 *.db
 *.sqlite
+*.sqlite3
 pg_data/
+postgres-data/
 
 # Secrets
 *.key
 *.pem
 secrets/
+keystore.jks
 
-# Android
+# Android/Mobile
 *.apk
 *.aab
+*.ipa
 *.hprof
 .gradle/
-packages/android/.gradle/
-packages/android/android/.gradle/
-packages/android/android/app/build/
 
-# iOS
-*.ipa
-Pods/
-packages/android/ios/Pods/
+# Test coverage
+coverage/
+*.lcov
+tarpaulin-report.html
 
-# Electron
-packages/desktop/out/
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+*.cache
+
+# Uploads
+uploads/
+upload-dir/
