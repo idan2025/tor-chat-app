@@ -1,18 +1,17 @@
 use gloo_net::websocket::{futures::WebSocket, Message as WsMessage};
 use serde_json::Value;
-use std::sync::Arc;
-use tokio::sync::Mutex;
-use wasm_bindgen_futures::spawn_local;
+use std::cell::RefCell;
+use std::rc::Rc;
 
 pub struct SocketClient {
-    ws: Arc<Mutex<Option<WebSocket>>>,
+    ws: Rc<RefCell<Option<WebSocket>>>,
     base_url: String,
 }
 
 impl SocketClient {
     pub fn new(base_url: String) -> Self {
         Self {
-            ws: Arc::new(Mutex::new(None)),
+            ws: Rc::new(RefCell::new(None)),
             base_url,
         }
     }
@@ -26,7 +25,7 @@ impl SocketClient {
 
         match WebSocket::open(&socket_url) {
             Ok(ws) => {
-                *self.ws.lock().await = Some(ws);
+                *self.ws.borrow_mut() = Some(ws);
 
                 // Send authentication
                 let auth_msg = serde_json::json!({
@@ -42,7 +41,7 @@ impl SocketClient {
     }
 
     pub async fn emit(&self, event: &str, data: Value) {
-        if let Some(ws) = self.ws.lock().await.as_mut() {
+        if let Some(ws) = self.ws.borrow_mut().as_mut() {
             let msg = serde_json::json!({
                 "event": event,
                 "data": data
@@ -88,6 +87,6 @@ impl SocketClient {
     }
 
     pub async fn disconnect(&self) {
-        *self.ws.lock().await = None;
+        *self.ws.borrow_mut() = None;
     }
 }

@@ -1,6 +1,6 @@
 use crate::models::{LoginRequest, Message, RegisterRequest, Room, User};
 use crate::utils::storage;
-use reqwest::{Client, Response};
+use reqwest::Client;
 use serde_json::Value;
 
 pub struct ApiClient {

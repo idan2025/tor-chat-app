@@ -17,9 +17,9 @@ pub fn Chat() -> Element {
         });
     });
 
-    let rooms = use_resource(|| async move { state.rooms.read().await.clone() });
+    let rooms = use_resource(|| async move { state.rooms.read().unwrap().clone() });
 
-    let messages = use_resource(|| async move { state.messages.read().await.clone() });
+    let messages = use_resource(|| async move { state.messages.read().unwrap().clone() });
 
     let on_send = move |_| {
         if let Some(room) = selected_room() {

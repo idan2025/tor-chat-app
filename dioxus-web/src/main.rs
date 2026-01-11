@@ -30,7 +30,7 @@ fn main() {
     tracing_wasm::set_as_global_default();
 
     // Launch the web app
-    dioxus_web::launch(App);
+    dioxus::launch(App);
 }
 
 #[component]

@@ -3,8 +3,7 @@ pub mod auth;
 use crate::api::ApiClient;
 use crate::models::{Message, Room, User};
 use crate::socket::SocketClient;
-use std::sync::Arc;
-use tokio::sync::RwLock;
+use std::sync::{Arc, RwLock};
 
 #[derive(Clone)]
 pub struct AppState {
@@ -33,22 +32,22 @@ impl AppState {
 
     pub async fn load_rooms(&self) -> Result<(), String> {
         let rooms = self.api.get_rooms().await?;
-        *self.rooms.write().await = rooms;
+        *self.rooms.write().unwrap() = rooms;
         Ok(())
     }
 
     pub async fn load_messages(&self, room_id: &str) -> Result<(), String> {
         let messages = self.api.get_room_messages(room_id, 50, 0).await?;
-        *self.messages.write().await = messages;
+        *self.messages.write().unwrap() = messages;
         Ok(())
     }
 
     pub async fn set_current_user(&self, user: User) {
-        *self.current_user.write().await = Some(user);
+        *self.current_user.write().unwrap() = Some(user);
     }
 
     pub async fn clear_auth(&self) {
-        *self.current_user.write().await = None;
+        *self.current_user.write().unwrap() = None;
         self.socket.disconnect().await;
         crate::utils::storage::remove_token();
     }
