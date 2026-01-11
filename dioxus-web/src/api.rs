@@ -1,4 +1,4 @@
-use crate::models::{LoginRequest, RegisterRequest, Room, User, Message};
+use crate::models::{LoginRequest, Message, RegisterRequest, Room, User};
 use crate::utils::storage;
 use reqwest::{Client, Response};
 use serde_json::Value;
@@ -19,8 +19,7 @@ impl ApiClient {
     }
 
     fn get_base_url() -> String {
-        storage::get_server_url()
-            .unwrap_or_else(|| "http://localhost:3000".to_string())
+        storage::get_server_url().unwrap_or_else(|| "http://localhost:3000".to_string())
     }
 
     fn get_auth_header(&self) -> Option<String> {
@@ -96,8 +95,7 @@ impl ApiClient {
 
         if response.status().is_success() {
             let data: Value = response.json().await.map_err(|e| e.to_string())?;
-            serde_json::from_value(data["user"].clone())
-                .map_err(|e| e.to_string())
+            serde_json::from_value(data["user"].clone()).map_err(|e| e.to_string())
         } else {
             Err(format!("Failed to get user: {}", response.status()))
         }
@@ -114,14 +112,18 @@ impl ApiClient {
 
         if response.status().is_success() {
             let data: Value = response.json().await.map_err(|e| e.to_string())?;
-            serde_json::from_value(data["rooms"].clone())
-                .map_err(|e| e.to_string())
+            serde_json::from_value(data["rooms"].clone()).map_err(|e| e.to_string())
         } else {
             Err(format!("Failed to get rooms: {}", response.status()))
         }
     }
 
-    pub async fn create_room(&self, name: String, description: Option<String>, is_public: bool) -> Result<Room, String> {
+    pub async fn create_room(
+        &self,
+        name: String,
+        description: Option<String>,
+        is_public: bool,
+    ) -> Result<Room, String> {
         let body = serde_json::json!({
             "name": name,
             "description": description,
@@ -138,16 +140,24 @@ impl ApiClient {
 
         if response.status().is_success() {
             let data: Value = response.json().await.map_err(|e| e.to_string())?;
-            serde_json::from_value(data["room"].clone())
-                .map_err(|e| e.to_string())
+            serde_json::from_value(data["room"].clone()).map_err(|e| e.to_string())
         } else {
             Err(format!("Failed to create room: {}", response.status()))
         }
     }
 
-    pub async fn get_room_messages(&self, room_id: &str, limit: usize, offset: usize) -> Result<Vec<Message>, String> {
+    pub async fn get_room_messages(
+        &self,
+        room_id: &str,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<Message>, String> {
+        let url = format!(
+            "/api/rooms/{}/messages?limit={}&offset={}",
+            room_id, limit, offset
+        );
         let response = self
-            .request(reqwest::Method::GET, &format!("/api/rooms/{}/messages?limit={}&offset={}", room_id, limit, offset))
+            .request(reqwest::Method::GET, &url)
             .await
             .send()
             .await
