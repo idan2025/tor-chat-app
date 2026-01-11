@@ -155,8 +155,7 @@ impl ApiClient {
 
         if response.status().is_success() {
             let data: Value = response.json().await.map_err(|e| e.to_string())?;
-            serde_json::from_value(data["messages"].clone())
-                .map_err(|e| e.to_string())
+            serde_json::from_value(data["messages"].clone()).map_err(|e| e.to_string())
         } else {
             Err(format!("Failed to get messages: {}", response.status()))
         }
@@ -164,7 +163,10 @@ impl ApiClient {
 
     pub async fn join_room(&self, room_id: &str) -> Result<(), String> {
         let response = self
-            .request(reqwest::Method::POST, &format!("/api/rooms/{}/join", room_id))
+            .request(
+                reqwest::Method::POST,
+                &format!("/api/rooms/{}/join", room_id),
+            )
             .await
             .send()
             .await
