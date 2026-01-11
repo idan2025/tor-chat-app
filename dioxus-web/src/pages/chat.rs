@@ -17,20 +17,19 @@ pub fn Chat() -> Element {
         });
     });
 
-    let rooms = use_resource(|| async move {
-        state.rooms.read().await.clone()
-    });
+    let rooms = use_resource(|| async move { state.rooms.read().await.clone() });
 
-    let messages = use_resource(|| async move {
-        state.messages.read().await.clone()
-    });
+    let messages = use_resource(|| async move { state.messages.read().await.clone() });
 
     let on_send = move |_| {
         if let Some(room) = selected_room() {
             let content = message_input();
             if !content.is_empty() {
                 spawn(async move {
-                    state.socket.send_message(&room.id.to_string(), &content).await;
+                    state
+                        .socket
+                        .send_message(&room.id.to_string(), &content)
+                        .await;
                     message_input.set(String::new());
                 });
             }

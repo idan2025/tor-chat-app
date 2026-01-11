@@ -1,5 +1,5 @@
-use dioxus::prelude::*;
 use crate::models::Room;
+use dioxus::prelude::*;
 
 #[component]
 pub fn RoomListItem(room: ReadOnlySignal<Room>, on_click: EventHandler<()>) -> Element {

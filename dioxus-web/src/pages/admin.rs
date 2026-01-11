@@ -7,13 +7,9 @@ pub fn Admin() -> Element {
     let mut state = use_context::<AppState>();
     let nav = navigator();
 
-    let stats = use_resource(|| async move {
-        state.api.admin_get_stats().await
-    });
+    let stats = use_resource(|| async move { state.api.admin_get_stats().await });
 
-    let users = use_resource(|| async move {
-        state.api.admin_get_users().await
-    });
+    let users = use_resource(|| async move { state.api.admin_get_users().await });
 
     rsx! {
         div {
