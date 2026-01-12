@@ -51,6 +51,8 @@ jobs:
             ~/.cargo/git
             dioxus-desktop/target
           key: ${{ runner.os }}-cargo-desktop-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-desktop-
 
       - name: Check formatting
         run: cargo fmt -- --check
@@ -91,6 +93,9 @@ jobs:
             ~/.cargo/git
             dioxus-desktop/target
           key: ${{ runner.os }}-cargo-desktop-build-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-desktop-build-
+            ${{ runner.os }}-cargo-desktop-
 
       - name: Build
         run: cargo build --release
@@ -133,23 +138,18 @@ jobs:
             ~/.cargo/git
             dioxus-desktop/target
           key: ${{ runner.os }}-cargo-desktop-build-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-desktop-build-
+            ${{ runner.os }}-cargo-desktop-
 
       - name: Build
         run: cargo build --release
-
-      - name: Create installer
-        uses: joncloud/makensis-action@v4
-        with:
-          script-file: dioxus-desktop/installer.nsi
-          arguments: "/V3"
 
       - name: Upload Windows binary
         uses: actions/upload-artifact@v4
         with:
           name: tor-chat-desktop-windows
-          path: |
-            dioxus-desktop/target/release/tor-chat-desktop.exe
-            dioxus-desktop/*.exe
+          path: dioxus-desktop/target/release/tor-chat-desktop.exe
           retention-days: 7
 
   build-macos:
@@ -173,6 +173,9 @@ jobs:
             ~/.cargo/git
             dioxus-desktop/target
           key: ${{ runner.os }}-cargo-desktop-build-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-desktop-build-
+            ${{ runner.os }}-cargo-desktop-
 
       - name: Build
         run: cargo build --release

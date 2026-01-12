@@ -15,6 +15,7 @@ pub struct Room {
     pub encryption_key: String,
     pub creator_id: Option<Uuid>,
     pub max_members: i32,
+    pub is_public: bool,
     pub avatar: Option<String>,
     pub created_at: DateTime<Utc>,
 }
@@ -33,6 +34,8 @@ pub struct CreateRoomRequest {
     #[validate(range(min = 2, max = 1000))]
     pub max_members: Option<i32>,
 
+    pub is_public: Option<bool>,
+
     pub avatar: Option<String>,
 }
 
@@ -46,6 +49,7 @@ pub struct RoomResponse {
     pub encryption_key: Option<String>,
     pub creator_id: Option<Uuid>,
     pub max_members: i32,
+    pub is_public: bool,
     pub avatar: Option<String>,
     pub created_at: DateTime<Utc>,
 }
@@ -60,6 +64,7 @@ impl Room {
             encryption_key: None,
             creator_id: self.creator_id,
             max_members: self.max_members,
+            is_public: self.is_public,
             avatar: self.avatar.clone(),
             created_at: self.created_at,
         }
@@ -74,6 +79,7 @@ impl Room {
             encryption_key: Some(self.encryption_key.clone()),
             creator_id: self.creator_id,
             max_members: self.max_members,
+            is_public: self.is_public,
             avatar: self.avatar.clone(),
             created_at: self.created_at,
         }

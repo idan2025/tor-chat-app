@@ -36,7 +36,9 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             dioxus-web/target
-          key: ${{ runner.os }}-cargo-web-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-web-${{ hashFiles('dioxus-web/Cargo.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-web-
 
       - name: Check formatting
         run: cargo fmt -- --check
@@ -64,7 +66,17 @@ jobs:
         with:
           version: 'latest'
 
+      - name: Cache wasm-bindgen-cli
+        id: cache-wasm-bindgen
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/wasm-bindgen
+          key: ${{ runner.os }}-wasm-bindgen-${{ hashFiles('~/.cargo/bin/wasm-bindgen') }}
+          restore-keys: |
+            ${{ runner.os }}-wasm-bindgen-
+
       - name: Install wasm-bindgen-cli
+        if: steps.cache-wasm-bindgen.outputs.cache-hit != 'true'
         run: cargo install wasm-bindgen-cli
 
       - name: Cache cargo
@@ -74,7 +86,10 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             dioxus-web/target
-          key: ${{ runner.os }}-cargo-web-build-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-web-build-${{ hashFiles('dioxus-web/Cargo.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-web-build-
+            ${{ runner.os }}-cargo-web-
 
       - name: Build with trunk
         run: trunk build --release

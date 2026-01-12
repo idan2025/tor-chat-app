@@ -8,17 +8,15 @@ use validator::Validate;
 pub struct Message {
     pub id: Uuid,
     pub room_id: Uuid,
-    pub sender_id: Uuid,
-    pub encrypted_content: String,
+    pub user_id: Uuid,
+    pub content: String,
     pub message_type: String,
-    pub metadata: serde_json::Value,
-    pub attachments: Vec<String>,
-    pub parent_message_id: Option<Uuid>,
-    pub is_edited: bool,
-    pub edited_at: Option<DateTime<Utc>>,
-    pub is_deleted: bool,
-    pub deleted_at: Option<DateTime<Utc>>,
+    pub reply_to: Option<Uuid>,
+    pub forwarded_from: Option<Uuid>,
+    pub reactions: serde_json::Value,
+    pub metadata: Option<serde_json::Value>,
     pub created_at: DateTime<Utc>,
+    pub updated_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Deserialize, Validate)]
@@ -26,17 +24,17 @@ pub struct SendMessageRequest {
     pub room_id: Uuid,
 
     #[validate(length(min = 1))]
-    pub encrypted_content: String,
+    pub content: String,
 
     pub message_type: Option<String>,
-    pub attachments: Option<Vec<String>>,
-    pub parent_message_id: Option<Uuid>,
+    pub reply_to: Option<Uuid>,
+    pub metadata: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Deserialize, Validate)]
 pub struct EditMessageRequest {
     #[validate(length(min = 1))]
-    pub encrypted_content: String,
+    pub content: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -49,15 +47,14 @@ pub struct MessageResponse {
     pub id: Uuid,
     pub room_id: Uuid,
     pub sender: SenderInfo,
-    pub encrypted_content: String,
+    pub content: String,
     pub message_type: String,
-    pub metadata: serde_json::Value,
-    pub attachments: Vec<String>,
-    pub parent_message_id: Option<Uuid>,
-    pub is_edited: bool,
-    pub edited_at: Option<DateTime<Utc>>,
-    pub is_deleted: bool,
+    pub reply_to: Option<Uuid>,
+    pub forwarded_from: Option<Uuid>,
+    pub reactions: serde_json::Value,
+    pub metadata: Option<serde_json::Value>,
     pub created_at: DateTime<Utc>,
+    pub updated_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Serialize)]

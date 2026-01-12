@@ -33,7 +33,7 @@ jobs:
           path: |
             ~/.pub-cache
             flutter-app/.dart_tool
-          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+          key: ${{ runner.os }}-pub-${{ hashFiles('flutter-app/pubspec.yaml') }}
           restore-keys: |
             ${{ runner.os }}-pub-
 
@@ -67,7 +67,9 @@ jobs:
           path: |
             ~/.pub-cache
             flutter-app/.dart_tool
-          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+          key: ${{ runner.os }}-pub-${{ hashFiles('flutter-app/pubspec.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
 
       - name: Get dependencies
         run: flutter pub get
@@ -103,7 +105,9 @@ jobs:
           path: |
             ~/.pub-cache
             flutter-app/.dart_tool
-          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+          key: ${{ runner.os }}-pub-${{ hashFiles('flutter-app/pubspec.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
 
       - name: Get dependencies
         run: flutter pub get
@@ -147,7 +151,9 @@ jobs:
           path: |
             ~/.pub-cache
             flutter-app/.dart_tool
-          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+          key: ${{ runner.os }}-pub-${{ hashFiles('flutter-app/pubspec.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
 
       - name: Get dependencies
         run: flutter pub get
