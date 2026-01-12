@@ -84,10 +84,7 @@ struct ErrorResponse {
 }
 
 // Helper to get user from token
-async fn get_user_from_token(
-    token: &str,
-    state: &AppState,
-) -> Option<(Uuid, User)> {
+async fn get_user_from_token(token: &str, state: &AppState) -> Option<(Uuid, User)> {
     let auth_service = AuthService::new(state.config.clone());
     let user_id = auth_service.verify_token(token).ok()?;
 
@@ -101,13 +98,9 @@ async fn get_user_from_token(
 }
 
 // Helper to check room membership
-async fn check_room_membership(
-    room_id: Uuid,
-    user_id: Uuid,
-    state: &AppState,
-) -> bool {
+async fn check_room_membership(room_id: Uuid, user_id: Uuid, state: &AppState) -> bool {
     sqlx::query_scalar::<_, bool>(
-        "SELECT EXISTS(SELECT 1 FROM room_members WHERE room_id = $1 AND user_id = $2)"
+        "SELECT EXISTS(SELECT 1 FROM room_members WHERE room_id = $1 AND user_id = $2)",
     )
     .bind(room_id)
     .bind(user_id)
@@ -129,7 +122,11 @@ pub async fn on_authenticate(
             socket.extensions.insert(user.clone());
 
             // Track socket connection
-            state.socket_users.write().await.insert(socket.id.to_string(), user_id);
+            state
+                .socket_users
+                .write()
+                .await
+                .insert(socket.id.to_string(), user_id);
 
             // Update user online status
             let _ = sqlx::query("UPDATE users SET is_online = true WHERE id = $1")
@@ -137,23 +134,43 @@ pub async fn on_authenticate(
                 .execute(&state.db)
                 .await;
 
-            tracing::info!("User {} authenticated on socket {}", user.username, socket.id);
+            tracing::info!(
+                "User {} authenticated on socket {}",
+                user.username,
+                socket.id
+            );
 
-            socket.emit("authenticated", serde_json::json!({
-                "userId": user_id,
-                "username": user.username
-            })).ok();
+            socket
+                .emit(
+                    "authenticated",
+                    serde_json::json!({
+                        "userId": user_id,
+                        "username": user.username
+                    }),
+                )
+                .ok();
 
             // Broadcast user online to all sockets
-            socket.broadcast().emit("user_online", serde_json::json!({
-                "userId": user_id,
-                "username": user.username
-            })).ok();
+            socket
+                .broadcast()
+                .emit(
+                    "user_online",
+                    serde_json::json!({
+                        "userId": user_id,
+                        "username": user.username
+                    }),
+                )
+                .ok();
         }
         None => {
-            socket.emit("error", ErrorResponse {
-                error: "Authentication failed".to_string()
-            }).ok();
+            socket
+                .emit(
+                    "error",
+                    ErrorResponse {
+                        error: "Authentication failed".to_string(),
+                    },
+                )
+                .ok();
             socket.disconnect().ok();
         }
     }
@@ -168,9 +185,14 @@ pub async fn on_join_room(
     let user_id = match socket.extensions.get::<Uuid>() {
         Some(id) => *id,
         None => {
-            socket.emit("error", ErrorResponse {
-                error: "Not authenticated".to_string()
-            }).ok();
+            socket
+                .emit(
+                    "error",
+                    ErrorResponse {
+                        error: "Not authenticated".to_string(),
+                    },
+                )
+                .ok();
             return;
         }
     };
@@ -178,18 +200,28 @@ pub async fn on_join_room(
     let room_id = match Uuid::parse_str(&data.room_id) {
         Ok(id) => id,
         Err(_) => {
-            socket.emit("error", ErrorResponse {
-                error: "Invalid room ID".to_string()
-            }).ok();
+            socket
+                .emit(
+                    "error",
+                    ErrorResponse {
+                        error: "Invalid room ID".to_string(),
+                    },
+                )
+                .ok();
             return;
         }
     };
 
     // Check membership
     if !check_room_membership(room_id, user_id, &state).await {
-        socket.emit("error", ErrorResponse {
-            error: "Not a member of this room".to_string()
-        }).ok();
+        socket
+            .emit(
+                "error",
+                ErrorResponse {
+                    error: "Not a member of this room".to_string(),
+                },
+            )
+            .ok();
         return;
     }
 
@@ -198,21 +230,28 @@ pub async fn on_join_room(
 
     tracing::info!("User {} joined room {}", user_id, room_id);
 
-    socket.emit("joined_room", serde_json::json!({
-        "roomId": data.room_id
-    })).ok();
+    socket
+        .emit(
+            "joined_room",
+            serde_json::json!({
+                "roomId": data.room_id
+            }),
+        )
+        .ok();
 }
 
 // 3. leave_room - Leave a room
-pub async fn on_leave_room(
-    socket: SocketRef,
-    Data(data): Data<LeaveRoomData>,
-) {
+pub async fn on_leave_room(socket: SocketRef, Data(data): Data<LeaveRoomData>) {
     socket.leave(data.room_id.clone()).ok();
 
-    socket.emit("left_room", serde_json::json!({
-        "roomId": data.room_id
-    })).ok();
+    socket
+        .emit(
+            "left_room",
+            serde_json::json!({
+                "roomId": data.room_id
+            }),
+        )
+        .ok();
 }
 
 // 4. send_message - Send a message to a room
@@ -238,9 +277,14 @@ pub async fn on_send_message(
 
     // Check membership
     if !check_room_membership(room_id, user_id, &state).await {
-        socket.emit("error", ErrorResponse {
-            error: "Not a member of this room".to_string()
-        }).ok();
+        socket
+            .emit(
+                "error",
+                ErrorResponse {
+                    error: "Not a member of this room".to_string(),
+                },
+            )
+            .ok();
         return;
     }
 
@@ -251,7 +295,7 @@ pub async fn on_send_message(
     let message = match sqlx::query_as::<_, Message>(
         "INSERT INTO messages (room_id, user_id, content, message_type, reply_to, metadata)
          VALUES ($1, $2, $3, $4, $5, $6)
-         RETURNING *"
+         RETURNING *",
     )
     .bind(room_id)
     .bind(user_id)
@@ -260,13 +304,19 @@ pub async fn on_send_message(
     .bind(reply_to)
     .bind(&data.metadata)
     .fetch_one(&state.db)
-    .await {
+    .await
+    {
         Ok(msg) => msg,
         Err(e) => {
             tracing::error!("Failed to create message: {}", e);
-            socket.emit("error", ErrorResponse {
-                error: "Failed to send message".to_string()
-            }).ok();
+            socket
+                .emit(
+                    "error",
+                    ErrorResponse {
+                        error: "Failed to send message".to_string(),
+                    },
+                )
+                .ok();
             return;
         }
     };
@@ -293,7 +343,10 @@ pub async fn on_send_message(
     });
 
     // Broadcast to room
-    socket.within(data.room_id).emit("new_message", &message_response).ok();
+    socket
+        .within(data.room_id)
+        .emit("new_message", &message_response)
+        .ok();
 }
 
 // 5. typing - Indicate typing status
@@ -323,11 +376,18 @@ pub async fn on_typing(
     }
 
     // Broadcast typing status to room (excluding sender)
-    socket.broadcast().within(data.room_id).emit("user_typing", serde_json::json!({
-        "userId": user_id,
-        "username": user.username,
-        "typing": data.typing
-    })).ok();
+    socket
+        .broadcast()
+        .within(data.room_id)
+        .emit(
+            "user_typing",
+            serde_json::json!({
+                "userId": user_id,
+                "username": user.username,
+                "typing": data.typing
+            }),
+        )
+        .ok();
 }
 
 // 6. add_reaction - Add reaction to a message
@@ -350,10 +410,11 @@ pub async fn on_add_reaction(
     let message = match sqlx::query_as::<_, Message>("SELECT * FROM messages WHERE id = $1")
         .bind(message_id)
         .fetch_optional(&state.db)
-        .await {
-            Ok(Some(msg)) => msg,
-            _ => return,
-        };
+        .await
+    {
+        Ok(Some(msg)) => msg,
+        _ => return,
+    };
 
     if !check_room_membership(message.room_id, user_id, &state).await {
         return;
@@ -379,12 +440,18 @@ pub async fn on_add_reaction(
         .await;
 
     // Broadcast reaction to room
-    socket.within(message.room_id.to_string()).emit("reaction_added", serde_json::json!({
-        "messageId": message_id,
-        "userId": user_id,
-        "emoji": data.emoji,
-        "reactions": reactions
-    })).ok();
+    socket
+        .within(message.room_id.to_string())
+        .emit(
+            "reaction_added",
+            serde_json::json!({
+                "messageId": message_id,
+                "userId": user_id,
+                "emoji": data.emoji,
+                "reactions": reactions
+            }),
+        )
+        .ok();
 }
 
 // 7. remove_reaction - Remove reaction from a message
@@ -406,10 +473,11 @@ pub async fn on_remove_reaction(
     let message = match sqlx::query_as::<_, Message>("SELECT * FROM messages WHERE id = $1")
         .bind(message_id)
         .fetch_optional(&state.db)
-        .await {
-            Ok(Some(msg)) => msg,
-            _ => return,
-        };
+        .await
+    {
+        Ok(Some(msg)) => msg,
+        _ => return,
+    };
 
     if !check_room_membership(message.room_id, user_id, &state).await {
         return;
@@ -434,12 +502,18 @@ pub async fn on_remove_reaction(
         .execute(&state.db)
         .await;
 
-    socket.within(message.room_id.to_string()).emit("reaction_removed", serde_json::json!({
-        "messageId": message_id,
-        "userId": user_id,
-        "emoji": data.emoji,
-        "reactions": reactions
-    })).ok();
+    socket
+        .within(message.room_id.to_string())
+        .emit(
+            "reaction_removed",
+            serde_json::json!({
+                "messageId": message_id,
+                "userId": user_id,
+                "emoji": data.emoji,
+                "reactions": reactions
+            }),
+        )
+        .ok();
 }
 
 // 8. edit_message - Edit a message
@@ -461,16 +535,22 @@ pub async fn on_edit_message(
     let message = match sqlx::query_as::<_, Message>("SELECT * FROM messages WHERE id = $1")
         .bind(message_id)
         .fetch_optional(&state.db)
-        .await {
-            Ok(Some(msg)) => msg,
-            _ => return,
-        };
+        .await
+    {
+        Ok(Some(msg)) => msg,
+        _ => return,
+    };
 
     // Only message owner can edit
     if message.user_id != user_id {
-        socket.emit("error", ErrorResponse {
-            error: "Can only edit your own messages".to_string()
-        }).ok();
+        socket
+            .emit(
+                "error",
+                ErrorResponse {
+                    error: "Can only edit your own messages".to_string(),
+                },
+            )
+            .ok();
         return;
     }
 
@@ -480,11 +560,17 @@ pub async fn on_edit_message(
         .execute(&state.db)
         .await;
 
-    socket.within(message.room_id.to_string()).emit("message_edited", serde_json::json!({
-        "messageId": message_id,
-        "content": data.content,
-        "updatedAt": chrono::Utc::now()
-    })).ok();
+    socket
+        .within(message.room_id.to_string())
+        .emit(
+            "message_edited",
+            serde_json::json!({
+                "messageId": message_id,
+                "content": data.content,
+                "updatedAt": chrono::Utc::now()
+            }),
+        )
+        .ok();
 }
 
 // 9. delete_message - Delete a message
@@ -511,16 +597,22 @@ pub async fn on_delete_message(
     let message = match sqlx::query_as::<_, Message>("SELECT * FROM messages WHERE id = $1")
         .bind(message_id)
         .fetch_optional(&state.db)
-        .await {
-            Ok(Some(msg)) => msg,
-            _ => return,
-        };
+        .await
+    {
+        Ok(Some(msg)) => msg,
+        _ => return,
+    };
 
     // Only message owner or admin can delete
     if message.user_id != user_id && !user.is_admin {
-        socket.emit("error", ErrorResponse {
-            error: "Permission denied".to_string()
-        }).ok();
+        socket
+            .emit(
+                "error",
+                ErrorResponse {
+                    error: "Permission denied".to_string(),
+                },
+            )
+            .ok();
         return;
     }
 
@@ -529,9 +621,15 @@ pub async fn on_delete_message(
         .execute(&state.db)
         .await;
 
-    socket.within(message.room_id.to_string()).emit("message_deleted", serde_json::json!({
-        "messageId": message_id
-    })).ok();
+    socket
+        .within(message.room_id.to_string())
+        .emit(
+            "message_deleted",
+            serde_json::json!({
+                "messageId": message_id
+            }),
+        )
+        .ok();
 }
 
 // 10. mark_read - Mark message as read
@@ -555,10 +653,17 @@ pub async fn on_mark_read(
     }
 
     // Broadcast read receipt to room
-    socket.broadcast().within(data.room_id).emit("message_read", serde_json::json!({
-        "userId": user_id,
-        "messageId": data.message_id
-    })).ok();
+    socket
+        .broadcast()
+        .within(data.room_id)
+        .emit(
+            "message_read",
+            serde_json::json!({
+                "userId": user_id,
+                "messageId": data.message_id
+            }),
+        )
+        .ok();
 }
 
 // 11. forward_message - Forward a message to another room
@@ -588,10 +693,12 @@ pub async fn on_forward_message(
     };
 
     // Get original message
-    let original_message = match sqlx::query_as::<_, Message>("SELECT * FROM messages WHERE id = $1")
-        .bind(message_id)
-        .fetch_optional(&state.db)
-        .await {
+    let original_message =
+        match sqlx::query_as::<_, Message>("SELECT * FROM messages WHERE id = $1")
+            .bind(message_id)
+            .fetch_optional(&state.db)
+            .await
+        {
             Ok(Some(msg)) => msg,
             _ => return,
         };
@@ -608,7 +715,7 @@ pub async fn on_forward_message(
     let forwarded_message = match sqlx::query_as::<_, Message>(
         "INSERT INTO messages (room_id, user_id, content, message_type, forwarded_from, metadata)
          VALUES ($1, $2, $3, $4, $5, $6)
-         RETURNING *"
+         RETURNING *",
     )
     .bind(target_room_id)
     .bind(user_id)
@@ -617,7 +724,8 @@ pub async fn on_forward_message(
     .bind(message_id)
     .bind(&original_message.metadata)
     .fetch_one(&state.db)
-    .await {
+    .await
+    {
         Ok(msg) => msg,
         Err(_) => return,
     };
@@ -640,17 +748,21 @@ pub async fn on_forward_message(
         }
     });
 
-    socket.within(data.target_room_id).emit("new_message", &message_response).ok();
+    socket
+        .within(data.target_room_id)
+        .emit("new_message", &message_response)
+        .ok();
 }
 
 // 12. disconnect - Handle socket disconnect
-pub async fn on_disconnect(
-    socket: SocketRef,
-    State(state): State<Arc<AppState>>,
-) {
+pub async fn on_disconnect(socket: SocketRef, State(state): State<Arc<AppState>>) {
     if let Some(user_id) = socket.extensions.get::<Uuid>() {
         // Remove from tracking
-        state.socket_users.write().await.remove(&socket.id.to_string());
+        state
+            .socket_users
+            .write()
+            .await
+            .remove(&socket.id.to_string());
 
         // Update user online status
         let _ = sqlx::query("UPDATE users SET is_online = false, last_seen = NOW() WHERE id = $1")
@@ -661,27 +773,36 @@ pub async fn on_disconnect(
         tracing::info!("User {} disconnected from socket {}", user_id, socket.id);
 
         // Broadcast user offline
-        socket.broadcast().emit("user_offline", serde_json::json!({
-            "userId": user_id
-        })).ok();
+        socket
+            .broadcast()
+            .emit(
+                "user_offline",
+                serde_json::json!({
+                    "userId": user_id
+                }),
+            )
+            .ok();
     }
 }
 
 // Additional events for room management
 
 // 13. room_created - Broadcast when a room is created
-pub fn broadcast_room_created(
-    socket: &SocketRef,
-    room: &Room,
-) {
-    socket.broadcast().emit("room_created", serde_json::json!({
-        "id": room.id,
-        "name": room.name,
-        "description": room.description,
-        "isPublic": room.is_public,
-        "creatorId": room.creator_id,
-        "createdAt": room.created_at
-    })).ok();
+pub fn broadcast_room_created(socket: &SocketRef, room: &Room) {
+    socket
+        .broadcast()
+        .emit(
+            "room_created",
+            serde_json::json!({
+                "id": room.id,
+                "name": room.name,
+                "description": room.description,
+                "isPublic": room.is_public,
+                "creatorId": room.creator_id,
+                "createdAt": room.created_at
+            }),
+        )
+        .ok();
 }
 
 // 14. room_deleted - Broadcast when a room is deleted

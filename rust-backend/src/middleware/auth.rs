@@ -56,10 +56,7 @@ pub async fn auth_middleware(
     Ok(next.run(req).await)
 }
 
-pub async fn admin_middleware(
-    mut req: Request,
-    next: Next,
-) -> Result<Response> {
+pub async fn admin_middleware(mut req: Request, next: Next) -> Result<Response> {
     // Get authenticated user from extensions
     let auth_user = req
         .extensions()
@@ -68,9 +65,7 @@ pub async fn admin_middleware(
 
     // Check if user is admin
     if !auth_user.user.is_admin {
-        return Err(AppError::Authorization(
-            "Admin access required".to_string(),
-        ));
+        return Err(AppError::Authorization("Admin access required".to_string()));
     }
 
     Ok(next.run(req).await)

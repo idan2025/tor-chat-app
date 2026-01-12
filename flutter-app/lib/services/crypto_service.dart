@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 import 'dart:typed_data';
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -50,8 +51,11 @@ class CryptoService {
 
   // Generate room encryption key (symmetric)
   String generateRoomKey() {
-    final key = SecretKey.randomBytes(32);
-    return base64.encode(key.bytes);
+    final random = Random.secure();
+    final keyBytes = Uint8List.fromList(
+      List<int>.generate(32, (_) => random.nextInt(256)),
+    );
+    return base64.encode(keyBytes);
   }
 
   // Encrypt room message (symmetric encryption)
@@ -175,6 +179,7 @@ class CryptoService {
       memory: 65536, // 64 MB
       iterations: 3,
       parallelism: 4,
+      hashLength: 32,
     );
     final hash = await algorithm.deriveKey(
       secretKey: SecretKey(utf8.encode(password)),

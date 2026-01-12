@@ -31,10 +31,8 @@ impl Config {
             port: env::var("PORT")
                 .unwrap_or_else(|_| "3000".to_string())
                 .parse()?,
-            database_url: env::var("DATABASE_URL")
-                .expect("DATABASE_URL must be set"),
-            jwt_secret: env::var("JWT_SECRET")
-                .expect("JWT_SECRET must be set"),
+            database_url: env::var("DATABASE_URL").expect("DATABASE_URL must be set"),
+            jwt_secret: env::var("JWT_SECRET").expect("JWT_SECRET must be set"),
             jwt_expires_in: env::var("JWT_EXPIRES_IN")
                 .unwrap_or_else(|_| "86400".to_string())
                 .parse()?,
@@ -44,8 +42,7 @@ impl Config {
             tor_enabled: env::var("TOR_ENABLED")
                 .unwrap_or_else(|_| "false".to_string())
                 .parse()?,
-            tor_socks_host: env::var("TOR_SOCKS_HOST")
-                .unwrap_or_else(|_| "127.0.0.1".to_string()),
+            tor_socks_host: env::var("TOR_SOCKS_HOST").unwrap_or_else(|_| "127.0.0.1".to_string()),
             tor_socks_port: env::var("TOR_SOCKS_PORT")
                 .unwrap_or_else(|_| "9050".to_string())
                 .parse()?,
@@ -68,8 +65,7 @@ impl Config {
             max_file_size: env::var("MAX_FILE_SIZE")
                 .unwrap_or_else(|_| "1073741824".to_string())
                 .parse()?,
-            upload_dir: env::var("UPLOAD_DIR")
-                .unwrap_or_else(|_| "./uploads".to_string()),
+            upload_dir: env::var("UPLOAD_DIR").unwrap_or_else(|_| "./uploads".to_string()),
         })
     }
 

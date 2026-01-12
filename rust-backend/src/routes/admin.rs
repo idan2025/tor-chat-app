@@ -24,11 +24,9 @@ pub async fn list_users(
 ) -> Result<Json<serde_json::Value>> {
     check_admin(&auth)?;
 
-    let users = sqlx::query_as::<_, User>(
-        "SELECT * FROM users ORDER BY created_at DESC"
-    )
-    .fetch_all(&state.db)
-    .await?;
+    let users = sqlx::query_as::<_, User>("SELECT * FROM users ORDER BY created_at DESC")
+        .fetch_all(&state.db)
+        .await?;
 
     let user_responses: Vec<UserResponse> = users.into_iter().map(|u| u.into()).collect();
 
@@ -58,7 +56,11 @@ pub async fn promote_user(
         .execute(&state.db)
         .await?;
 
-    tracing::info!("User {} promoted to admin by {}", user.username, auth.user.username);
+    tracing::info!(
+        "User {} promoted to admin by {}",
+        user.username,
+        auth.user.username
+    );
 
     Ok(Json(serde_json::json!({
         "message": "User promoted to admin successfully"
@@ -94,7 +96,9 @@ pub async fn demote_user(
         .await?;
 
     if admin_count <= 1 {
-        return Err(AppError::BadRequest("Cannot demote the last admin".to_string()));
+        return Err(AppError::BadRequest(
+            "Cannot demote the last admin".to_string(),
+        ));
     }
 
     sqlx::query("UPDATE users SET is_admin = false WHERE id = $1")
@@ -102,7 +106,11 @@ pub async fn demote_user(
         .execute(&state.db)
         .await?;
 
-    tracing::info!("User {} demoted from admin by {}", user.username, auth.user.username);
+    tracing::info!(
+        "User {} demoted from admin by {}",
+        user.username,
+        auth.user.username
+    );
 
     Ok(Json(serde_json::json!({
         "message": "User demoted successfully"
@@ -130,7 +138,9 @@ pub async fn ban_user(
 
     // Can't ban other admins
     if user.is_admin {
-        return Err(AppError::BadRequest("Cannot ban an admin. Demote them first.".to_string()));
+        return Err(AppError::BadRequest(
+            "Cannot ban an admin. Demote them first.".to_string(),
+        ));
     }
 
     if user.is_banned {
@@ -142,7 +152,11 @@ pub async fn ban_user(
         .execute(&state.db)
         .await?;
 
-    tracing::info!("User {} banned by admin {}", user.username, auth.user.username);
+    tracing::info!(
+        "User {} banned by admin {}",
+        user.username,
+        auth.user.username
+    );
 
     Ok(Json(serde_json::json!({
         "message": "User banned successfully"
@@ -172,7 +186,11 @@ pub async fn unban_user(
         .execute(&state.db)
         .await?;
 
-    tracing::info!("User {} unbanned by admin {}", user.username, auth.user.username);
+    tracing::info!(
+        "User {} unbanned by admin {}",
+        user.username,
+        auth.user.username
+    );
 
     Ok(Json(serde_json::json!({
         "message": "User unbanned successfully"
@@ -199,17 +217,16 @@ pub async fn delete_user(
         .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
 
     // Check if user is creator of any rooms
-    let room_count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM rooms WHERE creator_id = $1"
-    )
-    .bind(user_id)
-    .fetch_one(&state.db)
-    .await?;
+    let room_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM rooms WHERE creator_id = $1")
+        .bind(user_id)
+        .fetch_one(&state.db)
+        .await?;
 
     if room_count > 0 {
-        return Err(AppError::BadRequest(
-            format!("User is creator of {} room(s). Delete or transfer those rooms first.", room_count)
-        ));
+        return Err(AppError::BadRequest(format!(
+            "User is creator of {} room(s). Delete or transfer those rooms first.",
+            room_count
+        )));
     }
 
     sqlx::query("DELETE FROM users WHERE id = $1")
@@ -217,7 +234,11 @@ pub async fn delete_user(
         .execute(&state.db)
         .await?;
 
-    tracing::info!("User {} deleted by admin {}", user.username, auth.user.username);
+    tracing::info!(
+        "User {} deleted by admin {}",
+        user.username,
+        auth.user.username
+    );
 
     Ok(Json(serde_json::json!({
         "message": "User deleted successfully"
@@ -231,27 +252,23 @@ pub async fn list_rooms(
 ) -> Result<Json<serde_json::Value>> {
     check_admin(&auth)?;
 
-    let rooms = sqlx::query_as::<_, Room>(
-        "SELECT * FROM rooms ORDER BY created_at DESC"
-    )
-    .fetch_all(&state.db)
-    .await?;
+    let rooms = sqlx::query_as::<_, Room>("SELECT * FROM rooms ORDER BY created_at DESC")
+        .fetch_all(&state.db)
+        .await?;
 
     let mut room_responses = Vec::new();
     for room in rooms {
-        let member_count: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM room_members WHERE room_id = $1"
-        )
-        .bind(room.id)
-        .fetch_one(&state.db)
-        .await?;
+        let member_count: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM room_members WHERE room_id = $1")
+                .bind(room.id)
+                .fetch_one(&state.db)
+                .await?;
 
-        let message_count: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM messages WHERE room_id = $1"
-        )
-        .bind(room.id)
-        .fetch_one(&state.db)
-        .await?;
+        let message_count: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM messages WHERE room_id = $1")
+                .bind(room.id)
+                .fetch_one(&state.db)
+                .await?;
 
         let creator = sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = $1")
             .bind(room.creator_id)
@@ -262,11 +279,14 @@ pub async fn list_rooms(
         if let Some(obj) = room_resp.as_object_mut() {
             obj.insert("memberCount".to_string(), serde_json::json!(member_count));
             obj.insert("messageCount".to_string(), serde_json::json!(message_count));
-            obj.insert("creator".to_string(), serde_json::json!({
-                "id": creator.id,
-                "username": creator.username,
-                "displayName": creator.display_name,
-            }));
+            obj.insert(
+                "creator".to_string(),
+                serde_json::json!({
+                    "id": creator.id,
+                    "username": creator.username,
+                    "displayName": creator.display_name,
+                }),
+            );
         }
         room_responses.push(room_resp);
     }
@@ -351,22 +371,25 @@ pub async fn get_stats(
         GROUP BY r.id, r.name
         ORDER BY message_count DESC
         LIMIT 5
-        "#
+        "#,
     )
     .fetch_all(&state.db)
     .await?;
 
-    let active_rooms_json: Vec<_> = active_rooms.iter().map(|r| {
-        serde_json::json!({
-            "id": r.id,
-            "name": r.name,
-            "messageCount": r.message_count.unwrap_or(0)
+    let active_rooms_json: Vec<_> = active_rooms
+        .iter()
+        .map(|r| {
+            serde_json::json!({
+                "id": r.id,
+                "name": r.name,
+                "messageCount": r.message_count.unwrap_or(0)
+            })
         })
-    }).collect();
+        .collect();
 
     // Get recent registrations (last 24 hours)
     let recent_registrations: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM users WHERE created_at > NOW() - INTERVAL '24 hours'"
+        "SELECT COUNT(*) FROM users WHERE created_at > NOW() - INTERVAL '24 hours'",
     )
     .fetch_one(&state.db)
     .await?;

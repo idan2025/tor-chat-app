@@ -1,4 +1,6 @@
+import 'dart:io';
 import 'package:dio/dio.dart';
+import 'package:dio/io.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tor_chat/services/tor_service.dart';
@@ -26,11 +28,13 @@ class ApiService {
     // Add TOR proxy if enabled
     if (_torService.isEnabled) {
       final proxy = _torService.getSocksProxy();
-      (_dio.httpClientAdapter as DefaultHttpClientAdapter).onHttpClientCreate =
-          (client) {
-        client.findProxy = (uri) => proxy;
-        return client;
-      };
+      _dio.httpClientAdapter = IOHttpClientAdapter(
+        createHttpClient: () {
+          final client = HttpClient();
+          client.findProxy = (uri) => proxy;
+          return client;
+        },
+      );
     }
 
     // Add auth interceptor

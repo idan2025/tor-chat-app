@@ -23,8 +23,6 @@ class MessageBubble extends ConsumerStatefulWidget {
 }
 
 class _MessageBubbleState extends ConsumerState<MessageBubble> {
-  bool _showActions = false;
-
   void _showMessageActions() {
     showModalBottomSheet(
       context: context,

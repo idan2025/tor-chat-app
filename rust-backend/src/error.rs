@@ -47,40 +47,50 @@ impl IntoResponse for AppError {
         let (status, error_type, details) = match &self {
             AppError::Database(e) => {
                 tracing::error!("Database error: {}", e);
-                (StatusCode::INTERNAL_SERVER_ERROR, "database_error", self.to_string())
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "database_error",
+                    self.to_string(),
+                )
             }
-            AppError::Authentication(_) => {
-                (StatusCode::UNAUTHORIZED, "authentication_failed", self.to_string())
-            }
+            AppError::Authentication(_) => (
+                StatusCode::UNAUTHORIZED,
+                "authentication_failed",
+                self.to_string(),
+            ),
             AppError::Authorization(_) => {
                 (StatusCode::FORBIDDEN, "access_denied", self.to_string())
             }
-            AppError::Validation(_) => {
-                (StatusCode::BAD_REQUEST, "validation_error", self.to_string())
-            }
-            AppError::NotFound(_) => {
-                (StatusCode::NOT_FOUND, "not_found", self.to_string())
-            }
-            AppError::Conflict(_) => {
-                (StatusCode::CONFLICT, "conflict", self.to_string())
-            }
+            AppError::Validation(_) => (
+                StatusCode::BAD_REQUEST,
+                "validation_error",
+                self.to_string(),
+            ),
+            AppError::NotFound(_) => (StatusCode::NOT_FOUND, "not_found", self.to_string()),
+            AppError::Conflict(_) => (StatusCode::CONFLICT, "conflict", self.to_string()),
             AppError::Internal(e) => {
                 tracing::error!("Internal error: {}", e);
-                (StatusCode::INTERNAL_SERVER_ERROR, "internal_error", self.to_string())
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "internal_error",
+                    self.to_string(),
+                )
             }
-            AppError::BadRequest(_) => {
-                (StatusCode::BAD_REQUEST, "bad_request", self.to_string())
-            }
-            AppError::Tor(_) => {
-                (StatusCode::SERVICE_UNAVAILABLE, "tor_unavailable", self.to_string())
-            }
+            AppError::BadRequest(_) => (StatusCode::BAD_REQUEST, "bad_request", self.to_string()),
+            AppError::Tor(_) => (
+                StatusCode::SERVICE_UNAVAILABLE,
+                "tor_unavailable",
+                self.to_string(),
+            ),
             AppError::Encryption(e) => {
                 tracing::error!("Encryption error: {}", e);
-                (StatusCode::INTERNAL_SERVER_ERROR, "encryption_error", "Encryption failed".to_string())
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "encryption_error",
+                    "Encryption failed".to_string(),
+                )
             }
-            AppError::Upload(_) => {
-                (StatusCode::BAD_REQUEST, "upload_error", self.to_string())
-            }
+            AppError::Upload(_) => (StatusCode::BAD_REQUEST, "upload_error", self.to_string()),
         };
 
         let body = Json(json!({

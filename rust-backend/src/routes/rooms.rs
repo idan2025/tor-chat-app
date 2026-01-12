@@ -50,7 +50,7 @@ pub async fn list_rooms(
     Extension(_auth): Extension<AuthUser>,
 ) -> Result<Json<serde_json::Value>> {
     let rooms = sqlx::query_as::<_, Room>(
-        "SELECT * FROM rooms WHERE is_public = true ORDER BY created_at DESC"
+        "SELECT * FROM rooms WHERE is_public = true ORDER BY created_at DESC",
     )
     .fetch_all(&state.db)
     .await?;
@@ -70,7 +70,9 @@ pub async fn create_room(
 
     // Only admins can create public rooms
     if req.is_public && !auth.user.is_admin {
-        return Err(AppError::Authorization("Only admins can create public rooms".to_string()));
+        return Err(AppError::Authorization(
+            "Only admins can create public rooms".to_string(),
+        ));
     }
 
     // Generate room encryption key
@@ -79,7 +81,7 @@ pub async fn create_room(
     let room = sqlx::query_as::<_, Room>(
         "INSERT INTO rooms (name, description, is_public, creator_id, room_key, max_members)
          VALUES ($1, $2, $3, $4, $5, $6)
-         RETURNING *"
+         RETURNING *",
     )
     .bind(&req.name)
     .bind(&req.description)
@@ -91,14 +93,12 @@ pub async fn create_room(
     .await?;
 
     // Add creator as member
-    sqlx::query(
-        "INSERT INTO room_members (room_id, user_id, role) VALUES ($1, $2, $3)"
-    )
-    .bind(room.id)
-    .bind(auth.user_id)
-    .bind("admin")
-    .execute(&state.db)
-    .await?;
+    sqlx::query("INSERT INTO room_members (room_id, user_id, role) VALUES ($1, $2, $3)")
+        .bind(room.id)
+        .bind(auth.user_id)
+        .bind("admin")
+        .execute(&state.db)
+        .await?;
 
     tracing::info!("Room created: {} by user {}", room.name, auth.user.username);
 
@@ -122,7 +122,7 @@ pub async fn get_room(
 
     // Check if user is member
     let is_member = sqlx::query_scalar::<_, bool>(
-        "SELECT EXISTS(SELECT 1 FROM room_members WHERE room_id = $1 AND user_id = $2)"
+        "SELECT EXISTS(SELECT 1 FROM room_members WHERE room_id = $1 AND user_id = $2)",
     )
     .bind(room_id)
     .bind(auth.user_id)
@@ -131,29 +131,32 @@ pub async fn get_room(
 
     // Auto-join public rooms
     if !is_member && room.is_public {
-        let member_count: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM room_members WHERE room_id = $1"
-        )
-        .bind(room_id)
-        .fetch_one(&state.db)
-        .await?;
+        let member_count: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM room_members WHERE room_id = $1")
+                .bind(room_id)
+                .fetch_one(&state.db)
+                .await?;
 
         if member_count >= room.max_members as i64 {
             return Err(AppError::BadRequest("Room is full".to_string()));
         }
 
-        sqlx::query(
-            "INSERT INTO room_members (room_id, user_id, role) VALUES ($1, $2, $3)"
-        )
-        .bind(room_id)
-        .bind(auth.user_id)
-        .bind("member")
-        .execute(&state.db)
-        .await?;
+        sqlx::query("INSERT INTO room_members (room_id, user_id, role) VALUES ($1, $2, $3)")
+            .bind(room_id)
+            .bind(auth.user_id)
+            .bind("member")
+            .execute(&state.db)
+            .await?;
 
-        tracing::info!("User {} auto-joined public room {}", auth.user.username, room.name);
+        tracing::info!(
+            "User {} auto-joined public room {}",
+            auth.user.username,
+            room.name
+        );
     } else if !is_member {
-        return Err(AppError::Authorization("Not a member of this room".to_string()));
+        return Err(AppError::Authorization(
+            "Not a member of this room".to_string(),
+        ));
     }
 
     Ok(Json(serde_json::json!({
@@ -175,7 +178,7 @@ pub async fn join_room(
 
     // Check if already member
     let is_member = sqlx::query_scalar::<_, bool>(
-        "SELECT EXISTS(SELECT 1 FROM room_members WHERE room_id = $1 AND user_id = $2)"
+        "SELECT EXISTS(SELECT 1 FROM room_members WHERE room_id = $1 AND user_id = $2)",
     )
     .bind(room_id)
     .bind(auth.user_id)
@@ -183,29 +186,28 @@ pub async fn join_room(
     .await?;
 
     if is_member {
-        return Err(AppError::BadRequest("Already a member of this room".to_string()));
+        return Err(AppError::BadRequest(
+            "Already a member of this room".to_string(),
+        ));
     }
 
     // Check capacity
-    let member_count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM room_members WHERE room_id = $1"
-    )
-    .bind(room_id)
-    .fetch_one(&state.db)
-    .await?;
+    let member_count: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM room_members WHERE room_id = $1")
+            .bind(room_id)
+            .fetch_one(&state.db)
+            .await?;
 
     if member_count >= room.max_members as i64 {
         return Err(AppError::BadRequest("Room is full".to_string()));
     }
 
-    sqlx::query(
-        "INSERT INTO room_members (room_id, user_id, role) VALUES ($1, $2, $3)"
-    )
-    .bind(room_id)
-    .bind(auth.user_id)
-    .bind("member")
-    .execute(&state.db)
-    .await?;
+    sqlx::query("INSERT INTO room_members (room_id, user_id, role) VALUES ($1, $2, $3)")
+        .bind(room_id)
+        .bind(auth.user_id)
+        .bind("member")
+        .execute(&state.db)
+        .await?;
 
     tracing::info!("User {} joined room {}", auth.user.username, room.name);
 
@@ -229,16 +231,16 @@ pub async fn leave_room(
 
     // Can't leave if you're the creator
     if room.creator_id == auth.user_id {
-        return Err(AppError::BadRequest("Room creator cannot leave. Delete the room instead.".to_string()));
+        return Err(AppError::BadRequest(
+            "Room creator cannot leave. Delete the room instead.".to_string(),
+        ));
     }
 
-    let result = sqlx::query(
-        "DELETE FROM room_members WHERE room_id = $1 AND user_id = $2"
-    )
-    .bind(room_id)
-    .bind(auth.user_id)
-    .execute(&state.db)
-    .await?;
+    let result = sqlx::query("DELETE FROM room_members WHERE room_id = $1 AND user_id = $2")
+        .bind(room_id)
+        .bind(auth.user_id)
+        .execute(&state.db)
+        .await?;
 
     if result.rows_affected() == 0 {
         return Err(AppError::NotFound("Not a member of this room".to_string()));
@@ -246,7 +248,9 @@ pub async fn leave_room(
 
     tracing::info!("User {} left room {}", auth.user.username, room.name);
 
-    Ok(Json(serde_json::json!({ "message": "Left room successfully" })))
+    Ok(Json(
+        serde_json::json!({ "message": "Left room successfully" }),
+    ))
 }
 
 // DELETE /api/rooms/:id - Delete room
@@ -263,7 +267,9 @@ pub async fn delete_room(
 
     // Only creator or admin can delete
     if room.creator_id != auth.user_id && !auth.user.is_admin {
-        return Err(AppError::Authorization("Only room creator or admin can delete room".to_string()));
+        return Err(AppError::Authorization(
+            "Only room creator or admin can delete room".to_string(),
+        ));
     }
 
     sqlx::query("DELETE FROM rooms WHERE id = $1")
@@ -273,7 +279,9 @@ pub async fn delete_room(
 
     tracing::info!("Room {} deleted by user {}", room.name, auth.user.username);
 
-    Ok(Json(serde_json::json!({ "message": "Room deleted successfully" })))
+    Ok(Json(
+        serde_json::json!({ "message": "Room deleted successfully" }),
+    ))
 }
 
 // GET /api/rooms/:id/messages - Get messages
@@ -285,7 +293,7 @@ pub async fn get_messages(
 ) -> Result<Json<serde_json::Value>> {
     // Check if user is member
     let is_member = sqlx::query_scalar::<_, bool>(
-        "SELECT EXISTS(SELECT 1 FROM room_members WHERE room_id = $1 AND user_id = $2)"
+        "SELECT EXISTS(SELECT 1 FROM room_members WHERE room_id = $1 AND user_id = $2)",
     )
     .bind(room_id)
     .bind(auth.user_id)
@@ -293,14 +301,16 @@ pub async fn get_messages(
     .await?;
 
     if !is_member {
-        return Err(AppError::Authorization("Not a member of this room".to_string()));
+        return Err(AppError::Authorization(
+            "Not a member of this room".to_string(),
+        ));
     }
 
     let messages = sqlx::query_as::<_, Message>(
         "SELECT * FROM messages
          WHERE room_id = $1
          ORDER BY created_at DESC
-         LIMIT $2 OFFSET $3"
+         LIMIT $2 OFFSET $3",
     )
     .bind(room_id)
     .bind(pagination.limit)
@@ -349,7 +359,7 @@ pub async fn get_members(
 ) -> Result<Json<serde_json::Value>> {
     // Check if user is member
     let is_member = sqlx::query_scalar::<_, bool>(
-        "SELECT EXISTS(SELECT 1 FROM room_members WHERE room_id = $1 AND user_id = $2)"
+        "SELECT EXISTS(SELECT 1 FROM room_members WHERE room_id = $1 AND user_id = $2)",
     )
     .bind(room_id)
     .bind(auth.user_id)
@@ -357,15 +367,15 @@ pub async fn get_members(
     .await?;
 
     if !is_member {
-        return Err(AppError::Authorization("Not a member of this room".to_string()));
+        return Err(AppError::Authorization(
+            "Not a member of this room".to_string(),
+        ));
     }
 
-    let members = sqlx::query_as::<_, RoomMember>(
-        "SELECT * FROM room_members WHERE room_id = $1"
-    )
-    .bind(room_id)
-    .fetch_all(&state.db)
-    .await?;
+    let members = sqlx::query_as::<_, RoomMember>("SELECT * FROM room_members WHERE room_id = $1")
+        .bind(room_id)
+        .fetch_all(&state.db)
+        .await?;
 
     let mut member_responses = Vec::new();
     for member in members {
@@ -399,14 +409,15 @@ pub async fn add_member(
     Path(room_id): Path<Uuid>,
     Json(payload): Json<serde_json::Value>,
 ) -> Result<Json<serde_json::Value>> {
-    let user_id = payload.get("userId")
+    let user_id = payload
+        .get("userId")
         .and_then(|v| v.as_str())
         .and_then(|s| Uuid::parse_str(s).ok())
         .ok_or_else(|| AppError::BadRequest("Invalid userId".to_string()))?;
 
     // Check if requester is room admin or global admin
     let member = sqlx::query_as::<_, RoomMember>(
-        "SELECT * FROM room_members WHERE room_id = $1 AND user_id = $2"
+        "SELECT * FROM room_members WHERE room_id = $1 AND user_id = $2",
     )
     .bind(room_id)
     .bind(auth.user_id)
@@ -415,7 +426,9 @@ pub async fn add_member(
     .ok_or_else(|| AppError::Authorization("Not a member of this room".to_string()))?;
 
     if member.role != "admin" && !auth.user.is_admin {
-        return Err(AppError::Authorization("Only room admins can add members".to_string()));
+        return Err(AppError::Authorization(
+            "Only room admins can add members".to_string(),
+        ));
     }
 
     // Check if user exists
@@ -426,12 +439,11 @@ pub async fn add_member(
         .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
 
     // Check capacity
-    let member_count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM room_members WHERE room_id = $1"
-    )
-    .bind(room_id)
-    .fetch_one(&state.db)
-    .await?;
+    let member_count: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM room_members WHERE room_id = $1")
+            .bind(room_id)
+            .fetch_one(&state.db)
+            .await?;
 
     let room = sqlx::query_as::<_, Room>("SELECT * FROM rooms WHERE id = $1")
         .bind(room_id)
@@ -445,7 +457,7 @@ pub async fn add_member(
     // Add member
     sqlx::query(
         "INSERT INTO room_members (room_id, user_id, role) VALUES ($1, $2, $3)
-         ON CONFLICT (room_id, user_id) DO NOTHING"
+         ON CONFLICT (room_id, user_id) DO NOTHING",
     )
     .bind(room_id)
     .bind(user_id)
@@ -453,9 +465,16 @@ pub async fn add_member(
     .execute(&state.db)
     .await?;
 
-    tracing::info!("User {} added to room {} by {}", target_user.username, room.name, auth.user.username);
+    tracing::info!(
+        "User {} added to room {} by {}",
+        target_user.username,
+        room.name,
+        auth.user.username
+    );
 
-    Ok(Json(serde_json::json!({ "message": "Member added successfully" })))
+    Ok(Json(
+        serde_json::json!({ "message": "Member added successfully" }),
+    ))
 }
 
 // DELETE /api/rooms/:id/members/:userId - Remove member
@@ -472,7 +491,7 @@ pub async fn remove_member(
 
     // Check if requester is room admin or global admin
     let member = sqlx::query_as::<_, RoomMember>(
-        "SELECT * FROM room_members WHERE room_id = $1 AND user_id = $2"
+        "SELECT * FROM room_members WHERE room_id = $1 AND user_id = $2",
     )
     .bind(room_id)
     .bind(auth.user_id)
@@ -481,21 +500,23 @@ pub async fn remove_member(
     .ok_or_else(|| AppError::Authorization("Not a member of this room".to_string()))?;
 
     if member.role != "admin" && !auth.user.is_admin {
-        return Err(AppError::Authorization("Only room admins can remove members".to_string()));
+        return Err(AppError::Authorization(
+            "Only room admins can remove members".to_string(),
+        ));
     }
 
     // Can't remove creator
     if user_id == room.creator_id {
-        return Err(AppError::BadRequest("Cannot remove room creator".to_string()));
+        return Err(AppError::BadRequest(
+            "Cannot remove room creator".to_string(),
+        ));
     }
 
-    let result = sqlx::query(
-        "DELETE FROM room_members WHERE room_id = $1 AND user_id = $2"
-    )
-    .bind(room_id)
-    .bind(user_id)
-    .execute(&state.db)
-    .await?;
+    let result = sqlx::query("DELETE FROM room_members WHERE room_id = $1 AND user_id = $2")
+        .bind(room_id)
+        .bind(user_id)
+        .execute(&state.db)
+        .await?;
 
     if result.rows_affected() == 0 {
         return Err(AppError::NotFound("Member not found".to_string()));
@@ -503,7 +524,9 @@ pub async fn remove_member(
 
     tracing::info!("User {} removed from room {}", user_id, room.name);
 
-    Ok(Json(serde_json::json!({ "message": "Member removed successfully" })))
+    Ok(Json(
+        serde_json::json!({ "message": "Member removed successfully" }),
+    ))
 }
 
 // GET /api/rooms/:id/search - Search messages
@@ -515,7 +538,7 @@ pub async fn search_messages(
 ) -> Result<Json<serde_json::Value>> {
     // Check if user is member
     let is_member = sqlx::query_scalar::<_, bool>(
-        "SELECT EXISTS(SELECT 1 FROM room_members WHERE room_id = $1 AND user_id = $2)"
+        "SELECT EXISTS(SELECT 1 FROM room_members WHERE room_id = $1 AND user_id = $2)",
     )
     .bind(room_id)
     .bind(auth.user_id)
@@ -523,13 +546,15 @@ pub async fn search_messages(
     .await?;
 
     if !is_member {
-        return Err(AppError::Authorization("Not a member of this room".to_string()));
+        return Err(AppError::Authorization(
+            "Not a member of this room".to_string(),
+        ));
     }
 
     // Return all messages for client-side decryption and search
     // Since messages are encrypted, we can't search server-side
     let messages = sqlx::query_as::<_, Message>(
-        "SELECT * FROM messages WHERE room_id = $1 ORDER BY created_at DESC"
+        "SELECT * FROM messages WHERE room_id = $1 ORDER BY created_at DESC",
     )
     .bind(room_id)
     .fetch_all(&state.db)

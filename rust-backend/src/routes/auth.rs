@@ -14,16 +14,17 @@ pub async fn register(
     let crypto_service = CryptoService::new();
 
     // Check if username already exists
-    let existing = sqlx::query_as::<_, User>(
-        "SELECT * FROM users WHERE username = $1 OR email = $2"
-    )
-    .bind(&req.username)
-    .bind(&req.email)
-    .fetch_optional(&state.db)
-    .await?;
+    let existing =
+        sqlx::query_as::<_, User>("SELECT * FROM users WHERE username = $1 OR email = $2")
+            .bind(&req.username)
+            .bind(&req.email)
+            .fetch_optional(&state.db)
+            .await?;
 
     if existing.is_some() {
-        return Err(AppError::Conflict("Username or email already exists".to_string()));
+        return Err(AppError::Conflict(
+            "Username or email already exists".to_string(),
+        ));
     }
 
     // Check if this is the first user
@@ -42,7 +43,7 @@ pub async fn register(
     let user = sqlx::query_as::<_, User>(
         "INSERT INTO users (username, email, password_hash, public_key, display_name, is_admin)
          VALUES ($1, $2, $3, $4, $5, $6)
-         RETURNING *"
+         RETURNING *",
     )
     .bind(&req.username)
     .bind(&req.email)
@@ -90,7 +91,9 @@ pub async fn login(
 
     // Check if banned
     if user.is_banned {
-        return Err(AppError::Authorization("Your account has been banned. Please contact an administrator.".to_string()));
+        return Err(AppError::Authorization(
+            "Your account has been banned. Please contact an administrator.".to_string(),
+        ));
     }
 
     // Update last seen
@@ -120,22 +123,22 @@ pub async fn logout(
         .execute(&state.db)
         .await?;
 
-    Ok(Json(serde_json::json!({ "message": "Logged out successfully" })))
+    Ok(Json(
+        serde_json::json!({ "message": "Logged out successfully" }),
+    ))
 }
 
-pub async fn me(
-    Extension(auth): Extension<AuthUser>,
-) -> Result<Json<serde_json::Value>> {
-    Ok(Json(serde_json::json!({ "user": UserResponse::from(auth.user) })))
+pub async fn me(Extension(auth): Extension<AuthUser>) -> Result<Json<serde_json::Value>> {
+    Ok(Json(
+        serde_json::json!({ "user": UserResponse::from(auth.user) }),
+    ))
 }
 
-pub async fn list_users(
-    State(state): State<Arc<AppState>>,
-) -> Result<Json<serde_json::Value>> {
+pub async fn list_users(State(state): State<Arc<AppState>>) -> Result<Json<serde_json::Value>> {
     let users = sqlx::query_as::<_, User>(
         "SELECT id, username, email, password_hash, public_key, display_name, avatar,
          is_online, last_seen, is_admin, is_banned, created_at
-         FROM users ORDER BY username ASC"
+         FROM users ORDER BY username ASC",
     )
     .fetch_all(&state.db)
     .await?;

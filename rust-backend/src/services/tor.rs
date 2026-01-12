@@ -20,7 +20,10 @@ impl TorService {
         }
 
         match Socks5Stream::connect(
-            format!("{}:{}", self.config.tor_socks_host, self.config.tor_socks_port),
+            format!(
+                "{}:{}",
+                self.config.tor_socks_host, self.config.tor_socks_port
+            ),
             "check.torproject.org:80",
         )
         .await
@@ -82,10 +85,17 @@ impl TorService {
         let hidden_service = self.get_hidden_service_address().await;
 
         if connected {
-            tracing::info!("╔════════════════════════════════════════════════════════════════════╗");
-            tracing::info!("║                  TOR CONNECTION ACTIVE                             ║");
-            tracing::info!("╠════════════════════════════════════════════════════════════════════╣");
-            tracing::info!("║  SOCKS Proxy: {}:{:<48}║",
+            tracing::info!(
+                "╔════════════════════════════════════════════════════════════════════╗"
+            );
+            tracing::info!(
+                "║                  TOR CONNECTION ACTIVE                             ║"
+            );
+            tracing::info!(
+                "╠════════════════════════════════════════════════════════════════════╣"
+            );
+            tracing::info!(
+                "║  SOCKS Proxy: {}:{:<48}║",
                 self.config.tor_socks_host,
                 self.config.tor_socks_port
             );
@@ -94,9 +104,13 @@ impl TorService {
                 tracing::info!("║  Hidden Service: http://{:<43}║", onion);
             }
 
-            tracing::info!("╠════════════════════════════════════════════════════════════════════╣");
+            tracing::info!(
+                "╠════════════════════════════════════════════════════════════════════╣"
+            );
             tracing::info!("║  All traffic routed through TOR for maximum privacy               ║");
-            tracing::info!("╚════════════════════════════════════════════════════════════════════╝");
+            tracing::info!(
+                "╚════════════════════════════════════════════════════════════════════╝"
+            );
         } else {
             tracing::warn!("TOR: Enabled but not connected. Retrying...");
         }

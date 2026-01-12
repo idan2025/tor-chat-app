@@ -61,9 +61,7 @@ async fn main() -> anyhow::Result<()> {
     let state = Arc::new(AppState::new(config.clone(), db_pool));
 
     // Create Socket.IO layer
-    let (socket_layer, io) = SocketIo::builder()
-        .with_state(state.clone())
-        .build_layer();
+    let (socket_layer, io) = SocketIo::builder().with_state(state.clone()).build_layer();
 
     // Register Socket.IO event handlers
     io.ns("/", |socket| {
@@ -113,7 +111,10 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/rooms/:id/messages", get(rooms::get_messages))
         .route("/api/rooms/:id/members", get(rooms::get_members))
         .route("/api/rooms/:id/members", post(rooms::add_member))
-        .route("/api/rooms/:id/members/:user_id", delete(rooms::remove_member))
+        .route(
+            "/api/rooms/:id/members/:user_id",
+            delete(rooms::remove_member),
+        )
         .route("/api/rooms/:id/search", get(rooms::search_messages))
         // Upload route
         .route("/api/upload", post(upload_file))
@@ -136,8 +137,7 @@ async fn main() -> anyhow::Result<()> {
     let health_route = Router::new().route("/health", get(|| async { "OK" }));
 
     // Serve static files (uploads)
-    let static_routes = Router::new()
-        .nest_service("/uploads", ServeDir::new(&config.upload_dir));
+    let static_routes = Router::new().nest_service("/uploads", ServeDir::new(&config.upload_dir));
 
     // Combine all routes
     let app = Router::new()
@@ -165,7 +165,11 @@ async fn main() -> anyhow::Result<()> {
     tracing::info!("🔒 Max file size: {} bytes", config.max_file_size);
 
     if config.tor_enabled {
-        tracing::info!("🧅 TOR SOCKS proxy: {}:{}", config.tor_socks_host, config.tor_socks_port);
+        tracing::info!(
+            "🧅 TOR SOCKS proxy: {}:{}",
+            config.tor_socks_host,
+            config.tor_socks_port
+        );
 
         // Check TOR connection on startup
         let tor_service = services::TorService::new(config.clone());
