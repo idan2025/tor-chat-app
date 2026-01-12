@@ -1,5 +1,5 @@
-use gloo_net::websocket::{futures::WebSocket, Message as WsMessage};
 use futures::SinkExt;
+use gloo_net::websocket::{futures::WebSocket, Message as WsMessage};
 use serde_json::Value;
 use std::cell::RefCell;
 use std::rc::Rc;
