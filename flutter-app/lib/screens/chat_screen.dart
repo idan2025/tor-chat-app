@@ -231,7 +231,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         itemCount: _messages.length,
                         itemBuilder: (context, index) {
                           final message = _messages[index];
-                          final isMe = false; // TODO: Check if message is from current user
+                          // TODO: Implement proper user ID check when auth is integrated
+                          final isMe = message['userId'] == 'current_user_id';
 
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 12),

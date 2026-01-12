@@ -1,4 +1,5 @@
 use crate::config::Config;
+use crate::models::user::User;
 use socketioxide::SocketIo;
 use sqlx::PgPool;
 use std::collections::HashMap;
@@ -12,6 +13,7 @@ pub struct AppState {
     pub config: Config,
     pub io: SocketIo,
     pub user_sockets: Arc<RwLock<HashMap<Uuid, Vec<String>>>>, // user_id -> socket_ids
+    pub socket_users: Arc<RwLock<HashMap<String, (Uuid, User)>>>, // socket_id -> (user_id, user)
 }
 
 impl AppState {
@@ -21,6 +23,7 @@ impl AppState {
             config,
             io,
             user_sockets: Arc::new(RwLock::new(HashMap::new())),
+            socket_users: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
@@ -47,5 +50,20 @@ impl AppState {
     pub async fn is_user_online(&self, user_id: Uuid) -> bool {
         let sockets = self.user_sockets.read().await;
         sockets.contains_key(&user_id)
+    }
+
+    pub async fn associate_socket_user(&self, socket_id: String, user_id: Uuid, user: User) {
+        let mut socket_users = self.socket_users.write().await;
+        socket_users.insert(socket_id, (user_id, user));
+    }
+
+    pub async fn get_socket_user(&self, socket_id: &str) -> Option<(Uuid, User)> {
+        let socket_users = self.socket_users.read().await;
+        socket_users.get(socket_id).cloned()
+    }
+
+    pub async fn remove_socket_user(&self, socket_id: &str) {
+        let mut socket_users = self.socket_users.write().await;
+        socket_users.remove(socket_id);
     }
 }

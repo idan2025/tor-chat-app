@@ -137,7 +137,7 @@ impl CryptoService {
     /// Hash data
     pub fn hash(&self, data: &str) -> String {
         use sodiumoxide::crypto::generichash;
-        let hash = generichash::hash(data.as_bytes(), None).unwrap();
+        let hash = generichash::hash(data.as_bytes(), None, None).unwrap();
         base64::encode(hash.as_ref())
     }
 

@@ -57,14 +57,14 @@ async fn main() -> anyhow::Result<()> {
     create_schema(&db_pool).await?;
     tracing::info!("Database schema initialized");
 
-    // Create app state
-    let state = Arc::new(AppState::new(config.clone(), db_pool));
+    // Create Socket.IO layer first
+    let (socket_layer, io) = SocketIo::new_layer();
 
-    // Create Socket.IO layer
-    let (socket_layer, io) = SocketIo::builder().with_state(state.clone()).build_layer();
+    // Create app state with SocketIo
+    let state = Arc::new(AppState::new(db_pool, config.clone(), io.clone()));
 
     // Register Socket.IO event handlers
-    io.ns("/", |socket| {
+    io.ns("/", move |socket: socketioxide::extract::SocketRef| {
         tracing::info!("Socket connected: {}", socket.id);
 
         socket.on("authenticate", on_authenticate);
@@ -145,13 +145,13 @@ async fn main() -> anyhow::Result<()> {
         .merge(public_routes)
         .merge(protected_routes)
         .merge(static_routes)
+        .layer(socket_layer)
         .layer(
             ServiceBuilder::new()
                 .layer(TraceLayer::new_for_http())
                 .layer(cors)
                 .layer(TimeoutLayer::new(Duration::from_secs(30)))
-                .layer(RequestBodyLimitLayer::new(config.max_file_size))
-                .layer(socket_layer),
+                .layer(RequestBodyLimitLayer::new(config.max_file_size)),
         )
         .with_state(state.clone());
 

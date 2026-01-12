@@ -19,11 +19,13 @@ impl TorService {
             return Ok(false);
         }
 
+        let proxy_addr = format!(
+            "{}:{}",
+            self.config.tor_socks_host, self.config.tor_socks_port
+        );
+
         match Socks5Stream::connect(
-            format!(
-                "{}:{}",
-                self.config.tor_socks_host, self.config.tor_socks_port
-            ),
+            proxy_addr.as_str(),
             "check.torproject.org:80",
         )
         .await

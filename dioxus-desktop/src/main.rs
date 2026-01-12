@@ -11,7 +11,9 @@ fn main() {
     );
 
     // Launch the desktop app using the web implementation
-    dioxus_desktop::launch_cfg(App, config);
+    dioxus_desktop::LaunchBuilder::new()
+        .with_cfg(config)
+        .launch(App);
 }
 
 #[component]
@@ -25,24 +27,24 @@ fn App() -> Element {
 
             // Import TailwindCSS styles
             style {
-                r#"
+                "
                 @import url('https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css');
 
-                * {
+                * {{
                     margin: 0;
                     padding: 0;
                     box-sizing: border-box;
-                }
+                }}
 
-                body {
+                body {{
                     overflow: hidden;
-                }
-                "#
+                }}
+                "
             }
 
             // Use the web app's Router and components
             // This demonstrates code reuse - 90%+ of web code works on desktop
-            DesktopAppContent {}
+            DesktopAppContent {{}}
         }
     }
 }

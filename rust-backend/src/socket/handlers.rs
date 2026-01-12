@@ -6,6 +6,11 @@ use socketioxide::extract::{Data, SocketRef, State};
 use std::sync::Arc;
 use uuid::Uuid;
 
+// Helper to get user info from socket
+async fn get_socket_user_info(socket: &SocketRef, state: &AppState) -> Option<(Uuid, User)> {
+    state.get_socket_user(&socket.id.to_string()).await
+}
+
 #[derive(Debug, Deserialize)]
 struct AuthData {
     token: String,
@@ -117,16 +122,11 @@ pub async fn on_authenticate(
 ) {
     match get_user_from_token(&data.token, &state).await {
         Some((user_id, user)) => {
-            // Store user in socket extensions
-            socket.extensions.insert(user_id);
-            socket.extensions.insert(user.clone());
+            // Associate socket with user
+            state.associate_socket_user(socket.id.to_string(), user_id, user.clone()).await;
 
             // Track socket connection
-            state
-                .socket_users
-                .write()
-                .await
-                .insert(socket.id.to_string(), user_id);
+            state.add_user_socket(user_id, socket.id.to_string()).await;
 
             // Update user online status
             let _ = sqlx::query("UPDATE users SET is_online = true WHERE id = $1")
@@ -182,8 +182,8 @@ pub async fn on_join_room(
     Data(data): Data<JoinRoomData>,
     State(state): State<Arc<AppState>>,
 ) {
-    let user_id = match socket.extensions.get::<Uuid>() {
-        Some(id) => *id,
+    let user_id = match get_socket_user_info(&socket, &state).await {
+        Some((id, _)) => id,
         None => {
             socket
                 .emit(
@@ -260,13 +260,8 @@ pub async fn on_send_message(
     Data(data): Data<SendMessageData>,
     State(state): State<Arc<AppState>>,
 ) {
-    let user_id = match socket.extensions.get::<Uuid>() {
-        Some(id) => *id,
-        None => return,
-    };
-
-    let user = match socket.extensions.get::<User>() {
-        Some(u) => u.clone(),
+    let (user_id, user) = match get_socket_user_info(&socket, &state).await {
+        Some((id, u)) => (id, u),
         None => return,
     };
 
@@ -355,13 +350,8 @@ pub async fn on_typing(
     Data(data): Data<TypingData>,
     State(state): State<Arc<AppState>>,
 ) {
-    let user_id = match socket.extensions.get::<Uuid>() {
-        Some(id) => *id,
-        None => return,
-    };
-
-    let user = match socket.extensions.get::<User>() {
-        Some(u) => u.clone(),
+    let (user_id, user) = match get_socket_user_info(&socket, &state).await {
+        Some((id, u)) => (id, u),
         None => return,
     };
 
@@ -396,8 +386,8 @@ pub async fn on_add_reaction(
     Data(data): Data<ReactionData>,
     State(state): State<Arc<AppState>>,
 ) {
-    let user_id = match socket.extensions.get::<Uuid>() {
-        Some(id) => *id,
+    let user_id = match get_socket_user_info(&socket, &state).await {
+        Some((id, _)) => id,
         None => return,
     };
 
@@ -460,8 +450,8 @@ pub async fn on_remove_reaction(
     Data(data): Data<ReactionData>,
     State(state): State<Arc<AppState>>,
 ) {
-    let user_id = match socket.extensions.get::<Uuid>() {
-        Some(id) => *id,
+    let user_id = match get_socket_user_info(&socket, &state).await {
+        Some((id, _)) => id,
         None => return,
     };
 
@@ -522,8 +512,8 @@ pub async fn on_edit_message(
     Data(data): Data<EditMessageData>,
     State(state): State<Arc<AppState>>,
 ) {
-    let user_id = match socket.extensions.get::<Uuid>() {
-        Some(id) => *id,
+    let user_id = match get_socket_user_info(&socket, &state).await {
+        Some((id, _)) => id,
         None => return,
     };
 
@@ -579,13 +569,8 @@ pub async fn on_delete_message(
     Data(data): Data<DeleteMessageData>,
     State(state): State<Arc<AppState>>,
 ) {
-    let user_id = match socket.extensions.get::<Uuid>() {
-        Some(id) => *id,
-        None => return,
-    };
-
-    let user = match socket.extensions.get::<User>() {
-        Some(u) => u.clone(),
+    let (user_id, user) = match get_socket_user_info(&socket, &state).await {
+        Some((id, u)) => (id, u),
         None => return,
     };
 
@@ -638,8 +623,8 @@ pub async fn on_mark_read(
     Data(data): Data<MarkReadData>,
     State(state): State<Arc<AppState>>,
 ) {
-    let user_id = match socket.extensions.get::<Uuid>() {
-        Some(id) => *id,
+    let user_id = match get_socket_user_info(&socket, &state).await {
+        Some((id, _)) => id,
         None => return,
     };
 
@@ -672,13 +657,8 @@ pub async fn on_forward_message(
     Data(data): Data<ForwardMessageData>,
     State(state): State<Arc<AppState>>,
 ) {
-    let user_id = match socket.extensions.get::<Uuid>() {
-        Some(id) => *id,
-        None => return,
-    };
-
-    let user = match socket.extensions.get::<User>() {
-        Some(u) => u.clone(),
+    let (user_id, user) = match get_socket_user_info(&socket, &state).await {
+        Some((id, u)) => (id, u),
         None => return,
     };
 
@@ -756,13 +736,10 @@ pub async fn on_forward_message(
 
 // 12. disconnect - Handle socket disconnect
 pub async fn on_disconnect(socket: SocketRef, State(state): State<Arc<AppState>>) {
-    if let Some(user_id) = socket.extensions.get::<Uuid>() {
+    if let Some((user_id, _)) = get_socket_user_info(&socket, &state).await {
         // Remove from tracking
-        state
-            .socket_users
-            .write()
-            .await
-            .remove(&socket.id.to_string());
+        state.remove_socket_user(&socket.id.to_string()).await;
+        state.remove_user_socket(user_id, &socket.id.to_string()).await;
 
         // Update user online status
         let _ = sqlx::query("UPDATE users SET is_online = false, last_seen = NOW() WHERE id = $1")
