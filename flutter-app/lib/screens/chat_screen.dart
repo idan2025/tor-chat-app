@@ -53,7 +53,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     await _loadMessages();
   }
 
-  void _handleNewMessage(dynamic data) {
+  Future<void> _handleNewMessage(dynamic data) async {
     final message = Message.fromJson(data);
 
     // Decrypt message if encrypted
@@ -61,7 +61,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       try {
         final cryptoService = ref.read(cryptoServiceProvider);
         final decryptedContent =
-            cryptoService.decryptRoomMessage(message.content, _roomKey!);
+            await cryptoService.decryptRoomMessage(message.content, _roomKey!);
         final decryptedMessage = message.copyWith(content: decryptedContent);
         setState(() {
           _messages.insert(0, decryptedMessage);
@@ -113,15 +113,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       // Decrypt messages if room key exists
       if (_roomKey != null) {
         final cryptoService = ref.read(cryptoServiceProvider);
-        final decryptedMessages = messages.map((msg) {
-          try {
-            final decryptedContent =
-                cryptoService.decryptRoomMessage(msg.content, _roomKey!);
-            return msg.copyWith(content: decryptedContent);
-          } catch (e) {
-            return msg;
-          }
-        }).toList();
+        final decryptedMessages = await Future.wait(
+          messages.map((msg) async {
+            try {
+              final decryptedContent =
+                  await cryptoService.decryptRoomMessage(msg.content, _roomKey!);
+              return msg.copyWith(content: decryptedContent);
+            } catch (e) {
+              return msg;
+            }
+          }),
+        );
 
         setState(() {
           _messages = decryptedMessages;
@@ -168,7 +170,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     String content = text;
     if (_roomKey != null) {
       final cryptoService = ref.read(cryptoServiceProvider);
-      content = cryptoService.encryptRoomMessage(text, _roomKey!);
+      content = await cryptoService.encryptRoomMessage(text, _roomKey!);
     }
 
     // Send via socket

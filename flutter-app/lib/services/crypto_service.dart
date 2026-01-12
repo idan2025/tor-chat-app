@@ -1,27 +1,32 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:cryptography/cryptography.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_sodium/flutter_sodium.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class CryptoService {
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+  final _algorithm = X25519();
+  final _aesCipher = AesCtr.with256bits(macAlgorithm: Hmac.sha256());
 
   // Generate keypair for E2EE
   Future<Map<String, String>> generateKeypair() async {
-    await Sodium.init();
+    final keyPair = await _algorithm.newKeyPair();
+    final publicKey = await keyPair.extractPublicKey();
 
-    final keyPair = CryptoBox.generateKeyPair();
+    final publicKeyBytes = publicKey.bytes;
+    final secretKeyBytes = await keyPair.extractPrivateKeyBytes();
 
-    final publicKey = base64.encode(keyPair.pk);
-    final secretKey = base64.encode(keyPair.sk);
+    final publicKeyStr = base64.encode(publicKeyBytes);
+    final secretKeyStr = base64.encode(secretKeyBytes);
 
     // Store secret key securely
-    await _secureStorage.write(key: 'user_secret_key', value: secretKey);
+    await _secureStorage.write(key: 'user_secret_key', value: secretKeyStr);
+    await _secureStorage.write(key: 'user_public_key', value: publicKeyStr);
 
     return {
-      'publicKey': publicKey,
-      'secretKey': secretKey,
+      'publicKey': publicKeyStr,
+      'secretKey': secretKeyStr,
     };
   }
 
@@ -45,100 +50,144 @@ class CryptoService {
 
   // Generate room encryption key (symmetric)
   String generateRoomKey() {
-    final key = SecretBox.generateKey();
-    return base64.encode(key);
+    final key = SecretKey.randomBytes(32);
+    return base64.encode(key.bytes);
   }
 
   // Encrypt room message (symmetric encryption)
-  String encryptRoomMessage(String message, String roomKey) {
+  Future<String> encryptRoomMessage(String message, String roomKey) async {
     final keyBytes = base64.decode(roomKey);
     final messageBytes = utf8.encode(message);
 
-    final nonce = SecretBox.generateNonce();
-    final cipher = SecretBox.encrypt(messageBytes, nonce, keyBytes);
+    final secretKey = SecretKey(keyBytes);
+    final secretBox = await _aesCipher.encrypt(
+      messageBytes,
+      secretKey: secretKey,
+    );
 
-    // Combine nonce + ciphertext
-    final combined = Uint8List.fromList([...nonce, ...cipher]);
+    // Combine nonce + ciphertext + mac
+    final combined = Uint8List.fromList([
+      ...secretBox.nonce,
+      ...secretBox.cipherText,
+      ...secretBox.mac.bytes,
+    ]);
     return base64.encode(combined);
   }
 
   // Decrypt room message (symmetric decryption)
-  String decryptRoomMessage(String encrypted, String roomKey) {
+  Future<String> decryptRoomMessage(String encrypted, String roomKey) async {
     final keyBytes = base64.decode(roomKey);
     final combined = base64.decode(encrypted);
 
-    // Extract nonce and ciphertext
-    final nonce = combined.sublist(0, SecretBox.nonceLength);
-    final cipher = combined.sublist(SecretBox.nonceLength);
+    // Extract nonce (16 bytes), ciphertext, and mac (32 bytes)
+    final nonce = combined.sublist(0, 16);
+    final mac = Mac(combined.sublist(combined.length - 32));
+    final cipherText = combined.sublist(16, combined.length - 32);
 
-    final decrypted = SecretBox.decrypt(cipher, nonce, keyBytes);
+    final secretKey = SecretKey(keyBytes);
+    final secretBox = SecretBox(cipherText, nonce: nonce, mac: mac);
+
+    final decrypted = await _aesCipher.decrypt(
+      secretBox,
+      secretKey: secretKey,
+    );
     return utf8.decode(decrypted);
   }
 
   // Encrypt direct message (asymmetric encryption)
-  String encryptMessage(
+  Future<String> encryptMessage(
     String message,
     String recipientPublicKey,
     String senderSecretKey,
-  ) {
-    final recipientPk = base64.decode(recipientPublicKey);
-    final senderSk = base64.decode(senderSecretKey);
+  ) async {
+    final recipientPk = SimplePublicKey(
+      base64.decode(recipientPublicKey),
+      type: KeyPairType.x25519,
+    );
+    final senderSk = SimpleKeyPairData(
+      base64.decode(senderSecretKey),
+      publicKey: SimplePublicKey([], type: KeyPairType.x25519),
+      type: KeyPairType.x25519,
+    );
     final messageBytes = utf8.encode(message);
 
-    final nonce = CryptoBox.generateNonce();
-    final cipher = CryptoBox.encrypt(
-      messageBytes,
-      nonce,
-      recipientPk,
-      senderSk,
+    // Derive shared secret for encryption
+    final sharedSecret = await _algorithm.sharedSecretKey(
+      keyPair: senderSk,
+      remotePublicKey: recipientPk,
     );
 
-    // Combine nonce + ciphertext
-    final combined = Uint8List.fromList([...nonce, ...cipher]);
+    final secretBox = await _aesCipher.encrypt(
+      messageBytes,
+      secretKey: sharedSecret,
+    );
+
+    // Combine nonce + ciphertext + mac
+    final combined = Uint8List.fromList([
+      ...secretBox.nonce,
+      ...secretBox.cipherText,
+      ...secretBox.mac.bytes,
+    ]);
     return base64.encode(combined);
   }
 
   // Decrypt direct message (asymmetric decryption)
-  String decryptMessage(
+  Future<String> decryptMessage(
     String encrypted,
     String senderPublicKey,
     String recipientSecretKey,
-  ) {
-    final senderPk = base64.decode(senderPublicKey);
-    final recipientSk = base64.decode(recipientSecretKey);
+  ) async {
+    final senderPk = SimplePublicKey(
+      base64.decode(senderPublicKey),
+      type: KeyPairType.x25519,
+    );
+    final recipientSk = SimpleKeyPairData(
+      base64.decode(recipientSecretKey),
+      publicKey: SimplePublicKey([], type: KeyPairType.x25519),
+      type: KeyPairType.x25519,
+    );
     final combined = base64.decode(encrypted);
 
-    // Extract nonce and ciphertext
-    final nonce = combined.sublist(0, CryptoBox.nonceLength);
-    final cipher = combined.sublist(CryptoBox.nonceLength);
+    // Extract nonce (16 bytes), ciphertext, and mac (32 bytes)
+    final nonce = combined.sublist(0, 16);
+    final mac = Mac(combined.sublist(combined.length - 32));
+    final cipherText = combined.sublist(16, combined.length - 32);
 
-    final decrypted = CryptoBox.decrypt(
-      cipher,
-      nonce,
-      senderPk,
-      recipientSk,
+    // Derive shared secret for decryption
+    final sharedSecret = await _algorithm.sharedSecretKey(
+      keyPair: recipientSk,
+      remotePublicKey: senderPk,
+    );
+
+    final secretBox = SecretBox(cipherText, nonce: nonce, mac: mac);
+    final decrypted = await _aesCipher.decrypt(
+      secretBox,
+      secretKey: sharedSecret,
     );
     return utf8.decode(decrypted);
   }
 
   // Hash password (for client-side verification if needed)
-  String hashPassword(String password) {
+  Future<String> hashPassword(String password) async {
     // Note: Password hashing should be done server-side with bcrypt
     // This is just for local verification if needed
-    final hash = PasswordHash.hash(
-      utf8.encode(password),
-      PasswordHash.moderateOpsLimit,
-      PasswordHash.moderateMemLimit,
+    final algorithm = Argon2id(
+      memory: 65536, // 64 MB
+      iterations: 3,
+      parallelism: 4,
     );
-    return base64.encode(hash);
+    final hash = await algorithm.deriveKey(
+      secretKey: SecretKey(utf8.encode(password)),
+      nonce: List<int>.filled(16, 0), // In production, use random nonce
+    );
+    return base64.encode(await hash.extractBytes());
   }
 
   // Verify password hash
-  bool verifyPassword(String password, String hash) {
+  Future<bool> verifyPassword(String password, String hash) async {
     try {
-      final passwordBytes = utf8.encode(password);
-      final hashBytes = base64.decode(hash);
-      return PasswordHash.verify(passwordBytes, hashBytes);
+      final computed = await hashPassword(password);
+      return computed == hash;
     } catch (e) {
       return false;
     }
