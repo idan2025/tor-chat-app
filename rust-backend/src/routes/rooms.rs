@@ -76,7 +76,7 @@ pub async fn create_room(
     }
 
     // Generate room encryption key
-    let room_key = crypto_service.generate_room_key()?;
+    let room_key = crypto_service.generate_room_key();
 
     let room = sqlx::query_as::<_, Room>(
         "INSERT INTO rooms (name, description, is_public, creator_id, room_key, max_members)
@@ -104,7 +104,7 @@ pub async fn create_room(
 
     Ok(Json(serde_json::json!({
         "message": "Room created successfully",
-        "room": RoomResponse::from(room)
+        "room": room.to_member_json()
     })))
 }
 
@@ -160,7 +160,7 @@ pub async fn get_room(
     }
 
     Ok(Json(serde_json::json!({
-        "room": RoomResponse::from(room)
+        "room": room.to_member_json()
     })))
 }
 
@@ -213,7 +213,7 @@ pub async fn join_room(
 
     Ok(Json(serde_json::json!({
         "message": "Joined room successfully",
-        "room": RoomResponse::from(room)
+        "room": room.to_member_json()
     })))
 }
 
@@ -230,7 +230,7 @@ pub async fn leave_room(
         .ok_or_else(|| AppError::NotFound("Room not found".to_string()))?;
 
     // Can't leave if you're the creator
-    if room.creator_id == auth.user_id {
+    if room.creator_id == Some(auth.user_id) {
         return Err(AppError::BadRequest(
             "Room creator cannot leave. Delete the room instead.".to_string(),
         ));
@@ -266,7 +266,7 @@ pub async fn delete_room(
         .ok_or_else(|| AppError::NotFound("Room not found".to_string()))?;
 
     // Only creator or admin can delete
-    if room.creator_id != auth.user_id && !auth.user.is_admin {
+    if room.creator_id != Some(auth.user_id) && !auth.user.is_admin {
         return Err(AppError::Authorization(
             "Only room creator or admin can delete room".to_string(),
         ));
@@ -506,7 +506,7 @@ pub async fn remove_member(
     }
 
     // Can't remove creator
-    if user_id == room.creator_id {
+    if Some(user_id) == room.creator_id {
         return Err(AppError::BadRequest(
             "Cannot remove room creator".to_string(),
         ));

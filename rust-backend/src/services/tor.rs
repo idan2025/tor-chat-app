@@ -24,12 +24,7 @@ impl TorService {
             self.config.tor_socks_host, self.config.tor_socks_port
         );
 
-        match Socks5Stream::connect(
-            proxy_addr.as_str(),
-            "check.torproject.org:80",
-        )
-        .await
-        {
+        match Socks5Stream::connect(proxy_addr.as_str(), "check.torproject.org:80").await {
             Ok(_) => {
                 tracing::info!("TOR connection verified");
                 Ok(true)

@@ -123,7 +123,9 @@ pub async fn on_authenticate(
     match get_user_from_token(&data.token, &state).await {
         Some((user_id, user)) => {
             // Associate socket with user
-            state.associate_socket_user(socket.id.to_string(), user_id, user.clone()).await;
+            state
+                .associate_socket_user(socket.id.to_string(), user_id, user.clone())
+                .await;
 
             // Track socket connection
             state.add_user_socket(user_id, socket.id.to_string()).await;
@@ -739,7 +741,9 @@ pub async fn on_disconnect(socket: SocketRef, State(state): State<Arc<AppState>>
     if let Some((user_id, _)) = get_socket_user_info(&socket, &state).await {
         // Remove from tracking
         state.remove_socket_user(&socket.id.to_string()).await;
-        state.remove_user_socket(user_id, &socket.id.to_string()).await;
+        state
+            .remove_user_socket(user_id, &socket.id.to_string())
+            .await;
 
         // Update user online status
         let _ = sqlx::query("UPDATE users SET is_online = false, last_seen = NOW() WHERE id = $1")

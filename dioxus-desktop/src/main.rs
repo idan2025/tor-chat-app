@@ -1,19 +1,8 @@
 use dioxus::prelude::*;
-use dioxus_desktop::{Config, WindowBuilder};
 
 fn main() {
-    // Configure desktop window
-    let config = Config::new().with_window(
-        WindowBuilder::new()
-            .with_title("TOR Chat - Secure Messaging")
-            .with_resizable(true)
-            .with_inner_size(dioxus_desktop::LogicalSize::new(1200.0, 800.0)),
-    );
-
-    // Launch the desktop app using the web implementation
-    dioxus_desktop::LaunchBuilder::new()
-        .with_cfg(config)
-        .launch(App);
+    // Launch the desktop app
+    dioxus::launch(App);
 }
 
 #[component]
@@ -44,7 +33,7 @@ fn App() -> Element {
 
             // Use the web app's Router and components
             // This demonstrates code reuse - 90%+ of web code works on desktop
-            DesktopAppContent {{}}
+            DesktopAppContent {}
         }
     }
 }

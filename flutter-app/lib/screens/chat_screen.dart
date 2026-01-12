@@ -232,7 +232,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         itemBuilder: (context, index) {
                           final message = _messages[index];
                           // TODO: Implement proper user ID check when auth is integrated
-                          final isMe = message['userId'] == 'current_user_id';
+                          final isMe = message.userId == 'current_user_id';
 
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 12),

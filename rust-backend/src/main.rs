@@ -15,6 +15,7 @@ use crate::routes::*;
 use crate::socket::handlers::*;
 use crate::state::AppState;
 use axum::{
+    extract::DefaultBodyLimit,
     middleware as axum_middleware,
     routing::{delete, get, post},
     Router,
@@ -25,7 +26,6 @@ use std::time::Duration;
 use tower::ServiceBuilder;
 use tower_http::{
     cors::{Any, CorsLayer},
-    limit::RequestBodyLimitLayer,
     services::ServeDir,
     timeout::TimeoutLayer,
     trace::TraceLayer,
@@ -146,12 +146,12 @@ async fn main() -> anyhow::Result<()> {
         .merge(protected_routes)
         .merge(static_routes)
         .layer(socket_layer)
+        .layer(DefaultBodyLimit::max(config.max_file_size))
         .layer(
             ServiceBuilder::new()
                 .layer(TraceLayer::new_for_http())
                 .layer(cors)
-                .layer(TimeoutLayer::new(Duration::from_secs(30)))
-                .layer(RequestBodyLimitLayer::new(config.max_file_size)),
+                .layer(TimeoutLayer::new(Duration::from_secs(30))),
         )
         .with_state(state.clone());
 
