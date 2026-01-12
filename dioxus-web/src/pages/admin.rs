@@ -4,12 +4,20 @@ use dioxus_router::prelude::navigator;
 
 #[component]
 pub fn Admin() -> Element {
-    let mut state = use_context::<AppState>();
+    let state = use_context::<AppState>();
     let nav = navigator();
 
-    let stats = use_resource(|| async move { state.api.admin_get_stats().await });
+    let api_client = state.api.clone();
+    let stats = use_resource(move || {
+        let api = api_client.clone();
+        async move { api.admin_get_stats().await }
+    });
 
-    let users = use_resource(|| async move { state.api.admin_get_users().await });
+    let api_client2 = state.api.clone();
+    let users = use_resource(move || {
+        let api = api_client2.clone();
+        async move { api.admin_get_users().await }
+    });
 
     rsx! {
         div {

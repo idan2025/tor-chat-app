@@ -4,7 +4,7 @@ use dioxus_router::prelude::{navigator, Link};
 
 #[component]
 pub fn Login() -> Element {
-    let mut state = use_context::<AppState>();
+    let state = use_context::<AppState>();
     let nav = navigator();
     let mut username = use_signal(|| String::new());
     let mut password = use_signal(|| String::new());

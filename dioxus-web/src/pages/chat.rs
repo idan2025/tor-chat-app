@@ -4,22 +4,32 @@ use dioxus_router::prelude::navigator;
 
 #[component]
 pub fn Chat() -> Element {
-    let mut state = use_context::<AppState>();
+    let state = use_context::<AppState>();
     let nav = navigator();
     let mut selected_room = use_signal(|| None::<Room>);
     let mut message_input = use_signal(|| String::new());
 
     use_effect(move || {
+        let mut state_clone = state.clone();
+        let nav_clone = nav.clone();
         spawn(async move {
-            if let Err(_) = state.load_rooms().await {
-                nav.push(Route::Login {});
+            if let Err(_) = state_clone.load_rooms().await {
+                nav_clone.push(Route::Login {});
             }
         });
     });
 
-    let rooms = use_resource(|| async move { state.rooms.read().unwrap().clone() });
+    let rooms_ref = state.rooms.clone();
+    let rooms = use_resource(move || {
+        let rooms = rooms_ref.clone();
+        async move { rooms.read().unwrap().clone() }
+    });
 
-    let messages = use_resource(|| async move { state.messages.read().unwrap().clone() });
+    let messages_ref = state.messages.clone();
+    let messages = use_resource(move || {
+        let messages = messages_ref.clone();
+        async move { messages.read().unwrap().clone() }
+    });
 
     let on_send = move |_| {
         if let Some(room) = selected_room() {
