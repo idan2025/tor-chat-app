@@ -1,6 +1,6 @@
 use crate::{models::Room, state::AppState, utils, Route};
 use dioxus::prelude::*;
-use dioxus_router::prelude::*;
+use dioxus_router::prelude::navigator;
 
 #[component]
 pub fn Chat() -> Element {
