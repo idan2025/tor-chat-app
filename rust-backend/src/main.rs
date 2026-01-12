@@ -10,7 +10,7 @@ mod state;
 
 use crate::config::Config;
 use crate::database::create_schema;
-use crate::middleware::{auth_middleware, validation_middleware};
+use crate::middleware::auth_middleware;
 use crate::routes::*;
 use crate::socket::handlers::*;
 use crate::state::AppState;

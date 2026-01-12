@@ -336,7 +336,14 @@ pub async fn get_stats(
         .await?;
 
     // Get most active rooms (by message count)
-    let active_rooms = sqlx::query!(
+    #[derive(sqlx::FromRow)]
+    struct ActiveRoom {
+        id: uuid::Uuid,
+        name: String,
+        message_count: Option<i64>,
+    }
+
+    let active_rooms = sqlx::query_as::<_, ActiveRoom>(
         r#"
         SELECT r.id, r.name, COUNT(m.id) as message_count
         FROM rooms r
