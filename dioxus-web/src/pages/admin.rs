@@ -24,7 +24,10 @@ pub fn Admin() -> Element {
                     }
                     button {
                         class: "bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded",
-                        onclick: move |_| nav.push(Route::Chat {}),
+                        onclick: move |_| {
+                            let nav = nav.clone();
+                            nav.push(Route::Chat {});
+                        },
                         "Back to Chat"
                     }
                 }

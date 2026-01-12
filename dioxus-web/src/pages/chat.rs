@@ -25,6 +25,7 @@ pub fn Chat() -> Element {
         if let Some(room) = selected_room() {
             let content = message_input();
             if !content.is_empty() {
+                let state = state.clone();
                 spawn(async move {
                     state
                         .socket
@@ -37,6 +38,8 @@ pub fn Chat() -> Element {
     };
 
     let on_logout = move |_| {
+        let mut state = state.clone();
+        let nav = nav.clone();
         spawn(async move {
             state.clear_auth().await;
             nav.push(Route::Login {});

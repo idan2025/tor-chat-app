@@ -12,6 +12,8 @@ pub fn Login() -> Element {
     let mut loading = use_signal(|| false);
 
     let on_submit = move |_| {
+        let mut state = state.clone();
+        let nav = nav.clone();
         spawn(async move {
             loading.set(true);
             error.set(None);
