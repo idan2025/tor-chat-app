@@ -86,86 +86,6 @@ jobs:
           path: dioxus-web/dist/
           retention-days: 7
 
-  deploy:
-    name: Deploy to GitHub Pages
-    runs-on: ubuntu-latest
-    needs: [build]
-    if: github.ref == 'refs/heads/main'
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: dioxus-web-build
-          path: ./dist
-
-      - name: Setup Pages
-        uses: actions/configure-pages@v4
-
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: ./dist
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
-
-  deploy-netlify:
-    name: Deploy to Netlify
-    runs-on: ubuntu-latest
-    needs: [build]
-    if: github.ref == 'refs/heads/main'
-    steps:
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: dioxus-web-build
-          path: ./dist
-
-      - name: Deploy to Netlify
-        uses: nwtgck/actions-netlify@v2.1
-        with:
-          publish-dir: './dist'
-          production-branch: main
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          deploy-message: "Deploy from GitHub Actions"
-          enable-pull-request-comment: true
-          enable-commit-comment: true
-        env:
-          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
-        timeout-minutes: 5
-
-  deploy-vercel:
-    name: Deploy to Vercel
-    runs-on: ubuntu-latest
-    needs: [build]
-    if: github.ref == 'refs/heads/main'
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: dioxus-web-build
-          path: ./dist
-
-      - name: Deploy to Vercel
-        uses: amondnet/vercel-action@v25
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-          working-directory: ./dist
-          vercel-args: '--prod'
-
   docker:
     name: Build Docker Image
     runs-on: ubuntu-latest
@@ -180,8 +100,8 @@ jobs:
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+          username: ${{ secrets.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_PASS }}
 
       - name: Build and push
         uses: docker/build-push-action@v5
@@ -189,7 +109,7 @@ jobs:
           context: ./dioxus-web
           push: true
           tags: |
-            ${{ secrets.DOCKER_USERNAME }}/tor-chat-web:latest
-            ${{ secrets.DOCKER_USERNAME }}/tor-chat-web:${{ github.sha }}
-          cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/tor-chat-web:buildcache
-          cache-to: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/tor-chat-web:buildcache,mode=max
+            ${{ secrets.DOCKER_USER }}/tor-chat-web:latest
+            ${{ secrets.DOCKER_USER }}/tor-chat-web:${{ github.sha }}
+          cache-from: type=registry,ref=${{ secrets.DOCKER_USER }}/tor-chat-web:buildcache
+          cache-to: type=registry,ref=${{ secrets.DOCKER_USER }}/tor-chat-web:buildcache,mode=max

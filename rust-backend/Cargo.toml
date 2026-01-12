@@ -15,7 +15,7 @@ tower-http = { version = "0.5", features = ["cors", "fs", "trace", "limit", "tim
 socketioxide = { version = "0.13", features = ["state"] }
 
 # Database
-sqlx = { version = "0.8.1", features = ["runtime-tokio", "postgres", "uuid", "chrono", "json", "macros"] }
+sqlx = { version = "0.8", features = ["runtime-tokio", "postgres", "uuid", "chrono", "json", "macros"], default-features = false }
 
 # Authentication & Security
 jsonwebtoken = "9.2"
@@ -36,7 +36,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 # Utils
 uuid = { version = "1.6", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
-validator = { version = "0.18", features = ["derive"] }
+validator = { version = "0.20", features = ["derive"] }
 dotenvy = "0.15"
 anyhow = "1.0"
 thiserror = "1.0"
