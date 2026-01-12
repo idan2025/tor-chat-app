@@ -55,7 +55,7 @@ pub async fn list_rooms(
     .fetch_all(&state.db)
     .await?;
 
-    let room_responses: Vec<RoomResponse> = rooms.into_iter().map(|r| r.into()).collect();
+    let room_responses: Vec<RoomResponse> = rooms.into_iter().map(|r| r.to_public_json()).collect();
 
     Ok(Json(serde_json::json!({ "rooms": room_responses })))
 }
@@ -69,7 +69,7 @@ pub async fn create_room(
     let crypto_service = CryptoService::new();
 
     // Only admins can create public rooms
-    if req.is_public && !auth.user.is_admin {
+    if req.is_public.unwrap_or(false) && !auth.user.is_admin {
         return Err(AppError::Authorization(
             "Only admins can create public rooms".to_string(),
         ));

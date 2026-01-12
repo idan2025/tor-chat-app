@@ -275,7 +275,7 @@ pub async fn list_rooms(
             .fetch_one(&state.db)
             .await?;
 
-        let mut room_resp = serde_json::to_value(RoomResponse::from(room)).unwrap();
+        let mut room_resp = serde_json::to_value(room.to_member_json()).unwrap();
         if let Some(obj) = room_resp.as_object_mut() {
             obj.insert("memberCount".to_string(), serde_json::json!(member_count));
             obj.insert("messageCount".to_string(), serde_json::json!(message_count));

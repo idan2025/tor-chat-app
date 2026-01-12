@@ -12,24 +12,24 @@ async fn get_socket_user_info(socket: &SocketRef, state: &AppState) -> Option<(U
 }
 
 #[derive(Debug, Deserialize)]
-struct AuthData {
+pub struct AuthData {
     token: String,
 }
 
 #[derive(Debug, Deserialize)]
-struct JoinRoomData {
+pub struct JoinRoomData {
     #[serde(rename = "roomId")]
     room_id: String,
 }
 
 #[derive(Debug, Deserialize)]
-struct LeaveRoomData {
+pub struct LeaveRoomData {
     #[serde(rename = "roomId")]
     room_id: String,
 }
 
 #[derive(Debug, Deserialize)]
-struct SendMessageData {
+pub struct SendMessageData {
     #[serde(rename = "roomId")]
     room_id: String,
     content: String,
@@ -41,34 +41,34 @@ struct SendMessageData {
 }
 
 #[derive(Debug, Deserialize)]
-struct TypingData {
+pub struct TypingData {
     #[serde(rename = "roomId")]
     room_id: String,
     typing: bool,
 }
 
 #[derive(Debug, Deserialize)]
-struct ReactionData {
+pub struct ReactionData {
     #[serde(rename = "messageId")]
     message_id: String,
     emoji: String,
 }
 
 #[derive(Debug, Deserialize)]
-struct EditMessageData {
+pub struct EditMessageData {
     #[serde(rename = "messageId")]
     message_id: String,
     content: String,
 }
 
 #[derive(Debug, Deserialize)]
-struct DeleteMessageData {
+pub struct DeleteMessageData {
     #[serde(rename = "messageId")]
     message_id: String,
 }
 
 #[derive(Debug, Deserialize)]
-struct MarkReadData {
+pub struct MarkReadData {
     #[serde(rename = "roomId")]
     room_id: String,
     #[serde(rename = "messageId")]
@@ -76,7 +76,7 @@ struct MarkReadData {
 }
 
 #[derive(Debug, Deserialize)]
-struct ForwardMessageData {
+pub struct ForwardMessageData {
     #[serde(rename = "messageId")]
     message_id: String,
     #[serde(rename = "targetRoomId")]
@@ -84,7 +84,7 @@ struct ForwardMessageData {
 }
 
 #[derive(Debug, Serialize)]
-struct ErrorResponse {
+pub struct ErrorResponse {
     error: String,
 }
 
