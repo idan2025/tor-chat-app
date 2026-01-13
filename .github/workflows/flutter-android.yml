@@ -122,75 +122,24 @@ jobs:
           path: flutter-app/build/app/outputs/flutter-apk/app-release.apk
           retention-days: 7
 
-  build-appbundle:
-    name: Build App Bundle
+  release:
+    name: Create GitHub Release
     runs-on: ubuntu-latest
-    needs: [analyze, test]
-    if: github.ref == 'refs/heads/main'
-    defaults:
-      run:
-        working-directory: ./flutter-app
+    needs: [build-apk]
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Java
-        uses: actions/setup-java@v4
+      - name: Download APK artifact
+        uses: actions/download-artifact@v4
         with:
-          distribution: 'zulu'
-          java-version: '17'
+          name: tor-chat-android-apk
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
         with:
-          flutter-version: '3.16.0'
-          channel: 'stable'
-
-      - name: Cache pub dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.pub-cache
-            flutter-app/.dart_tool
-          key: ${{ runner.os }}-pub-${{ hashFiles('flutter-app/pubspec.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pub-
-
-      - name: Get dependencies
-        run: flutter pub get
-
-      - name: Decode keystore
-        if: github.event_name == 'push'
-        run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/app/keystore.jks
+          files: app-release.apk
+          draft: false
+          prerelease: false
         env:
-          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
-
-      - name: Create key.properties
-        if: github.event_name == 'push'
-        run: |
-          cat > android/key.properties <<EOF
-          storePassword=${{ secrets.KEYSTORE_PASSWORD }}
-          keyPassword=${{ secrets.KEY_PASSWORD }}
-          keyAlias=${{ secrets.KEY_ALIAS }}
-          storeFile=keystore.jks
-          EOF
-
-      - name: Build App Bundle
-        run: flutter build appbundle --release
-
-      - name: Upload App Bundle
-        uses: actions/upload-artifact@v4
-        with:
-          name: tor-chat-android-aab
-          path: flutter-app/build/app/outputs/bundle/release/app-release.aab
-          retention-days: 30
-
-      - name: Deploy to Play Store
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: r0adkll/upload-google-play@v1
-        with:
-          serviceAccountJsonPlainText: ${{ secrets.PLAY_STORE_SERVICE_ACCOUNT }}
-          packageName: com.torchat.app
-          releaseFiles: flutter-app/build/app/outputs/bundle/release/app-release.aab
-          track: internal
-          status: draft
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
