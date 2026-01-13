@@ -6,15 +6,14 @@ use dioxus_router::prelude::{navigator, Link};
 pub fn Register() -> Element {
     let state = use_context::<AppState>();
     let nav = navigator();
-    let mut username = use_signal(|| String::new());
-    let mut email = use_signal(|| String::new());
-    let mut password = use_signal(|| String::new());
+    let mut username = use_signal(String::new);
+    let mut email = use_signal(String::new);
+    let mut password = use_signal(String::new);
     let mut error = use_signal(|| None::<String>);
     let mut loading = use_signal(|| false);
 
     let on_submit = move |_| {
         let state = state.clone();
-        let nav = nav.clone();
         spawn(async move {
             loading.set(true);
             error.set(None);

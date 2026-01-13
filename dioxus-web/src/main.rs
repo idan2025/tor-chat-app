@@ -35,7 +35,7 @@ fn main() {
 
 #[component]
 fn App() -> Element {
-    use_context_provider(|| state::AppState::new());
+    use_context_provider(state::AppState::new);
 
     rsx! {
         Router::<Route> {}

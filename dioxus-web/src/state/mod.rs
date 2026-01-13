@@ -3,12 +3,13 @@ pub mod auth;
 use crate::api::ApiClient;
 use crate::models::{Message, Room, User};
 use crate::socket::SocketClient;
+use std::rc::Rc;
 use std::sync::{Arc, RwLock};
 
 #[derive(Clone)]
 pub struct AppState {
     pub api: Arc<ApiClient>,
-    pub socket: Arc<SocketClient>,
+    pub socket: Rc<SocketClient>,
     pub current_user: Arc<RwLock<Option<User>>>,
     pub rooms: Arc<RwLock<Vec<Room>>>,
     pub messages: Arc<RwLock<Vec<Message>>>,
@@ -18,7 +19,7 @@ pub struct AppState {
 impl AppState {
     pub fn new() -> Self {
         let api = Arc::new(ApiClient::new());
-        let socket = Arc::new(SocketClient::new("http://localhost:3000".to_string()));
+        let socket = Rc::new(SocketClient::new("http://localhost:3000".to_string()));
 
         Self {
             api,

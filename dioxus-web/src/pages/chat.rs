@@ -7,7 +7,7 @@ pub fn Chat() -> Element {
     let state = use_context::<AppState>();
     let nav = navigator();
     let mut selected_room = use_signal(|| None::<Room>);
-    let mut message_input = use_signal(|| String::new());
+    let mut message_input = use_signal(String::new);
 
     // Clone everything we need from state upfront
     let rooms_ref = state.rooms.clone();
@@ -19,10 +19,9 @@ pub fn Chat() -> Element {
 
     use_effect(move || {
         let state_clone = state_for_effect.clone();
-        let nav_clone = nav.clone();
         spawn(async move {
-            if let Err(_) = state_clone.load_rooms().await {
-                nav_clone.push(Route::Login {});
+            if state_clone.load_rooms().await.is_err() {
+                nav.push(Route::Login {});
             }
         });
     });
@@ -55,7 +54,6 @@ pub fn Chat() -> Element {
 
     let on_logout = move |_| {
         let state = state_for_logout.clone();
-        let nav = nav.clone();
         spawn(async move {
             state.clear_auth().await;
             nav.push(Route::Login {});
