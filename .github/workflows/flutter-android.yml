@@ -136,7 +136,7 @@ jobs:
           name: tor-chat-android-apk
 
       - name: Create Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: app-release.apk
           draft: false
