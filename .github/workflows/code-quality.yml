@@ -20,7 +20,7 @@ jobs:
 
       - name: Cache cargo-audit
         id: cache-cargo-audit
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cargo/bin/cargo-audit
           key: ${{ runner.os }}-cargo-audit-${{ hashFiles('~/.cargo/bin/cargo-audit') }}
@@ -117,7 +117,7 @@ jobs:
 
       - name: Cache cargo-license
         id: cache-cargo-license
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cargo/bin/cargo-license
           key: ${{ runner.os }}-cargo-license-${{ hashFiles('~/.cargo/bin/cargo-license') }}
@@ -172,7 +172,7 @@ jobs:
 
       - name: Cache cargo-tarpaulin
         id: cache-cargo-tarpaulin
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cargo/bin/cargo-tarpaulin
           key: ${{ runner.os }}-cargo-tarpaulin-${{ hashFiles('~/.cargo/bin/cargo-tarpaulin') }}
