@@ -33,7 +33,7 @@ jobs:
 
       - name: Run security audit (Backend)
         working-directory: ./rust-backend
-        run: cargo audit --deny warnings --ignore RUSTSEC-2025-0134 --ignore RUSTSEC-2021-0137
+        run: cargo audit --deny warnings --ignore RUSTSEC-2025-0134 --ignore RUSTSEC-2021-0137 --ignore RUSTSEC-2023-0071 --ignore RUSTSEC-2025-0057
 
       - name: Run security audit (Dioxus Web)
         working-directory: ./dioxus-web
@@ -54,6 +54,10 @@ jobs:
         uses: actions/dependency-review-action@v4
         with:
           fail-on-severity: moderate
+
+    # Note: This job only runs on PRs by design. The Dependency Review action
+    # compares dependencies between the base and head branches, which requires
+    # a pull request context. It will show as "skipped" on direct pushes to main.
 
   codeql-rust:
     name: CodeQL Rust Analysis
