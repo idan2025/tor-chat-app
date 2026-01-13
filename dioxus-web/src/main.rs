@@ -44,7 +44,7 @@ fn App() -> Element {
 
 #[component]
 fn Home() -> Element {
-    let mut state = use_context::<state::AppState>();
+    let _state = use_context::<state::AppState>();
     let nav = navigator();
 
     use_effect(move || {

@@ -49,7 +49,7 @@ class _TorChatAppState extends ConsumerState<TorChatApp> {
           backgroundColor: Color(0xFF1E1E1E),
           elevation: 0,
         ),
-        cardTheme: const CardTheme(
+        cardTheme: const CardThemeData(
           color: Color(0xFF1E1E1E),
           elevation: 2,
         ),

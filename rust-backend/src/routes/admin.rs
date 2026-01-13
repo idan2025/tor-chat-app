@@ -1,6 +1,6 @@
 use crate::error::{AppError, Result};
 use crate::middleware::AuthUser;
-use crate::models::{Room, RoomResponse, User, UserResponse};
+use crate::models::{Room, User, UserResponse};
 use crate::state::AppState;
 use axum::{
     extract::{Path, State},

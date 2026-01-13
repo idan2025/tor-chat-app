@@ -1,5 +1,4 @@
 use anyhow::Result;
-use serde::Deserialize;
 use std::env;
 
 #[derive(Debug, Clone)]

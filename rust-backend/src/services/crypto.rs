@@ -1,6 +1,7 @@
 use crate::error::{AppError, Result};
 use sodiumoxide::crypto::{box_, secretbox};
 use sodiumoxide::randombytes;
+use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 
 pub struct CryptoService;
 
@@ -15,8 +16,8 @@ impl CryptoService {
         let (public_key, secret_key) = box_::gen_keypair();
 
         Ok((
-            base64::encode(public_key.as_ref()),
-            base64::encode(secret_key.as_ref()),
+            BASE64.encode(public_key.as_ref()),
+            BASE64.encode(secret_key.as_ref()),
         ))
     }
 
@@ -28,13 +29,13 @@ impl CryptoService {
         sender_private_key: &str,
     ) -> Result<String> {
         let recipient_pk = box_::PublicKey::from_slice(
-            &base64::decode(recipient_public_key)
+            &BASE64.decode(recipient_public_key)
                 .map_err(|e| AppError::Encryption(e.to_string()))?,
         )
         .ok_or_else(|| AppError::Encryption("Invalid public key".to_string()))?;
 
         let sender_sk = box_::SecretKey::from_slice(
-            &base64::decode(sender_private_key).map_err(|e| AppError::Encryption(e.to_string()))?,
+            &BASE64.decode(sender_private_key).map_err(|e| AppError::Encryption(e.to_string()))?,
         )
         .ok_or_else(|| AppError::Encryption("Invalid private key".to_string()))?;
 
@@ -44,7 +45,7 @@ impl CryptoService {
         let mut combined = nonce.as_ref().to_vec();
         combined.extend_from_slice(&ciphertext);
 
-        Ok(base64::encode(&combined))
+        Ok(BASE64.encode(&combined))
     }
 
     /// Decrypt message (asymmetric)
@@ -55,7 +56,7 @@ impl CryptoService {
         recipient_private_key: &str,
     ) -> Result<String> {
         let combined =
-            base64::decode(encrypted_message).map_err(|e| AppError::Encryption(e.to_string()))?;
+            BASE64.decode(encrypted_message).map_err(|e| AppError::Encryption(e.to_string()))?;
 
         if combined.len() < box_::NONCEBYTES {
             return Err(AppError::Encryption(
@@ -69,12 +70,12 @@ impl CryptoService {
         let ciphertext = &combined[box_::NONCEBYTES..];
 
         let sender_pk = box_::PublicKey::from_slice(
-            &base64::decode(sender_public_key).map_err(|e| AppError::Encryption(e.to_string()))?,
+            &BASE64.decode(sender_public_key).map_err(|e| AppError::Encryption(e.to_string()))?,
         )
         .ok_or_else(|| AppError::Encryption("Invalid public key".to_string()))?;
 
         let recipient_sk = box_::SecretKey::from_slice(
-            &base64::decode(recipient_private_key)
+            &BASE64.decode(recipient_private_key)
                 .map_err(|e| AppError::Encryption(e.to_string()))?,
         )
         .ok_or_else(|| AppError::Encryption("Invalid private key".to_string()))?;
@@ -88,7 +89,7 @@ impl CryptoService {
     /// Encrypt room message (symmetric)
     pub fn encrypt_room_message(&self, message: &str, room_key: &str) -> Result<String> {
         let key = secretbox::Key::from_slice(
-            &base64::decode(room_key).map_err(|e| AppError::Encryption(e.to_string()))?,
+            &BASE64.decode(room_key).map_err(|e| AppError::Encryption(e.to_string()))?,
         )
         .ok_or_else(|| AppError::Encryption("Invalid room key".to_string()))?;
 
@@ -98,13 +99,13 @@ impl CryptoService {
         let mut combined = nonce.as_ref().to_vec();
         combined.extend_from_slice(&ciphertext);
 
-        Ok(base64::encode(&combined))
+        Ok(BASE64.encode(&combined))
     }
 
     /// Decrypt room message (symmetric)
     pub fn decrypt_room_message(&self, encrypted_message: &str, room_key: &str) -> Result<String> {
         let combined =
-            base64::decode(encrypted_message).map_err(|e| AppError::Encryption(e.to_string()))?;
+            BASE64.decode(encrypted_message).map_err(|e| AppError::Encryption(e.to_string()))?;
 
         if combined.len() < secretbox::NONCEBYTES {
             return Err(AppError::Encryption(
@@ -118,7 +119,7 @@ impl CryptoService {
         let ciphertext = &combined[secretbox::NONCEBYTES..];
 
         let key = secretbox::Key::from_slice(
-            &base64::decode(room_key).map_err(|e| AppError::Encryption(e.to_string()))?,
+            &BASE64.decode(room_key).map_err(|e| AppError::Encryption(e.to_string()))?,
         )
         .ok_or_else(|| AppError::Encryption("Invalid room key".to_string()))?;
 
@@ -131,19 +132,19 @@ impl CryptoService {
     /// Generate random room key
     pub fn generate_room_key(&self) -> String {
         let key = secretbox::gen_key();
-        base64::encode(key.as_ref())
+        BASE64.encode(key.as_ref())
     }
 
     /// Hash data
     pub fn hash(&self, data: &str) -> String {
         use sodiumoxide::crypto::generichash;
         let hash = generichash::hash(data.as_bytes(), None, None).unwrap();
-        base64::encode(hash.as_ref())
+        BASE64.encode(hash.as_ref())
     }
 
     /// Generate random bytes
     pub fn random_bytes(&self, length: usize) -> String {
         let bytes = randombytes::randombytes(length);
-        base64::encode(&bytes)
+        BASE64.encode(&bytes)
     }
 }

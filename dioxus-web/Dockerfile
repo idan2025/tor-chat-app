@@ -1,5 +1,5 @@
 # Build stage
-FROM rust:1.75-slim as builder
+FROM rust:latest AS builder
 
 WORKDIR /app
 
@@ -18,7 +18,6 @@ RUN cargo install trunk && \
 COPY Cargo.toml ./
 COPY src ./src
 COPY index.html ./
-COPY assets ./assets 2>/dev/null || true
 
 # Build the WASM application
 RUN trunk build --release

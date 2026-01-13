@@ -1,6 +1,5 @@
 use crate::config::Config;
-use crate::error::{AppError, Result};
-use std::path::Path;
+use crate::error::Result;
 use tokio::fs;
 use tokio_socks::tcp::Socks5Stream;
 

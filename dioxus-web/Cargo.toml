@@ -33,8 +33,9 @@ wasm-bindgen-futures = "0.4"
 gloo-storage = "0.3"
 gloo-timers = { version = "0.3", features = ["futures"] }
 
-# Crypto
-libsodium-sys-stable = "1.20"
+# Crypto - using WASM-compatible alternatives
+# libsodium-sys-stable doesn't support WASM compilation
+# Using Web Crypto API through web-sys instead
 
 # Utilities
 chrono = { version = "0.4", features = ["serde", "wasmbind"] }

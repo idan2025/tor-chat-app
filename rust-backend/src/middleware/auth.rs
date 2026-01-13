@@ -56,7 +56,7 @@ pub async fn auth_middleware(
     Ok(next.run(req).await)
 }
 
-pub async fn admin_middleware(mut req: Request, next: Next) -> Result<Response> {
+pub async fn admin_middleware(req: Request, next: Next) -> Result<Response> {
     // Get authenticated user from extensions
     let auth_user = req
         .extensions()

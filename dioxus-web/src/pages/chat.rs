@@ -9,8 +9,16 @@ pub fn Chat() -> Element {
     let mut selected_room = use_signal(|| None::<Room>);
     let mut message_input = use_signal(|| String::new());
 
+    // Clone everything we need from state upfront
+    let rooms_ref = state.rooms.clone();
+    let messages_ref = state.messages.clone();
+    let state_for_effect = state.clone();
+    let state_for_send = state.clone();
+    let state_for_logout = state.clone();
+    let state_for_rooms = state.clone();
+
     use_effect(move || {
-        let mut state_clone = state.clone();
+        let state_clone = state_for_effect.clone();
         let nav_clone = nav.clone();
         spawn(async move {
             if let Err(_) = state_clone.load_rooms().await {
@@ -19,13 +27,11 @@ pub fn Chat() -> Element {
         });
     });
 
-    let rooms_ref = state.rooms.clone();
     let rooms = use_resource(move || {
         let rooms = rooms_ref.clone();
         async move { rooms.read().unwrap().clone() }
     });
 
-    let messages_ref = state.messages.clone();
     let messages = use_resource(move || {
         let messages = messages_ref.clone();
         async move { messages.read().unwrap().clone() }
@@ -35,7 +41,7 @@ pub fn Chat() -> Element {
         if let Some(room) = selected_room() {
             let content = message_input();
             if !content.is_empty() {
-                let state = state.clone();
+                let state = state_for_send.clone();
                 spawn(async move {
                     state
                         .socket
@@ -48,7 +54,7 @@ pub fn Chat() -> Element {
     };
 
     let on_logout = move |_| {
-        let mut state = state.clone();
+        let state = state_for_logout.clone();
         let nav = nav.clone();
         spawn(async move {
             state.clear_auth().await;
@@ -73,35 +79,43 @@ pub fn Chat() -> Element {
 
                 div {
                     class: "flex-1 overflow-y-auto",
-                    if let Some(rooms_data) = rooms.read().as_ref() {
-                        for room in rooms_data {
-                            div {
-                                key: "{room.id}",
-                                class: "p-4 hover:bg-gray-700 cursor-pointer border-b border-gray-700",
-                                onclick: move |_| {
-                                    let r = room.clone();
-                                    spawn(async move {
-                                        selected_room.set(Some(r.clone()));
-                                        state.socket.join_room(&r.id.to_string()).await;
-                                        let _ = state.load_messages(&r.id.to_string()).await;
-                                    });
-                                },
+                    match &*rooms.read_unchecked() {
+                        Some(rooms_data) => rsx! {
+                            for room in rooms_data.iter() {
                                 div {
-                                    class: "font-semibold text-white",
-                                    "{room.name}"
-                                }
-                                if let Some(desc) = &room.description {
+                                    key: "{room.id}",
+                                    class: "p-4 hover:bg-gray-700 cursor-pointer border-b border-gray-700",
+                                    onclick: {
+                                        let r = room.clone();
+                                        let state = state_for_rooms.clone();
+                                        move |_| {
+                                            let r = r.clone();
+                                            let state = state.clone();
+                                            spawn(async move {
+                                                selected_room.set(Some(r.clone()));
+                                                state.socket.join_room(&r.id.to_string()).await;
+                                                let _ = state.load_messages(&r.id.to_string()).await;
+                                            });
+                                        }
+                                    },
                                     div {
-                                        class: "text-sm text-gray-400 truncate",
-                                        "{desc}"
+                                        class: "font-semibold text-white",
+                                        "{room.name}"
+                                    }
+                                    if let Some(desc) = &room.description {
+                                        div {
+                                            class: "text-sm text-gray-400 truncate",
+                                            "{desc}"
+                                        }
                                     }
                                 }
                             }
-                        }
-                    } else {
-                        div {
-                            class: "p-4 text-center text-gray-400",
-                            "Loading rooms..."
+                        },
+                        None => rsx! {
+                            div {
+                                class: "p-4 text-center text-gray-400",
+                                "Loading rooms..."
+                            }
                         }
                     }
                 }
@@ -137,26 +151,31 @@ pub fn Chat() -> Element {
                     // Messages
                     div {
                         class: "flex-1 overflow-y-auto p-4",
-                        if let Some(msgs) = messages.read().as_ref() {
-                            for message in msgs.iter().rev() {
-                                div {
-                                    key: "{message.id}",
-                                    class: "mb-4",
-                                    div {
-                                        class: "bg-gray-800 rounded-lg p-3 max-w-md",
-                                        if let Some(user) = &message.user {
+                        if let Some(msgs_data) = &*messages.read_unchecked() {
+                            {
+                                let reversed: Vec<_> = msgs_data.iter().rev().collect();
+                                rsx! {
+                                    for message in reversed.iter() {
+                                        div {
+                                            key: "{message.id}",
+                                            class: "mb-4",
                                             div {
-                                                class: "text-sm font-bold text-purple-400 mb-1",
-                                                "{user.username}"
+                                                class: "bg-gray-800 rounded-lg p-3 max-w-md",
+                                                if let Some(user) = &message.user {
+                                                    div {
+                                                        class: "text-sm font-bold text-purple-400 mb-1",
+                                                        "{user.username}"
+                                                    }
+                                                }
+                                                div {
+                                                    class: "text-white",
+                                                    "{message.content}"
+                                                }
+                                                div {
+                                                    class: "text-xs text-gray-400 mt-1",
+                                                    "{utils::format_time(&message.created_at)}"
+                                                }
                                             }
-                                        }
-                                        div {
-                                            class: "text-white",
-                                            "{message.content}"
-                                        }
-                                        div {
-                                            class: "text-xs text-gray-400 mt-1",
-                                            "{utils::format_time(&message.created_at)}"
                                         }
                                     }
                                 }
