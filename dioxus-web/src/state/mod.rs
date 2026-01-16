@@ -22,7 +22,7 @@ impl AppState {
         // Use current origin for socket connection (works with nginx proxy)
         let socket_url = web_sys::window()
             .and_then(|w| w.location().origin().ok())
-            .unwrap_or_else(|| String::from("http://localhost:3000"));
+            .unwrap_or_else(|| "http://localhost:3000".to_string());
         let socket = Rc::new(SocketClient::new(socket_url));
 
         Self {

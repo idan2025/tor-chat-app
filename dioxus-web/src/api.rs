@@ -21,7 +21,7 @@ impl ApiClient {
     fn get_base_url() -> String {
         // Use relative URL for containerized deployments with nginx proxy
         // Falls back to stored URL or empty string (relative paths)
-        storage::get_server_url().unwrap_or_else(|| String::new())
+        storage::get_server_url().unwrap_or_else(String::new)
     }
 
     fn get_auth_header(&self) -> Option<String> {
