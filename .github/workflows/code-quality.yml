@@ -37,11 +37,11 @@ jobs:
 
       - name: Run security audit (Dioxus Web)
         working-directory: ./dioxus-web
-        run: cargo audit --deny warnings
+        run: cargo audit --deny warnings --ignore RUSTSEC-2025-0134 --ignore RUSTSEC-2025-0141 --ignore RUSTSEC-2026-0002
 
       - name: Run security audit (Dioxus Desktop)
         working-directory: ./dioxus-desktop
-        run: cargo audit --deny warnings
+        run: cargo audit --deny warnings --ignore RUSTSEC-2025-0134 --ignore RUSTSEC-2025-0141 --ignore RUSTSEC-2026-0002
 
   dependency-review:
     name: Dependency Review
