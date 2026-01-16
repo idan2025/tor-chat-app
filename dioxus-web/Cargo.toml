@@ -38,9 +38,9 @@ gloo-timers = { version = "0.3", features = ["futures"] }
 # Using Web Crypto API through web-sys instead
 
 # Utilities
-chrono = { version = "0.4", features = ["serde", "wasmbind"] }
+chrono = { version = "0.4", features = ["serde", "wasm-bindgen"] }
 uuid = { version = "1.6", features = ["v4", "serde", "js"] }
-base64 = "0.21"
+base64 = "0.22"
 tracing = "0.1"
 tracing-wasm = "0.2"
 
