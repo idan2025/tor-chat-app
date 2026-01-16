@@ -19,7 +19,11 @@ pub struct AppState {
 impl AppState {
     pub fn new() -> Self {
         let api = Arc::new(ApiClient::new());
-        let socket = Rc::new(SocketClient::new("http://localhost:3000".to_string()));
+        // Use current origin for socket connection (works with nginx proxy)
+        let socket_url = web_sys::window()
+            .and_then(|w| w.location().origin().ok())
+            .unwrap_or_else(|| String::from("http://localhost:3000"));
+        let socket = Rc::new(SocketClient::new(socket_url));
 
         Self {
             api,
