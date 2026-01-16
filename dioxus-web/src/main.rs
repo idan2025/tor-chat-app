@@ -48,7 +48,6 @@ fn Home() -> Element {
     let nav = navigator();
 
     use_effect(move || {
-        let nav = nav.clone();
         spawn(async move {
             if let Some(token) = utils::storage::get_token() {
                 if state::auth::verify_token(&token).await.is_ok() {

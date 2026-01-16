@@ -12,11 +12,8 @@ node_modules/
 
 # Rust
 rust-backend/target/
-rust-backend/Cargo.lock
 dioxus-web/target/
-dioxus-web/Cargo.lock
 dioxus-desktop/target/
-dioxus-desktop/Cargo.lock
 **/*.rs.bk
 **/*.pdb
 
