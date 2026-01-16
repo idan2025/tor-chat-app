@@ -79,3 +79,51 @@ updates:
       - "ci"
     commit-message:
       prefix: "chore(ci)"
+
+  # Rust Backend
+  - package-ecosystem: "cargo"
+    directory: "/rust-backend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "rust"
+      - "backend"
+    reviewers:
+      - "idan2025"
+    commit-message:
+      prefix: "chore(backend)"
+
+  # Dioxus Web
+  - package-ecosystem: "cargo"
+    directory: "/dioxus-web"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "rust"
+      - "web"
+    reviewers:
+      - "idan2025"
+    commit-message:
+      prefix: "chore(web)"
+
+  # Dioxus Desktop
+  - package-ecosystem: "cargo"
+    directory: "/dioxus-desktop"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "rust"
+      - "desktop"
+    reviewers:
+      - "idan2025"
+    commit-message:
+      prefix: "chore(desktop)"
