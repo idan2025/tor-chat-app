@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 dioxus = { version = "0.5", features = ["web", "router"] }
 dioxus-web = "0.5"
-dioxus-router = "0.5"
+dioxus-router = "0.7"
 dioxus-signals = "0.5"
 
 # HTTP Client
