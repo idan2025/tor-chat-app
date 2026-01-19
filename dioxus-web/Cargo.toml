@@ -4,10 +4,8 @@ version = "0.2.0"
 edition = "2021"
 
 [dependencies]
-dioxus = { version = "0.5", features = ["web", "router"] }
-dioxus-web = "0.7"
-dioxus-router = "0.7"
-dioxus-signals = "0.5"
+dioxus = { version = "0.7", features = ["web", "router"] }
+dioxus-signals = "0.7"
 
 # HTTP Client
 reqwest = { version = "0.13", features = ["json"] }

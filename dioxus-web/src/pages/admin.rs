@@ -1,6 +1,6 @@
 use crate::{state::AppState, Route};
 use dioxus::prelude::*;
-use dioxus_router::prelude::navigator;
+// navigator available from dioxus::prelude::*
 
 #[component]
 pub fn Admin() -> Element {

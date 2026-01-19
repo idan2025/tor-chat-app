@@ -107,8 +107,12 @@ jobs:
           wget -O linuxdeploy https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
           chmod +x linuxdeploy
           mkdir -p AppDir/usr/bin
+          mkdir -p AppDir/usr/share/applications
+          mkdir -p AppDir/usr/share/icons/hicolor/scalable/apps
           cp target/release/tor-chat-desktop AppDir/usr/bin/
-          ./linuxdeploy --appdir AppDir --output appimage
+          cp tor-chat-desktop.desktop AppDir/usr/share/applications/
+          cp tor-chat-desktop.svg AppDir/usr/share/icons/hicolor/scalable/apps/
+          ./linuxdeploy --appdir AppDir --desktop-file=tor-chat-desktop.desktop --icon-file=tor-chat-desktop.svg --output appimage
 
       - name: Upload Linux binary
         uses: actions/upload-artifact@v4

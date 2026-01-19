@@ -1,6 +1,6 @@
 use crate::{models::LoginRequest, state::AppState, utils::storage, Route};
 use dioxus::prelude::*;
-use dioxus_router::prelude::{navigator, Link};
+// navigator and Link available from dioxus::prelude::*
 
 #[component]
 pub fn Login() -> Element {

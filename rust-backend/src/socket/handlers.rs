@@ -120,7 +120,7 @@ pub async fn on_authenticate(
     Data(data): Data<AuthData>,
     State(state): State<Arc<AppState>>,
 ) {
-    match get_user_from_token(&data.token, state).await {
+    match get_user_from_token(&data.token, &state).await {
         Some((user_id, user)) => {
             // Associate socket with user
             state
@@ -184,7 +184,7 @@ pub async fn on_join_room(
     Data(data): Data<JoinRoomData>,
     State(state): State<Arc<AppState>>,
 ) {
-    let user_id = match get_socket_user_info(&socket, state).await {
+    let user_id = match get_socket_user_info(&socket, &state).await {
         Some((id, _)) => id,
         None => {
             socket
@@ -215,7 +215,7 @@ pub async fn on_join_room(
     };
 
     // Check membership
-    if !check_room_membership(room_id, user_id, state).await {
+    if !check_room_membership(room_id, user_id, &state).await {
         socket
             .emit(
                 "error",
@@ -262,7 +262,7 @@ pub async fn on_send_message(
     Data(data): Data<SendMessageData>,
     State(state): State<Arc<AppState>>,
 ) {
-    let (user_id, user) = match get_socket_user_info(&socket, state).await {
+    let (user_id, user) = match get_socket_user_info(&socket, &state).await {
         Some((id, u)) => (id, u),
         None => return,
     };
@@ -273,7 +273,7 @@ pub async fn on_send_message(
     };
 
     // Check membership
-    if !check_room_membership(room_id, user_id, state).await {
+    if !check_room_membership(room_id, user_id, &state).await {
         socket
             .emit(
                 "error",
@@ -352,7 +352,7 @@ pub async fn on_typing(
     Data(data): Data<TypingData>,
     State(state): State<Arc<AppState>>,
 ) {
-    let (user_id, user) = match get_socket_user_info(&socket, state).await {
+    let (user_id, user) = match get_socket_user_info(&socket, &state).await {
         Some((id, u)) => (id, u),
         None => return,
     };
@@ -363,7 +363,7 @@ pub async fn on_typing(
     };
 
     // Check membership
-    if !check_room_membership(room_id, user_id, state).await {
+    if !check_room_membership(room_id, user_id, &state).await {
         return;
     }
 
@@ -388,7 +388,7 @@ pub async fn on_add_reaction(
     Data(data): Data<ReactionData>,
     State(state): State<Arc<AppState>>,
 ) {
-    let user_id = match get_socket_user_info(&socket, state).await {
+    let user_id = match get_socket_user_info(&socket, &state).await {
         Some((id, _)) => id,
         None => return,
     };
@@ -408,7 +408,7 @@ pub async fn on_add_reaction(
         _ => return,
     };
 
-    if !check_room_membership(message.room_id, user_id, state).await {
+    if !check_room_membership(message.room_id, user_id, &state).await {
         return;
     }
 
@@ -452,7 +452,7 @@ pub async fn on_remove_reaction(
     Data(data): Data<ReactionData>,
     State(state): State<Arc<AppState>>,
 ) {
-    let user_id = match get_socket_user_info(&socket, state).await {
+    let user_id = match get_socket_user_info(&socket, &state).await {
         Some((id, _)) => id,
         None => return,
     };
@@ -471,7 +471,7 @@ pub async fn on_remove_reaction(
         _ => return,
     };
 
-    if !check_room_membership(message.room_id, user_id, state).await {
+    if !check_room_membership(message.room_id, user_id, &state).await {
         return;
     }
 
@@ -514,7 +514,7 @@ pub async fn on_edit_message(
     Data(data): Data<EditMessageData>,
     State(state): State<Arc<AppState>>,
 ) {
-    let user_id = match get_socket_user_info(&socket, state).await {
+    let user_id = match get_socket_user_info(&socket, &state).await {
         Some((id, _)) => id,
         None => return,
     };
@@ -571,7 +571,7 @@ pub async fn on_delete_message(
     Data(data): Data<DeleteMessageData>,
     State(state): State<Arc<AppState>>,
 ) {
-    let (user_id, user) = match get_socket_user_info(&socket, state).await {
+    let (user_id, user) = match get_socket_user_info(&socket, &state).await {
         Some((id, u)) => (id, u),
         None => return,
     };
@@ -625,7 +625,7 @@ pub async fn on_mark_read(
     Data(data): Data<MarkReadData>,
     State(state): State<Arc<AppState>>,
 ) {
-    let user_id = match get_socket_user_info(&socket, state).await {
+    let user_id = match get_socket_user_info(&socket, &state).await {
         Some((id, _)) => id,
         None => return,
     };
@@ -635,7 +635,7 @@ pub async fn on_mark_read(
         Err(_) => return,
     };
 
-    if !check_room_membership(room_id, user_id, state).await {
+    if !check_room_membership(room_id, user_id, &state).await {
         return;
     }
 
@@ -659,7 +659,7 @@ pub async fn on_forward_message(
     Data(data): Data<ForwardMessageData>,
     State(state): State<Arc<AppState>>,
 ) {
-    let (user_id, user) = match get_socket_user_info(&socket, state).await {
+    let (user_id, user) = match get_socket_user_info(&socket, &state).await {
         Some((id, u)) => (id, u),
         None => return,
     };
@@ -686,10 +686,10 @@ pub async fn on_forward_message(
         };
 
     // Check membership in both rooms
-    if !check_room_membership(original_message.room_id, user_id, state).await {
+    if !check_room_membership(original_message.room_id, user_id, &state).await {
         return;
     }
-    if !check_room_membership(target_room_id, user_id, state).await {
+    if !check_room_membership(target_room_id, user_id, &state).await {
         return;
     }
 
@@ -738,7 +738,7 @@ pub async fn on_forward_message(
 
 // 12. disconnect - Handle socket disconnect
 pub async fn on_disconnect(socket: SocketRef, State(state): State<Arc<AppState>>) {
-    if let Some((user_id, _)) = get_socket_user_info(&socket, state).await {
+    if let Some((user_id, _)) = get_socket_user_info(&socket, &state).await {
         // Remove from tracking
         state.remove_socket_user(&socket.id.to_string()).await;
         state

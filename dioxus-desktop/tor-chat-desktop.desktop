@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=TOR Chat
+Comment=Secure & Anonymous Messaging
+Exec=tor-chat-desktop
+Icon=tor-chat-desktop
+Type=Application
+Categories=Network;Chat;InstantMessaging;
+Keywords=chat;messaging;secure;tor;privacy;
+StartupNotify=true
+Terminal=false

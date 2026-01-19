@@ -1,0 +1,124 @@
+# TOR Chat App - Development Progress
+
+## Last Updated: 2026-01-19
+
+## Build Status: ALL PASSING
+
+### Local Build Verification
+- dioxus-web: PASS (cargo check)
+- rust-backend: PASS (cargo check)
+- dioxus-desktop: PASS (cargo check)
+
+---
+
+## Issues Found & Fixed
+
+### Issue 1: Dioxus Version Mismatch - FIXED
+**Problem:** Mixed dioxus 0.5 with dioxus-router/dioxus-web 0.7 caused version conflicts
+**Solution:** 
+- Upgraded all dioxus dependencies to 0.7
+- Removed redundant dioxus-web and dioxus-router direct dependencies (they're included via dioxus features)
+- Removed explicit dioxus_router imports (now available via dioxus::prelude::*)
+
+**Files Modified:**
+- dioxus-web/Cargo.toml - Updated to dioxus 0.7
+- dioxus-desktop/Cargo.toml - Updated to dioxus 0.7
+- dioxus-web/src/main.rs - Removed explicit dioxus_router import
+- dioxus-web/src/pages/admin.rs - Removed explicit dioxus_router import
+- dioxus-web/src/pages/chat.rs - Removed explicit dioxus_router import
+- dioxus-web/src/pages/login.rs - Removed explicit dioxus_router import
+- dioxus-web/src/pages/register.rs - Removed explicit dioxus_router import
+
+---
+
+### Issue 2: jsonwebtoken 10.2.0 Feature Flags Bug - FIXED
+**Problem:** jsonwebtoken 10.2.0 has a bug where enabling partial features still tries to compile all algorithm signers
+**Solution:** Reverted to jsonwebtoken 9.3.x which works correctly
+
+**Files Modified:**
+- rust-backend/Cargo.toml - Changed `jsonwebtoken = "10.2"` to `jsonwebtoken = "9.3"`
+
+---
+
+### Issue 3: socketioxide 0.18 API Breaking Changes - FIXED
+**Problem:** socketioxide 0.18 has breaking API changes (emit requires reference, returns Future)
+**Solution:** Downgraded to socketioxide 0.14.x which is compatible with existing code
+
+**Files Modified:**
+- rust-backend/Cargo.toml - Changed `socketioxide = "0.18"` to `socketioxide = "0.14"`
+
+---
+
+### Issue 4: axum 0.8 API Changes - FIXED
+**Problem:** axum 0.8 no longer exports async_trait, and FromRequest trait signature changed
+**Solution:** 
+- Added async-trait as direct dependency
+- Updated FromRequest implementation to use native async fn syntax
+- Fixed state references (Arc<AppState> → &AppState)
+
+**Files Modified:**
+- rust-backend/Cargo.toml - Added `async-trait = "0.1"`
+- rust-backend/src/middleware/validation.rs - Updated FromRequest impl
+- rust-backend/src/socket/handlers.rs - Fixed state parameter references
+
+---
+
+### Issue 5: Missing AppImage Files - FIXED
+**Problem:** Linux AppImage build failed due to missing .desktop file
+**Solution:** Created required .desktop and icon files
+
+**Files Created:**
+- dioxus-desktop/tor-chat-desktop.desktop
+- dioxus-desktop/tor-chat-desktop.svg
+
+**Files Modified:**
+- .github/workflows/dioxus-desktop.yml - Updated to use desktop file and icon
+
+---
+
+## Final Dependency Versions
+
+### Dioxus Web
+- dioxus: 0.7 (with features: web, router)
+- dioxus-signals: 0.7
+- reqwest: 0.13
+
+### Rust Backend
+- axum: 0.8
+- jsonwebtoken: 9.3
+- socketioxide: 0.14
+- async-trait: 0.1
+- bcrypt: 0.18
+
+### Dioxus Desktop
+- dioxus: 0.7 (with features: desktop)
+- depends on tor-chat-web
+
+---
+
+## All Modified Files Summary
+
+1. dioxus-web/Cargo.toml
+2. dioxus-web/src/main.rs
+3. dioxus-web/src/pages/admin.rs
+4. dioxus-web/src/pages/chat.rs
+5. dioxus-web/src/pages/login.rs
+6. dioxus-web/src/pages/register.rs
+7. dioxus-desktop/Cargo.toml
+8. dioxus-desktop/tor-chat-desktop.desktop (NEW)
+9. dioxus-desktop/tor-chat-desktop.svg (NEW)
+10. rust-backend/Cargo.toml
+11. rust-backend/src/middleware/validation.rs
+12. rust-backend/src/socket/handlers.rs
+13. .github/workflows/dioxus-desktop.yml
+14. .gitignore
+15. PRD.md (NEW)
+16. progress.txt (NEW)
+
+---
+
+## Next Steps
+
+- [ ] Commit and push all changes
+- [ ] Verify CI/CD workflows pass on GitHub
+- [ ] Review remaining warnings (mostly unused code)

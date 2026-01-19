@@ -7,7 +7,7 @@ mod state;
 mod utils;
 
 use dioxus::prelude::*;
-use dioxus_router::prelude::{Routable, Router};
+// Router and Routable available from dioxus::prelude::*
 use pages::*;
 
 #[derive(Clone, Routable, PartialEq)]
