@@ -9,7 +9,7 @@ dioxus-signals = "0.7"
 
 # HTTP Client
 reqwest = { version = "0.13", features = ["json"] }
-gloo-net = { version = "0.5", features = ["websocket"] }
+gloo-net = { version = "0.6", features = ["websocket"] }
 futures = "0.3"
 
 # Serialization
