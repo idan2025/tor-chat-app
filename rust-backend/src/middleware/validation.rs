@@ -1,4 +1,4 @@
-use crate::error::{AppError, Result};
+use crate::error::AppError;
 use axum::{extract::FromRequest, http::Request, Json};
 use serde::de::DeserializeOwned;
 use validator::Validate;
@@ -12,7 +12,10 @@ where
 {
     type Rejection = AppError;
 
-    async fn from_request(req: Request<axum::body::Body>, state: &S) -> std::result::Result<Self, Self::Rejection> {
+    async fn from_request(
+        req: Request<axum::body::Body>,
+        state: &S,
+    ) -> std::result::Result<Self, Self::Rejection> {
         let Json(data) = Json::<T>::from_request(req, state)
             .await
             .map_err(|e| AppError::Validation(format!("Invalid JSON: {}", e)))?;

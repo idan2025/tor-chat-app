@@ -186,7 +186,6 @@ pub fn Chat() -> Element {
                         class: "p-4 border-t border-gray-700 bg-gray-800",
                         form {
                             onsubmit: on_send,
-                            prevent_default: "onsubmit",
                             class: "flex gap-2",
                             input {
                                 r#type: "text",

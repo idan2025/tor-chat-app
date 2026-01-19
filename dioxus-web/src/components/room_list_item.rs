@@ -2,7 +2,7 @@ use crate::models::Room;
 use dioxus::prelude::*;
 
 #[component]
-pub fn RoomListItem(room: ReadOnlySignal<Room>, on_click: EventHandler<()>) -> Element {
+pub fn RoomListItem(room: ReadSignal<Room>, on_click: EventHandler<()>) -> Element {
     let r = room();
 
     rsx! {

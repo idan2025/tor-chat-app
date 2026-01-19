@@ -3,7 +3,7 @@ use crate::utils;
 use dioxus::prelude::*;
 
 #[component]
-pub fn MessageBubble(message: ReadOnlySignal<Message>) -> Element {
+pub fn MessageBubble(message: ReadSignal<Message>) -> Element {
     let msg = message();
 
     rsx! {

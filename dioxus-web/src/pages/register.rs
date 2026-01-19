@@ -75,7 +75,6 @@ pub fn Register() -> Element {
 
                 form {
                     onsubmit: on_submit,
-                    prevent_default: "onsubmit",
                     div {
                         class: "mb-4",
                         label {
