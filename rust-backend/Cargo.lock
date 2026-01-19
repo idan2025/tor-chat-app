@@ -2985,7 +2985,7 @@ dependencies = [
  "socketioxide",
  "sodiumoxide",
  "sqlx",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "tokio",
  "tokio-socks",
  "tower 0.4.13",
