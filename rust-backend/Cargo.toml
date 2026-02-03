@@ -42,7 +42,7 @@ dotenvy = "0.15"
 anyhow = "1.0"
 thiserror = "1.0"
 once_cell = "1.19"
-bytes = "1.5"
+bytes = "1.11"
 base64 = "0.22"
 
 # HTTP client
