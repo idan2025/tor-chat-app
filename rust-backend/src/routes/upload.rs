@@ -65,27 +65,50 @@ pub async fn upload_file(
                 ));
             }
 
-            // Generate unique filename
+            // Generate unique filename with sanitized extension
             let ext = std::path::Path::new(&filename)
                 .extension()
                 .and_then(|s| s.to_str())
                 .unwrap_or("bin");
+
+            // Sanitize extension: only allow alphanumeric characters
+            let safe_ext: String = ext
+                .chars()
+                .filter(|c| c.is_ascii_alphanumeric())
+                .take(10)
+                .collect();
+            let safe_ext = if safe_ext.is_empty() { "bin".to_string() } else { safe_ext };
+
             let unique_filename = format!(
                 "{}-{}.{}",
                 chrono::Utc::now().timestamp_millis(),
                 uuid::Uuid::new_v4(),
-                ext
+                safe_ext
             );
 
             // Create upload directory if it doesn't exist
-            fs::create_dir_all(&state.config.upload_dir)
-                .await
+            let upload_dir = std::path::Path::new(&state.config.upload_dir)
+                .canonicalize()
+                .or_else(|_| {
+                    // Directory may not exist yet; canonicalize the parent
+                    std::fs::create_dir_all(&state.config.upload_dir)
+                        .and_then(|_| std::path::Path::new(&state.config.upload_dir).canonicalize())
+                })
                 .map_err(|e| {
-                    AppError::Internal(format!("Failed to create upload directory: {}", e))
+                    AppError::Internal(format!("Failed to resolve upload directory: {}", e))
                 })?;
 
+            // Construct file path and verify it stays within the upload directory
+            let file_path = upload_dir.join(&unique_filename);
+            let file_path = file_path
+                .canonicalize()
+                .unwrap_or_else(|_| upload_dir.join(&unique_filename));
+
+            if !file_path.starts_with(&upload_dir) {
+                return Err(AppError::Upload("Invalid file path".to_string()));
+            }
+
             // Write file
-            let file_path = format!("{}/{}", state.config.upload_dir, unique_filename);
             let mut file = fs::File::create(&file_path)
                 .await
                 .map_err(|e| AppError::Internal(format!("Failed to create file: {}", e)))?;
