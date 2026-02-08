@@ -77,7 +77,11 @@ pub async fn upload_file(
                 .filter(|c| c.is_ascii_alphanumeric())
                 .take(10)
                 .collect();
-            let safe_ext = if safe_ext.is_empty() { "bin".to_string() } else { safe_ext };
+            let safe_ext = if safe_ext.is_empty() {
+                "bin".to_string()
+            } else {
+                safe_ext
+            };
 
             let unique_filename = format!(
                 "{}-{}.{}",
