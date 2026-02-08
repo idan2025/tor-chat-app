@@ -19,9 +19,13 @@ impl ApiClient {
     }
 
     fn get_base_url() -> String {
-        // Use relative URL for containerized deployments with nginx proxy
-        // Falls back to stored URL or empty string (relative paths)
-        storage::get_server_url().unwrap_or_default()
+        // Use stored server URL, or fall back to current window origin
+        // reqwest 0.13 requires absolute URLs
+        storage::get_server_url().unwrap_or_else(|| {
+            web_sys::window()
+                .and_then(|w| w.location().origin().ok())
+                .unwrap_or_default()
+        })
     }
 
     fn get_auth_header(&self) -> Option<String> {
