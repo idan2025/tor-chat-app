@@ -47,7 +47,7 @@ services:
     image: idan2025/tor-chat-web:latest
     container_name: tor-chat-web
     ports:
-      - "${WEB_PORT:-8080}:80"
+      - "${WEB_PORT:-9274}:80"
     depends_on:
       - backend
     networks:
