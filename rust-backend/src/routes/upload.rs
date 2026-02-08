@@ -90,25 +90,11 @@ pub async fn upload_file(
                 safe_ext
             );
 
-            // Create upload directory if it doesn't exist
-            let upload_dir = std::path::Path::new(&state.config.upload_dir)
-                .canonicalize()
-                .or_else(|_| {
-                    // Directory may not exist yet; canonicalize the parent
-                    std::fs::create_dir_all(&state.config.upload_dir)
-                        .and_then(|_| std::path::Path::new(&state.config.upload_dir).canonicalize())
-                })
-                .map_err(|e| {
-                    AppError::Internal(format!("Failed to resolve upload directory: {}", e))
-                })?;
+            // upload_dir is validated and canonicalized at startup (Config::from_env)
+            let file_path = state.config.upload_dir.join(&unique_filename);
 
-            // Construct file path and verify it stays within the upload directory
-            let file_path = upload_dir.join(&unique_filename);
-            let file_path = file_path
-                .canonicalize()
-                .unwrap_or_else(|_| upload_dir.join(&unique_filename));
-
-            if !file_path.starts_with(&upload_dir) {
+            // Verify the resolved path stays within the upload directory
+            if !file_path.starts_with(&state.config.upload_dir) {
                 return Err(AppError::Upload("Invalid file path".to_string()));
             }
 

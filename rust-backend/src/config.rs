@@ -1,5 +1,6 @@
 use anyhow::Result;
 use std::env;
+use std::path::PathBuf;
 
 #[derive(Debug, Clone)]
 pub struct Config {
@@ -18,7 +19,7 @@ pub struct Config {
     pub rate_limit_per_second: u64,
     pub rate_limit_burst_size: u32,
     pub max_file_size: usize,
-    pub upload_dir: String,
+    pub upload_dir: PathBuf,
 }
 
 impl Config {
@@ -64,8 +65,22 @@ impl Config {
             max_file_size: env::var("MAX_FILE_SIZE")
                 .unwrap_or_else(|_| "1073741824".to_string())
                 .parse()?,
-            upload_dir: env::var("UPLOAD_DIR").unwrap_or_else(|_| "./uploads".to_string()),
+            upload_dir: Self::validated_upload_dir()?,
         })
+    }
+
+    fn validated_upload_dir() -> Result<PathBuf> {
+        let raw = env::var("UPLOAD_DIR").unwrap_or_else(|_| "./uploads".to_string());
+
+        // Reject path traversal sequences
+        if raw.contains("..") {
+            anyhow::bail!("UPLOAD_DIR must not contain '..'");
+        }
+
+        // Ensure the directory exists and resolve to an absolute canonical path
+        std::fs::create_dir_all(&raw)?;
+        let canonical = std::path::Path::new(&raw).canonicalize()?;
+        Ok(canonical)
     }
 
     pub fn server_addr(&self) -> String {

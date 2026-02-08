@@ -161,7 +161,7 @@ async fn main() -> anyhow::Result<()> {
 
     tracing::info!("🚀 Server listening on {}", addr);
     tracing::info!("📡 Socket.IO endpoint: ws://{}/socket.io/", addr);
-    tracing::info!("📁 Upload directory: {}", config.upload_dir);
+    tracing::info!("📁 Upload directory: {}", config.upload_dir.display());
     tracing::info!("🔒 Max file size: {} bytes", config.max_file_size);
 
     if config.tor_enabled {
