@@ -17,7 +17,7 @@ services:
       - tor-chat-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-toruser}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-toruser} -d ${POSTGRES_DB:-tor_chat}"]
       interval: 10s
       timeout: 5s
       retries: 5

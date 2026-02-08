@@ -87,8 +87,7 @@ async fn main() -> anyhow::Result<()> {
     let cors = CorsLayer::new()
         .allow_origin(Any)
         .allow_methods(Any)
-        .allow_headers(Any)
-        .allow_credentials(true);
+        .allow_headers(Any);
 
     // Public routes (no authentication required)
     let public_routes = Router::new()
