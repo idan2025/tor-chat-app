@@ -49,7 +49,7 @@ services:
       dockerfile: Dockerfile
     container_name: tor-chat-web
     ports:
-      - "8080:80"
+      - "9274:80"
     depends_on:
       - backend
     networks:
