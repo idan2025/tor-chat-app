@@ -18,9 +18,9 @@ pub async fn connect(database_url: &str) -> anyhow::Result<PgPool> {
 pub async fn create_schema(pool: &PgPool) -> anyhow::Result<()> {
     tracing::info!("Creating database schema...");
 
-    sqlx::query(
+    // Use raw_sql which supports multiple statements (simple query protocol)
+    sqlx::raw_sql(
         r#"
-        -- Users table
         CREATE TABLE IF NOT EXISTS users (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             username VARCHAR(50) UNIQUE NOT NULL,
@@ -36,7 +36,6 @@ pub async fn create_schema(pool: &PgPool) -> anyhow::Result<()> {
             created_at TIMESTAMP DEFAULT NOW()
         );
 
-        -- Rooms table
         CREATE TABLE IF NOT EXISTS rooms (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             name VARCHAR(100) NOT NULL,
@@ -49,7 +48,6 @@ pub async fn create_schema(pool: &PgPool) -> anyhow::Result<()> {
             created_at TIMESTAMP DEFAULT NOW()
         );
 
-        -- Messages table
         CREATE TABLE IF NOT EXISTS messages (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             room_id UUID NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
@@ -66,7 +64,6 @@ pub async fn create_schema(pool: &PgPool) -> anyhow::Result<()> {
             created_at TIMESTAMP DEFAULT NOW()
         );
 
-        -- Room members table
         CREATE TABLE IF NOT EXISTS room_members (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             room_id UUID NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
@@ -78,7 +75,6 @@ pub async fn create_schema(pool: &PgPool) -> anyhow::Result<()> {
             UNIQUE(room_id, user_id)
         );
 
-        -- Create indexes
         CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
         CREATE INDEX IF NOT EXISTS idx_users_email ON users(email) WHERE email IS NOT NULL;
         CREATE INDEX IF NOT EXISTS idx_users_is_admin ON users(is_admin);
