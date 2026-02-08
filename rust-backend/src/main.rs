@@ -104,29 +104,29 @@ async fn main() -> anyhow::Result<()> {
         // Rooms routes
         .route("/api/rooms", get(rooms::list_rooms))
         .route("/api/rooms", post(rooms::create_room))
-        .route("/api/rooms/:id", get(rooms::get_room))
-        .route("/api/rooms/:id/join", post(rooms::join_room))
-        .route("/api/rooms/:id/leave", post(rooms::leave_room))
-        .route("/api/rooms/:id", delete(rooms::delete_room))
-        .route("/api/rooms/:id/messages", get(rooms::get_messages))
-        .route("/api/rooms/:id/members", get(rooms::get_members))
-        .route("/api/rooms/:id/members", post(rooms::add_member))
+        .route("/api/rooms/{id}", get(rooms::get_room))
+        .route("/api/rooms/{id}/join", post(rooms::join_room))
+        .route("/api/rooms/{id}/leave", post(rooms::leave_room))
+        .route("/api/rooms/{id}", delete(rooms::delete_room))
+        .route("/api/rooms/{id}/messages", get(rooms::get_messages))
+        .route("/api/rooms/{id}/members", get(rooms::get_members))
+        .route("/api/rooms/{id}/members", post(rooms::add_member))
         .route(
-            "/api/rooms/:id/members/:user_id",
+            "/api/rooms/{id}/members/{user_id}",
             delete(rooms::remove_member),
         )
-        .route("/api/rooms/:id/search", get(rooms::search_messages))
+        .route("/api/rooms/{id}/search", get(rooms::search_messages))
         // Upload route
         .route("/api/upload", post(upload_file))
         // Admin routes
         .route("/api/admin/users", get(admin::list_users))
-        .route("/api/admin/users/:id/promote", post(admin::promote_user))
-        .route("/api/admin/users/:id/demote", post(admin::demote_user))
-        .route("/api/admin/users/:id/ban", post(admin::ban_user))
-        .route("/api/admin/users/:id/unban", post(admin::unban_user))
-        .route("/api/admin/users/:id", delete(admin::delete_user))
+        .route("/api/admin/users/{id}/promote", post(admin::promote_user))
+        .route("/api/admin/users/{id}/demote", post(admin::demote_user))
+        .route("/api/admin/users/{id}/ban", post(admin::ban_user))
+        .route("/api/admin/users/{id}/unban", post(admin::unban_user))
+        .route("/api/admin/users/{id}", delete(admin::delete_user))
         .route("/api/admin/rooms", get(admin::list_rooms))
-        .route("/api/admin/rooms/:id", delete(admin::delete_room))
+        .route("/api/admin/rooms/{id}", delete(admin::delete_room))
         .route("/api/admin/stats", get(admin::get_stats))
         .route_layer(axum_middleware::from_fn_with_state(
             state.clone(),
