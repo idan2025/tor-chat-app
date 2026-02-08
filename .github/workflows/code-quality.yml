@@ -35,10 +35,8 @@ jobs:
         working-directory: ./rust-backend
         run: |
           cargo audit --deny warnings \
-            --ignore RUSTSEC-2025-0134 \
             --ignore RUSTSEC-2021-0137 \
-            --ignore RUSTSEC-2023-0071 \
-            --ignore RUSTSEC-2025-0057
+            --ignore RUSTSEC-2023-0071
 
       - name: Run security audit (Dioxus Web)
         working-directory: ./dioxus-web
