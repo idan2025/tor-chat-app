@@ -74,17 +74,14 @@ impl SocketClient {
                                                 tracing::info!("Socket.IO connected!");
 
                                                 // Reassemble the WebSocket
-                                                let ws = write
-                                                    .reunite(read)
-                                                    .expect("reunite failed");
+                                                let ws =
+                                                    write.reunite(read).expect("reunite failed");
                                                 *self.ws.borrow_mut() = Some(ws);
 
                                                 // Send authentication event
                                                 // Socket.IO event format: 42["event", data]
-                                                let auth_data =
-                                                    serde_json::json!({"token": token});
-                                                self.emit_internal("authenticate", auth_data)
-                                                    .await;
+                                                let auth_data = serde_json::json!({"token": token});
+                                                self.emit_internal("authenticate", auth_data).await;
                                             }
                                         }
                                         Ok(_) => {
