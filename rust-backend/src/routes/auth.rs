@@ -14,16 +14,13 @@ pub async fn register(
     let crypto_service = CryptoService::new();
 
     // Check if username already exists
-    let existing =
-        sqlx::query_as::<_, User>("SELECT * FROM users WHERE username = $1")
-            .bind(&req.username)
-            .fetch_optional(&state.db)
-            .await?;
+    let existing = sqlx::query_as::<_, User>("SELECT * FROM users WHERE username = $1")
+        .bind(&req.username)
+        .fetch_optional(&state.db)
+        .await?;
 
     if existing.is_some() {
-        return Err(AppError::Conflict(
-            "Username already exists".to_string(),
-        ));
+        return Err(AppError::Conflict("Username already exists".to_string()));
     }
 
     // Check if this is the first user

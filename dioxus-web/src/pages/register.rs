@@ -45,7 +45,9 @@ pub fn Register() -> Element {
                         // Navigate to chat immediately
                         nav.push(Route::Chat {});
                     } else {
-                        error.set(Some("Registration succeeded but no token received".to_string()));
+                        error.set(Some(
+                            "Registration succeeded but no token received".to_string(),
+                        ));
                     }
                 }
                 Err(e) => {

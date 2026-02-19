@@ -31,7 +31,7 @@ impl SocketClient {
             .base_url
             .replace("http://", "ws://")
             .replace("https://", "wss://");
-        
+
         // Socket.IO uses this URL format for WebSocket transport
         let socket_url = format!("{}/socket.io/?EIO=4&transport=websocket", ws_url);
 
@@ -40,49 +40,57 @@ impl SocketClient {
         match WebSocket::open(&socket_url) {
             Ok(ws) => {
                 tracing::info!("WebSocket opened, waiting for Engine.IO handshake...");
-                
+
                 let (mut write, mut read) = ws.split();
-                
+
                 // Wait for Engine.IO open packet (0{...})
                 if let Some(msg) = read.next().await {
                     match msg {
                         Ok(WsMessage::Text(text)) => {
                             tracing::info!("Received Engine.IO message: {}", text);
-                            
+
                             // Engine.IO open packet starts with "0"
                             if text.starts_with("0") {
                                 // Send Socket.IO connect packet for default namespace
                                 // Socket.IO connect is "40" (4 = MESSAGE, 0 = CONNECT)
                                 let connect_msg = "40";
-                                if let Err(e) = write.send(WsMessage::Text(connect_msg.to_string())).await {
+                                if let Err(e) =
+                                    write.send(WsMessage::Text(connect_msg.to_string())).await
+                                {
                                     tracing::error!("Failed to send connect packet: {:?}", e);
                                     return;
                                 }
                                 tracing::info!("Sent Socket.IO connect packet");
-                                
+
                                 // Wait for connect acknowledgment
                                 if let Some(ack) = read.next().await {
                                     match ack {
                                         Ok(WsMessage::Text(ack_text)) => {
                                             tracing::info!("Received ack: {}", ack_text);
-                                            
+
                                             // Should receive "40" or "40{...}" for successful connect
                                             if ack_text.starts_with("40") {
                                                 *self.connected.borrow_mut() = true;
                                                 tracing::info!("Socket.IO connected!");
-                                                
+
                                                 // Reassemble the WebSocket
-                                                let ws = write.reunite(read).expect("reunite failed");
+                                                let ws = write
+                                                    .reunite(read)
+                                                    .expect("reunite failed");
                                                 *self.ws.borrow_mut() = Some(ws);
-                                                
+
                                                 // Send authentication event
                                                 // Socket.IO event format: 42["event", data]
-                                                let auth_data = serde_json::json!({"token": token});
-                                                self.emit_internal("authenticate", auth_data).await;
+                                                let auth_data =
+                                                    serde_json::json!({"token": token});
+                                                self.emit_internal("authenticate", auth_data)
+                                                    .await;
                                             }
                                         }
                                         Ok(_) => {
-                                            tracing::warn!("Unexpected message type during handshake");
+                                            tracing::warn!(
+                                                "Unexpected message type during handshake"
+                                            );
                                         }
                                         Err(e) => {
                                             tracing::error!("Error receiving ack: {:?}", e);
@@ -115,7 +123,7 @@ impl SocketClient {
             // Socket.IO event format: 42["event", data]
             let msg = format!("42{}", serde_json::json!([event, data]));
             tracing::info!("Emitting: {}", msg);
-            
+
             if let Err(e) = ws.send(WsMessage::Text(msg)).await {
                 tracing::error!("Failed to send message: {:?}", e);
             }
