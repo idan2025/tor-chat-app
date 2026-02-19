@@ -16,6 +16,7 @@ use crate::socket::handlers::*;
 use crate::state::AppState;
 use axum::{
     extract::DefaultBodyLimit,
+    http::StatusCode,
     middleware as axum_middleware,
     routing::{delete, get, post},
     Router,
@@ -64,7 +65,7 @@ async fn main() -> anyhow::Result<()> {
     let state = Arc::new(AppState::new(db_pool, config.clone(), io.clone()));
 
     // Register Socket.IO event handlers
-    io.ns("/", move |socket: socketioxide::extract::SocketRef| {
+    io.ns("/", |socket: socketioxide::extract::SocketRef| async move {
         tracing::info!("Socket connected: {}", socket.id);
 
         socket.on("authenticate", on_authenticate);
@@ -150,7 +151,10 @@ async fn main() -> anyhow::Result<()> {
             ServiceBuilder::new()
                 .layer(TraceLayer::new_for_http())
                 .layer(cors)
-                .layer(TimeoutLayer::new(Duration::from_secs(30))),
+                .layer(TimeoutLayer::with_status_code(
+                    StatusCode::REQUEST_TIMEOUT,
+                    Duration::from_secs(30),
+                )),
         )
         .with_state(state.clone());
 

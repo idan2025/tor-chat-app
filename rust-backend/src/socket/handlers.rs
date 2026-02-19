@@ -145,7 +145,7 @@ pub async fn on_authenticate(
             socket
                 .emit(
                     "authenticated",
-                    serde_json::json!({
+                    &serde_json::json!({
                         "userId": user_id,
                         "username": user.username
                     }),
@@ -157,23 +157,24 @@ pub async fn on_authenticate(
                 .broadcast()
                 .emit(
                     "user_online",
-                    serde_json::json!({
+                    &serde_json::json!({
                         "userId": user_id,
                         "username": user.username
                     }),
                 )
+                .await
                 .ok();
         }
         None => {
             socket
                 .emit(
                     "error",
-                    ErrorResponse {
+                    &ErrorResponse {
                         error: "Authentication failed".to_string(),
                     },
                 )
                 .ok();
-            socket.disconnect().ok();
+            let _ = socket.disconnect();
         }
     }
 }
@@ -190,7 +191,7 @@ pub async fn on_join_room(
             socket
                 .emit(
                     "error",
-                    ErrorResponse {
+                    &ErrorResponse {
                         error: "Not authenticated".to_string(),
                     },
                 )
@@ -205,7 +206,7 @@ pub async fn on_join_room(
             socket
                 .emit(
                     "error",
-                    ErrorResponse {
+                    &ErrorResponse {
                         error: "Invalid room ID".to_string(),
                     },
                 )
@@ -219,7 +220,7 @@ pub async fn on_join_room(
         socket
             .emit(
                 "error",
-                ErrorResponse {
+                &ErrorResponse {
                     error: "Not a member of this room".to_string(),
                 },
             )
@@ -228,14 +229,14 @@ pub async fn on_join_room(
     }
 
     // Join socket room
-    socket.join(data.room_id.clone()).ok();
+    socket.join(data.room_id.clone());
 
     tracing::info!("User {} joined room {}", user_id, room_id);
 
     socket
         .emit(
             "joined_room",
-            serde_json::json!({
+            &serde_json::json!({
                 "roomId": data.room_id
             }),
         )
@@ -244,12 +245,12 @@ pub async fn on_join_room(
 
 // 3. leave_room - Leave a room
 pub async fn on_leave_room(socket: SocketRef, Data(data): Data<LeaveRoomData>) {
-    socket.leave(data.room_id.clone()).ok();
+    socket.leave(data.room_id.clone());
 
     socket
         .emit(
             "left_room",
-            serde_json::json!({
+            &serde_json::json!({
                 "roomId": data.room_id
             }),
         )
@@ -277,7 +278,7 @@ pub async fn on_send_message(
         socket
             .emit(
                 "error",
-                ErrorResponse {
+                &ErrorResponse {
                     error: "Not a member of this room".to_string(),
                 },
             )
@@ -309,7 +310,7 @@ pub async fn on_send_message(
             socket
                 .emit(
                     "error",
-                    ErrorResponse {
+                    &ErrorResponse {
                         error: "Failed to send message".to_string(),
                     },
                 )
@@ -343,6 +344,7 @@ pub async fn on_send_message(
     socket
         .within(data.room_id)
         .emit("new_message", &message_response)
+        .await
         .ok();
 }
 
@@ -373,12 +375,13 @@ pub async fn on_typing(
         .within(data.room_id)
         .emit(
             "user_typing",
-            serde_json::json!({
+            &serde_json::json!({
                 "userId": user_id,
                 "username": user.username,
                 "typing": data.typing
             }),
         )
+        .await
         .ok();
 }
 
@@ -436,13 +439,14 @@ pub async fn on_add_reaction(
         .within(message.room_id.to_string())
         .emit(
             "reaction_added",
-            serde_json::json!({
+            &serde_json::json!({
                 "messageId": message_id,
                 "userId": user_id,
                 "emoji": data.emoji,
                 "reactions": reactions
             }),
         )
+        .await
         .ok();
 }
 
@@ -498,13 +502,14 @@ pub async fn on_remove_reaction(
         .within(message.room_id.to_string())
         .emit(
             "reaction_removed",
-            serde_json::json!({
+            &serde_json::json!({
                 "messageId": message_id,
                 "userId": user_id,
                 "emoji": data.emoji,
                 "reactions": reactions
             }),
         )
+        .await
         .ok();
 }
 
@@ -538,7 +543,7 @@ pub async fn on_edit_message(
         socket
             .emit(
                 "error",
-                ErrorResponse {
+                &ErrorResponse {
                     error: "Can only edit your own messages".to_string(),
                 },
             )
@@ -556,12 +561,13 @@ pub async fn on_edit_message(
         .within(message.room_id.to_string())
         .emit(
             "message_edited",
-            serde_json::json!({
+            &serde_json::json!({
                 "messageId": message_id,
                 "content": data.content,
                 "updatedAt": chrono::Utc::now()
             }),
         )
+        .await
         .ok();
 }
 
@@ -595,7 +601,7 @@ pub async fn on_delete_message(
         socket
             .emit(
                 "error",
-                ErrorResponse {
+                &ErrorResponse {
                     error: "Permission denied".to_string(),
                 },
             )
@@ -612,10 +618,11 @@ pub async fn on_delete_message(
         .within(message.room_id.to_string())
         .emit(
             "message_deleted",
-            serde_json::json!({
+            &serde_json::json!({
                 "messageId": message_id
             }),
         )
+        .await
         .ok();
 }
 
@@ -645,11 +652,12 @@ pub async fn on_mark_read(
         .within(data.room_id)
         .emit(
             "message_read",
-            serde_json::json!({
+            &serde_json::json!({
                 "userId": user_id,
                 "messageId": data.message_id
             }),
         )
+        .await
         .ok();
 }
 
@@ -733,6 +741,7 @@ pub async fn on_forward_message(
     socket
         .within(data.target_room_id)
         .emit("new_message", &message_response)
+        .await
         .ok();
 }
 
@@ -758,10 +767,11 @@ pub async fn on_disconnect(socket: SocketRef, State(state): State<Arc<AppState>>
             .broadcast()
             .emit(
                 "user_offline",
-                serde_json::json!({
+                &serde_json::json!({
                     "userId": user_id
                 }),
             )
+            .await
             .ok();
     }
 }
@@ -769,12 +779,12 @@ pub async fn on_disconnect(socket: SocketRef, State(state): State<Arc<AppState>>
 // Additional events for room management
 
 // 13. room_created - Broadcast when a room is created
-pub fn broadcast_room_created(socket: &SocketRef, room: &Room) {
+pub async fn broadcast_room_created(socket: &SocketRef, room: &Room) {
     socket
         .broadcast()
         .emit(
             "room_created",
-            serde_json::json!({
+            &serde_json::json!({
                 "id": room.id,
                 "name": room.name,
                 "description": room.description,
@@ -783,75 +793,91 @@ pub fn broadcast_room_created(socket: &SocketRef, room: &Room) {
                 "createdAt": room.created_at
             }),
         )
+        .await
         .ok();
 }
 
 // 14. room_deleted - Broadcast when a room is deleted
-pub fn broadcast_room_deleted(socket: &SocketRef, room_id: Uuid) {
+pub async fn broadcast_room_deleted(socket: &SocketRef, room_id: Uuid) {
     socket
         .broadcast()
         .emit(
             "room_deleted",
-            serde_json::json!({
+            &serde_json::json!({
                 "roomId": room_id
             }),
         )
+        .await
         .ok();
 }
 
 // 15. member_joined - Broadcast when a user joins a room
-pub fn broadcast_member_joined(socket: &SocketRef, room_id: Uuid, user_id: Uuid, username: &str) {
+pub async fn broadcast_member_joined(
+    socket: &SocketRef,
+    room_id: Uuid,
+    user_id: Uuid,
+    username: &str,
+) {
     socket
         .within(room_id.to_string())
         .emit(
             "member_joined",
-            serde_json::json!({
+            &serde_json::json!({
                 "roomId": room_id,
                 "userId": user_id,
                 "username": username
             }),
         )
+        .await
         .ok();
 }
 
 // 16. member_left - Broadcast when a user leaves a room
-pub fn broadcast_member_left(socket: &SocketRef, room_id: Uuid, user_id: Uuid, username: &str) {
+pub async fn broadcast_member_left(
+    socket: &SocketRef,
+    room_id: Uuid,
+    user_id: Uuid,
+    username: &str,
+) {
     socket
         .within(room_id.to_string())
         .emit(
             "member_left",
-            serde_json::json!({
+            &serde_json::json!({
                 "roomId": room_id,
                 "userId": user_id,
                 "username": username
             }),
         )
+        .await
         .ok();
 }
 
 // 17. member_removed - Broadcast when a user is removed from a room
-pub fn broadcast_member_removed(socket: &SocketRef, room_id: Uuid, user_id: Uuid) {
+pub async fn broadcast_member_removed(socket: &SocketRef, room_id: Uuid, user_id: Uuid) {
     socket
         .within(room_id.to_string())
         .emit(
             "member_removed",
-            serde_json::json!({
+            &serde_json::json!({
                 "roomId": room_id,
                 "userId": user_id
             }),
         )
+        .await
         .ok();
 }
 
 // 18. user_banned - Broadcast when a user is banned
-pub fn broadcast_user_banned(socket: &SocketRef, user_id: Uuid) {
+pub async fn broadcast_user_banned(socket: &SocketRef, user_id: Uuid) {
     socket
         .broadcast()
         .emit(
             "user_banned",
-            serde_json::json!({
+            &serde_json::json!({
                 "userId": user_id
             }),
         )
+        .await
         .ok();
 }
