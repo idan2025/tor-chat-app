@@ -219,8 +219,8 @@ pub async fn on_join_room(
     if !check_room_membership(room_id, user_id, &state).await {
         socket
             .emit(
-                    "error",
-                    &ErrorResponse {
+                "error",
+                &ErrorResponse {
                     error: "Not a member of this room".to_string(),
                 },
             )
@@ -235,8 +235,8 @@ pub async fn on_join_room(
 
     socket
         .emit(
-                    "joined_room",
-                    &serde_json::json!({
+            "joined_room",
+            &serde_json::json!({
                 "roomId": data.room_id
             }),
         )
@@ -249,8 +249,8 @@ pub async fn on_leave_room(socket: SocketRef, Data(data): Data<LeaveRoomData>) {
 
     socket
         .emit(
-                    "left_room",
-                    &serde_json::json!({
+            "left_room",
+            &serde_json::json!({
                 "roomId": data.room_id
             }),
         )
@@ -277,8 +277,8 @@ pub async fn on_send_message(
     if !check_room_membership(room_id, user_id, &state).await {
         socket
             .emit(
-                    "error",
-                    &ErrorResponse {
+                "error",
+                &ErrorResponse {
                     error: "Not a member of this room".to_string(),
                 },
             )
@@ -345,7 +345,7 @@ pub async fn on_send_message(
         .within(data.room_id)
         .emit("new_message", &message_response)
         .await
-                .ok();
+        .ok();
 }
 
 // 5. typing - Indicate typing status
@@ -374,15 +374,15 @@ pub async fn on_typing(
         .broadcast()
         .within(data.room_id)
         .emit(
-                    "user_typing",
-                    &serde_json::json!({
+            "user_typing",
+            &serde_json::json!({
                 "userId": user_id,
                 "username": user.username,
                 "typing": data.typing
             }),
         )
         .await
-                .ok();
+        .ok();
 }
 
 // 6. add_reaction - Add reaction to a message
@@ -438,8 +438,8 @@ pub async fn on_add_reaction(
     socket
         .within(message.room_id.to_string())
         .emit(
-                    "reaction_added",
-                    &serde_json::json!({
+            "reaction_added",
+            &serde_json::json!({
                 "messageId": message_id,
                 "userId": user_id,
                 "emoji": data.emoji,
@@ -447,7 +447,7 @@ pub async fn on_add_reaction(
             }),
         )
         .await
-                .ok();
+        .ok();
 }
 
 // 7. remove_reaction - Remove reaction from a message
@@ -501,8 +501,8 @@ pub async fn on_remove_reaction(
     socket
         .within(message.room_id.to_string())
         .emit(
-                    "reaction_removed",
-                    &serde_json::json!({
+            "reaction_removed",
+            &serde_json::json!({
                 "messageId": message_id,
                 "userId": user_id,
                 "emoji": data.emoji,
@@ -510,7 +510,7 @@ pub async fn on_remove_reaction(
             }),
         )
         .await
-                .ok();
+        .ok();
 }
 
 // 8. edit_message - Edit a message
@@ -542,8 +542,8 @@ pub async fn on_edit_message(
     if message.user_id != user_id {
         socket
             .emit(
-                    "error",
-                    &ErrorResponse {
+                "error",
+                &ErrorResponse {
                     error: "Can only edit your own messages".to_string(),
                 },
             )
@@ -560,15 +560,15 @@ pub async fn on_edit_message(
     socket
         .within(message.room_id.to_string())
         .emit(
-                    "message_edited",
-                    &serde_json::json!({
+            "message_edited",
+            &serde_json::json!({
                 "messageId": message_id,
                 "content": data.content,
                 "updatedAt": chrono::Utc::now()
             }),
         )
         .await
-                .ok();
+        .ok();
 }
 
 // 9. delete_message - Delete a message
@@ -600,8 +600,8 @@ pub async fn on_delete_message(
     if message.user_id != user_id && !user.is_admin {
         socket
             .emit(
-                    "error",
-                    &ErrorResponse {
+                "error",
+                &ErrorResponse {
                     error: "Permission denied".to_string(),
                 },
             )
@@ -617,13 +617,13 @@ pub async fn on_delete_message(
     socket
         .within(message.room_id.to_string())
         .emit(
-                    "message_deleted",
-                    &serde_json::json!({
+            "message_deleted",
+            &serde_json::json!({
                 "messageId": message_id
             }),
         )
         .await
-                .ok();
+        .ok();
 }
 
 // 10. mark_read - Mark message as read
@@ -651,14 +651,14 @@ pub async fn on_mark_read(
         .broadcast()
         .within(data.room_id)
         .emit(
-                    "message_read",
-                    &serde_json::json!({
+            "message_read",
+            &serde_json::json!({
                 "userId": user_id,
                 "messageId": data.message_id
             }),
         )
         .await
-                .ok();
+        .ok();
 }
 
 // 11. forward_message - Forward a message to another room
@@ -742,7 +742,7 @@ pub async fn on_forward_message(
         .within(data.target_room_id)
         .emit("new_message", &message_response)
         .await
-                .ok();
+        .ok();
 }
 
 // 12. disconnect - Handle socket disconnect
@@ -766,13 +766,13 @@ pub async fn on_disconnect(socket: SocketRef, State(state): State<Arc<AppState>>
         socket
             .broadcast()
             .emit(
-                    "user_offline",
-                    &serde_json::json!({
+                "user_offline",
+                &serde_json::json!({
                     "userId": user_id
                 }),
             )
             .await
-                .ok();
+            .ok();
     }
 }
 
@@ -783,8 +783,8 @@ pub async fn broadcast_room_created(socket: &SocketRef, room: &Room) {
     socket
         .broadcast()
         .emit(
-                    "room_created",
-                    &serde_json::json!({
+            "room_created",
+            &serde_json::json!({
                 "id": room.id,
                 "name": room.name,
                 "description": room.description,
@@ -794,7 +794,7 @@ pub async fn broadcast_room_created(socket: &SocketRef, room: &Room) {
             }),
         )
         .await
-                .ok();
+        .ok();
 }
 
 // 14. room_deleted - Broadcast when a room is deleted
@@ -802,45 +802,55 @@ pub async fn broadcast_room_deleted(socket: &SocketRef, room_id: Uuid) {
     socket
         .broadcast()
         .emit(
-                    "room_deleted",
-                    &serde_json::json!({
+            "room_deleted",
+            &serde_json::json!({
                 "roomId": room_id
             }),
         )
         .await
-                .ok();
+        .ok();
 }
 
 // 15. member_joined - Broadcast when a user joins a room
-pub async fn broadcast_member_joined(socket: &SocketRef, room_id: Uuid, user_id: Uuid, username: &str) {
+pub async fn broadcast_member_joined(
+    socket: &SocketRef,
+    room_id: Uuid,
+    user_id: Uuid,
+    username: &str,
+) {
     socket
         .within(room_id.to_string())
         .emit(
-                    "member_joined",
-                    &serde_json::json!({
+            "member_joined",
+            &serde_json::json!({
                 "roomId": room_id,
                 "userId": user_id,
                 "username": username
             }),
         )
         .await
-                .ok();
+        .ok();
 }
 
 // 16. member_left - Broadcast when a user leaves a room
-pub async fn broadcast_member_left(socket: &SocketRef, room_id: Uuid, user_id: Uuid, username: &str) {
+pub async fn broadcast_member_left(
+    socket: &SocketRef,
+    room_id: Uuid,
+    user_id: Uuid,
+    username: &str,
+) {
     socket
         .within(room_id.to_string())
         .emit(
-                    "member_left",
-                    &serde_json::json!({
+            "member_left",
+            &serde_json::json!({
                 "roomId": room_id,
                 "userId": user_id,
                 "username": username
             }),
         )
         .await
-                .ok();
+        .ok();
 }
 
 // 17. member_removed - Broadcast when a user is removed from a room
@@ -848,14 +858,14 @@ pub async fn broadcast_member_removed(socket: &SocketRef, room_id: Uuid, user_id
     socket
         .within(room_id.to_string())
         .emit(
-                    "member_removed",
-                    &serde_json::json!({
+            "member_removed",
+            &serde_json::json!({
                 "roomId": room_id,
                 "userId": user_id
             }),
         )
         .await
-                .ok();
+        .ok();
 }
 
 // 18. user_banned - Broadcast when a user is banned
@@ -863,11 +873,11 @@ pub async fn broadcast_user_banned(socket: &SocketRef, user_id: Uuid) {
     socket
         .broadcast()
         .emit(
-                    "user_banned",
-                    &serde_json::json!({
+            "user_banned",
+            &serde_json::json!({
                 "userId": user_id
             }),
         )
         .await
-                .ok();
+        .ok();
 }
