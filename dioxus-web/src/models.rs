@@ -6,7 +6,6 @@ use uuid::Uuid;
 pub struct User {
     pub id: Uuid,
     pub username: String,
-    pub email: Option<String>,
     #[serde(rename = "displayName")]
     pub display_name: Option<String>,
     pub avatar: Option<String>,
@@ -73,7 +72,6 @@ pub struct LoginRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RegisterRequest {
     pub username: String,
-    pub email: String,
     pub password: String,
     #[serde(rename = "displayName")]
     pub display_name: Option<String>,

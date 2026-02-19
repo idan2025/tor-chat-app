@@ -24,11 +24,9 @@ pub async fn create_schema(pool: &PgPool) -> anyhow::Result<()> {
         CREATE TABLE IF NOT EXISTS users (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             username VARCHAR(50) UNIQUE NOT NULL,
-            email VARCHAR(255) UNIQUE,
             password_hash VARCHAR(255) NOT NULL,
             public_key TEXT,
             display_name VARCHAR(100),
-            is_public BOOLEAN DEFAULT FALSE,
             avatar TEXT,
             is_online BOOLEAN DEFAULT FALSE,
             last_seen TIMESTAMPTZ,
@@ -36,6 +34,9 @@ pub async fn create_schema(pool: &PgPool) -> anyhow::Result<()> {
             is_banned BOOLEAN DEFAULT FALSE,
             created_at TIMESTAMPTZ DEFAULT NOW()
         );
+
+        ALTER TABLE users DROP COLUMN IF EXISTS email;
+        ALTER TABLE users DROP COLUMN IF EXISTS is_public;
 
         CREATE TABLE IF NOT EXISTS rooms (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -78,7 +79,6 @@ pub async fn create_schema(pool: &PgPool) -> anyhow::Result<()> {
         );
 
         CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
-        CREATE INDEX IF NOT EXISTS idx_users_email ON users(email) WHERE email IS NOT NULL;
         CREATE INDEX IF NOT EXISTS idx_users_is_admin ON users(is_admin);
         CREATE INDEX IF NOT EXISTS idx_users_is_banned ON users(is_banned);
         CREATE INDEX IF NOT EXISTS idx_users_is_online ON users(is_online);

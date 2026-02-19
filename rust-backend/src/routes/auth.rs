@@ -15,15 +15,14 @@ pub async fn register(
 
     // Check if username already exists
     let existing =
-        sqlx::query_as::<_, User>("SELECT * FROM users WHERE username = $1 OR email = $2")
+        sqlx::query_as::<_, User>("SELECT * FROM users WHERE username = $1")
             .bind(&req.username)
-            .bind(&req.email)
             .fetch_optional(&state.db)
             .await?;
 
     if existing.is_some() {
         return Err(AppError::Conflict(
-            "Username or email already exists".to_string(),
+            "Username already exists".to_string(),
         ));
     }
 
@@ -41,12 +40,11 @@ pub async fn register(
 
     // Create user
     let user = sqlx::query_as::<_, User>(
-        "INSERT INTO users (username, email, password_hash, public_key, display_name, is_admin)
-         VALUES ($1, $2, $3, $4, $5, $6)
+        "INSERT INTO users (username, password_hash, public_key, display_name, is_admin)
+         VALUES ($1, $2, $3, $4, $5)
          RETURNING *",
     )
     .bind(&req.username)
-    .bind(&req.email)
     .bind(&password_hash)
     .bind(&public_key)
     .bind(req.display_name.as_ref().unwrap_or(&req.username))
@@ -136,7 +134,7 @@ pub async fn me(Extension(auth): Extension<AuthUser>) -> Result<Json<serde_json:
 
 pub async fn list_users(State(state): State<Arc<AppState>>) -> Result<Json<serde_json::Value>> {
     let users = sqlx::query_as::<_, User>(
-        "SELECT id, username, email, password_hash, public_key, display_name, avatar,
+        "SELECT id, username, password_hash, public_key, display_name, avatar,
          is_online, last_seen, is_admin, is_banned, created_at
          FROM users ORDER BY username ASC",
     )

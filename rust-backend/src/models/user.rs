@@ -8,7 +8,6 @@ use validator::Validate;
 pub struct User {
     pub id: Uuid,
     pub username: String,
-    pub email: Option<String>,
     #[serde(skip_serializing)]
     pub password_hash: String,
     pub public_key: Option<String>,
@@ -26,13 +25,11 @@ pub struct RegisterRequest {
     #[validate(length(min = 3, max = 50))]
     pub username: String,
 
-    #[validate(email)]
-    pub email: Option<String>,
-
     #[validate(length(min = 8, max = 100))]
     pub password: String,
 
     #[validate(length(max = 100))]
+    #[serde(alias = "displayName")]
     pub display_name: Option<String>,
 }
 
@@ -53,7 +50,6 @@ pub struct AuthResponse {
 pub struct UserResponse {
     pub id: Uuid,
     pub username: String,
-    pub email: Option<String>,
     pub public_key: Option<String>,
     pub display_name: Option<String>,
     pub avatar: Option<String>,
@@ -68,7 +64,6 @@ impl From<User> for UserResponse {
         Self {
             id: user.id,
             username: user.username,
-            email: user.email,
             public_key: user.public_key,
             display_name: user.display_name,
             avatar: user.avatar,

@@ -6,7 +6,6 @@ pub fn Register() -> Element {
     let state = use_context::<AppState>();
     let nav = navigator();
     let mut username = use_signal(String::new);
-    let mut email = use_signal(String::new);
     let mut password = use_signal(String::new);
     let mut error = use_signal(|| None::<String>);
     let mut loading = use_signal(|| false);
@@ -19,7 +18,6 @@ pub fn Register() -> Element {
 
             let req = RegisterRequest {
                 username: username(),
-                email: email(),
                 password: password(),
                 display_name: None,
             };
@@ -98,21 +96,6 @@ pub fn Register() -> Element {
                             placeholder: "Choose a username",
                             value: "{username}",
                             oninput: move |e| username.set(e.value().clone()),
-                        }
-                    }
-
-                    div {
-                        class: "mb-4",
-                        label {
-                            class: "block text-gray-300 text-sm font-bold mb-2",
-                            "Email"
-                        }
-                        input {
-                            r#type: "email",
-                            class: "w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-purple-500",
-                            placeholder: "Enter your email",
-                            value: "{email}",
-                            oninput: move |e| email.set(e.value().clone()),
                         }
                     }
 
