@@ -31,7 +31,7 @@ pub struct Room {
     #[serde(rename = "isPublic")]
     pub is_public: bool,
     #[serde(rename = "creatorId")]
-    pub creator_id: Uuid,
+    pub creator_id: Option<Uuid>,
     #[serde(rename = "roomKey")]
     pub room_key: Option<String>,
     #[serde(rename = "maxMembers")]

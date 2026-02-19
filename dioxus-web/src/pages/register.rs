@@ -10,7 +10,8 @@ pub fn Register() -> Element {
     let mut error = use_signal(|| None::<String>);
     let mut loading = use_signal(|| false);
 
-    let on_submit = move |_| {
+    let on_submit = move |e: Event<FormData>| {
+        e.prevent_default();
         let state = state.clone();
         spawn(async move {
             loading.set(true);

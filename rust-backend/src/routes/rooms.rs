@@ -29,6 +29,7 @@ pub struct SearchQuery {
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct MessageResponse {
     pub id: Uuid,
     pub room_id: Uuid,

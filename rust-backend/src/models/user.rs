@@ -47,6 +47,7 @@ pub struct AuthResponse {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct UserResponse {
     pub id: Uuid,
     pub username: String,
@@ -56,6 +57,7 @@ pub struct UserResponse {
     pub is_online: bool,
     pub last_seen: Option<DateTime<Utc>>,
     pub is_admin: bool,
+    pub is_banned: bool,
     pub created_at: DateTime<Utc>,
 }
 
@@ -70,6 +72,7 @@ impl From<User> for UserResponse {
             is_online: user.is_online,
             last_seen: user.last_seen,
             is_admin: user.is_admin,
+            is_banned: user.is_banned,
             created_at: user.created_at,
         }
     }

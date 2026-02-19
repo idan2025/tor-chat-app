@@ -40,13 +40,14 @@ pub struct CreateRoomRequest {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RoomResponse {
     pub id: Uuid,
     pub name: String,
     pub description: Option<String>,
     #[serde(rename = "type")]
     pub room_type: String,
-    pub encryption_key: Option<String>,
+    pub room_key: Option<String>,
     pub creator_id: Option<Uuid>,
     pub max_members: i32,
     pub is_public: bool,
@@ -61,7 +62,7 @@ impl Room {
             name: self.name.clone(),
             description: self.description.clone(),
             room_type: self.room_type.clone(),
-            encryption_key: None,
+            room_key: None,
             creator_id: self.creator_id,
             max_members: self.max_members,
             is_public: self.is_public,
@@ -76,7 +77,7 @@ impl Room {
             name: self.name.clone(),
             description: self.description.clone(),
             room_type: self.room_type.clone(),
-            encryption_key: Some(self.encryption_key.clone()),
+            room_key: Some(self.encryption_key.clone()),
             creator_id: self.creator_id,
             max_members: self.max_members,
             is_public: self.is_public,
