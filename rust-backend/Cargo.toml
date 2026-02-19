@@ -19,7 +19,7 @@ socketioxide = { version = "0.18", features = ["state"] }
 sqlx = { version = "0.8", features = ["runtime-tokio", "postgres", "uuid", "chrono", "json", "macros"], default-features = false }
 
 # Authentication & Security
-jsonwebtoken = "10.3"
+jsonwebtoken = { version = "10.3", features = ["rust_crypto"] }
 bcrypt = "0.18"
 sodiumoxide = "0.2"
 

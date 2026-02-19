@@ -28,12 +28,13 @@ pub async fn create_schema(pool: &PgPool) -> anyhow::Result<()> {
             password_hash VARCHAR(255) NOT NULL,
             public_key TEXT,
             display_name VARCHAR(100),
+            is_public BOOLEAN DEFAULT FALSE,
             avatar TEXT,
             is_online BOOLEAN DEFAULT FALSE,
-            last_seen TIMESTAMP,
+            last_seen TIMESTAMPTZ,
             is_admin BOOLEAN DEFAULT FALSE,
             is_banned BOOLEAN DEFAULT FALSE,
-            created_at TIMESTAMP DEFAULT NOW()
+            created_at TIMESTAMPTZ DEFAULT NOW()
         );
 
         CREATE TABLE IF NOT EXISTS rooms (
@@ -44,8 +45,9 @@ pub async fn create_schema(pool: &PgPool) -> anyhow::Result<()> {
             encryption_key TEXT NOT NULL,
             creator_id UUID REFERENCES users(id),
             max_members INTEGER DEFAULT 100,
+            is_public BOOLEAN DEFAULT FALSE,
             avatar TEXT,
-            created_at TIMESTAMP DEFAULT NOW()
+            created_at TIMESTAMPTZ DEFAULT NOW()
         );
 
         CREATE TABLE IF NOT EXISTS messages (
@@ -58,10 +60,10 @@ pub async fn create_schema(pool: &PgPool) -> anyhow::Result<()> {
             attachments TEXT[],
             parent_message_id UUID REFERENCES messages(id),
             is_edited BOOLEAN DEFAULT FALSE,
-            edited_at TIMESTAMP,
+            edited_at TIMESTAMPTZ,
             is_deleted BOOLEAN DEFAULT FALSE,
-            deleted_at TIMESTAMP,
-            created_at TIMESTAMP DEFAULT NOW()
+            deleted_at TIMESTAMPTZ,
+            created_at TIMESTAMPTZ DEFAULT NOW()
         );
 
         CREATE TABLE IF NOT EXISTS room_members (
@@ -69,9 +71,9 @@ pub async fn create_schema(pool: &PgPool) -> anyhow::Result<()> {
             room_id UUID NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
             user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
             role VARCHAR(20) NOT NULL DEFAULT 'member',
-            joined_at TIMESTAMP DEFAULT NOW(),
+            joined_at TIMESTAMPTZ DEFAULT NOW(),
             last_read_message_id UUID REFERENCES messages(id),
-            last_read_at TIMESTAMP,
+            last_read_at TIMESTAMPTZ,
             UNIQUE(room_id, user_id)
         );
 

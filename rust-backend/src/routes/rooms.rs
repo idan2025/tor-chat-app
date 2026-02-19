@@ -79,15 +79,16 @@ pub async fn create_room(
     let room_key = crypto_service.generate_room_key();
 
     let room = sqlx::query_as::<_, Room>(
-        "INSERT INTO rooms (name, description, is_public, creator_id, room_key, max_members)
-         VALUES ($1, $2, $3, $4, $5, $6)
+        "INSERT INTO rooms (name, description, is_public, creator_id, encryption_key, type, max_members)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
          RETURNING *",
     )
     .bind(&req.name)
     .bind(&req.description)
-    .bind(req.is_public)
+    .bind(req.is_public.unwrap_or(false))
     .bind(auth.user_id)
     .bind(&room_key)
+    .bind(if req.is_public.unwrap_or(false) { "public" } else { "private" })
     .bind(req.max_members.unwrap_or(100))
     .fetch_one(&state.db)
     .await?;
