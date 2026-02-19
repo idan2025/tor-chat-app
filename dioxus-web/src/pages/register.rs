@@ -1,6 +1,5 @@
 use crate::{models::RegisterRequest, state::AppState, utils::storage, Route};
 use dioxus::prelude::*;
-// navigator and Link available from dioxus::prelude::*
 
 #[component]
 pub fn Register() -> Element {
@@ -28,19 +27,31 @@ pub fn Register() -> Element {
             match state.api.register(req).await {
                 Ok(response) => {
                     if let Some(token) = response.get("token").and_then(|t| t.as_str()) {
+                        // Save token first
                         storage::save_token(token);
 
+                        // Set user state
                         if let Some(user_data) = response.get("user") {
                             if let Ok(user) = serde_json::from_value(user_data.clone()) {
                                 state.set_current_user(user).await;
                             }
                         }
 
-                        state.socket.connect(token).await;
+                        // Try to connect socket (non-blocking, continue even if fails)
+                        let socket_state = state.clone();
+                        let socket_token = token.to_string();
+                        spawn(async move {
+                            socket_state.socket.connect(&socket_token).await;
+                        });
+
+                        // Navigate to chat immediately
                         nav.push(Route::Chat {});
+                    } else {
+                        error.set(Some("Registration succeeded but no token received".to_string()));
                     }
                 }
                 Err(e) => {
+                    tracing::error!("Registration failed: {}", e);
                     error.set(Some(e));
                 }
             }
