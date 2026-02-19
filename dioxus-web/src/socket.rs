@@ -1,10 +1,8 @@
 use futures::{SinkExt, StreamExt};
 use gloo_net::websocket::{futures::WebSocket, Message as WsMessage};
-use gloo_timers::future::TimeoutFuture;
 use serde_json::Value;
 use std::cell::RefCell;
 use std::rc::Rc;
-use wasm_bindgen_futures::spawn_local;
 
 pub struct SocketClient {
     ws: Rc<RefCell<Option<WebSocket>>>,
