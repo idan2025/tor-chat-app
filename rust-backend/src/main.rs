@@ -152,8 +152,8 @@ async fn main() -> anyhow::Result<()> {
                 .layer(TraceLayer::new_for_http())
                 .layer(cors)
                 .layer(TimeoutLayer::with_status_code(
-                    Duration::from_secs(30),
                     StatusCode::REQUEST_TIMEOUT,
+                    Duration::from_secs(30),
                 )),
         )
         .with_state(state.clone());

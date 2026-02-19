@@ -148,7 +148,7 @@ pub async fn on_authenticate(
                         "username": user.username
                     }),
                 )
-                .await.ok();
+                .ok();
 
             // Broadcast user online to all sockets
             socket
@@ -166,7 +166,7 @@ pub async fn on_authenticate(
                         error: "Authentication failed".to_string(),
                     },
                 )
-                .await.ok();
+                .ok();
             socket.disconnect().ok();
         }
     }
@@ -186,7 +186,7 @@ pub async fn on_join_room(
                         error: "Not authenticated".to_string(),
                     },
                 )
-                .await.ok();
+                .ok();
             return;
         }
     };
@@ -199,7 +199,7 @@ pub async fn on_join_room(
                         error: "Invalid room ID".to_string(),
                     },
                 )
-                .await.ok();
+                .ok();
             return;
         }
     };
@@ -211,7 +211,7 @@ pub async fn on_join_room(
                     error: "Not a member of this room".to_string(),
                 },
             )
-            .await.ok();
+            .ok();
         return;
     }
 
@@ -225,7 +225,7 @@ pub async fn on_join_room(
                 "roomId": data.room_id
             }),
         )
-        .await.ok();
+        .ok();
 }
 
 // 3. leave_room - Leave a room
@@ -237,7 +237,7 @@ pub async fn on_leave_room(socket: SocketRef, Data(data): Data<LeaveRoomData>) {
                 "roomId": data.room_id
             }),
         )
-        .await.ok();
+        .ok();
 }
 
 // 4. send_message - Send a message to a room
@@ -263,7 +263,7 @@ pub async fn on_send_message(
                     error: "Not a member of this room".to_string(),
                 },
             )
-            .await.ok();
+            .ok();
         return;
     }
 
@@ -293,7 +293,7 @@ pub async fn on_send_message(
                         error: "Failed to send message".to_string(),
                     },
                 )
-                .await.ok();
+                .ok();
             return;
         }
     };
@@ -514,7 +514,7 @@ pub async fn on_edit_message(
                     error: "Can only edit your own messages".to_string(),
                 },
             )
-            .await.ok();
+            .ok();
         return;
     }
 
@@ -567,7 +567,7 @@ pub async fn on_delete_message(
                     error: "Permission denied".to_string(),
                 },
             )
-            .await.ok();
+            .ok();
         return;
     }
 
