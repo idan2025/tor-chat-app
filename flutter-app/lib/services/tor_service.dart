@@ -1,99 +1,124 @@
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:socks_proxy/socks_client.dart';
+import 'package:tor/tor.dart';
+
+enum TorConnectionStatus {
+  stopped,
+  bootstrapping,
+  connected,
+  error,
+}
 
 class TorService extends ChangeNotifier {
-  bool _isEnabled = false;
-  bool _isConnected = false;
-  String _socksHost = '127.0.0.1';
-  int _socksPort = 9050;
-  String? _hiddenServiceAddress;
+  TorConnectionStatus _status = TorConnectionStatus.stopped;
+  int _socksPort = 0;
+  int _bootstrapProgress = 0;
+  String? _errorMessage;
 
-  bool get isEnabled => _isEnabled;
-  bool get isConnected => _isConnected;
-  String get socksHost => _socksHost;
+  TorConnectionStatus get status => _status;
   int get socksPort => _socksPort;
-  String? get hiddenServiceAddress => _hiddenServiceAddress;
+  int get bootstrapProgress => _bootstrapProgress;
+  String? get errorMessage => _errorMessage;
+  bool get isConnected => _status == TorConnectionStatus.connected;
+  bool get isRunning =>
+      _status == TorConnectionStatus.connected ||
+      _status == TorConnectionStatus.bootstrapping;
 
-  TorService() {
-    _loadSettings();
+  static bool isOnionUrl(String url) {
+    final lower = url.toLowerCase();
+    return lower.contains('.onion') && !lower.contains('.onion.');
   }
 
-  Future<void> _loadSettings() async {
-    final prefs = await SharedPreferences.getInstance();
-    _isEnabled = prefs.getBool('tor_enabled') ?? false;
-    _socksHost = prefs.getString('tor_socks_host') ?? '127.0.0.1';
-    _socksPort = prefs.getInt('tor_socks_port') ?? 9050;
-    notifyListeners();
-
-    if (_isEnabled) {
-      await start();
+  /// Normalize .onion URL: use http:// (Tor provides encryption)
+  static String normalizeOnionUrl(String url) {
+    final trimmed = url.trim();
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      if (isOnionUrl(trimmed) && trimmed.startsWith('https://')) {
+        return 'http://${trimmed.substring(8)}';
+      }
+      return trimmed;
     }
+    return 'http://$trimmed';
   }
 
-  Future<void> setEnabled(bool enabled) async {
-    _isEnabled = enabled;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('tor_enabled', enabled);
-
-    if (enabled) {
-      await start();
-    } else {
-      await stop();
-    }
-
-    notifyListeners();
-  }
-
+  /// Start the embedded Tor daemon and set up SOCKS5 proxy
   Future<void> start() async {
-    if (_isConnected) return;
+    if (_status == TorConnectionStatus.connected) return;
 
     try {
-      // TOR integration is handled via SOCKS5 proxy configuration
-      // The actual TOR daemon should be running externally
-      // This service just manages the connection settings
-      _isConnected = true;
+      _status = TorConnectionStatus.bootstrapping;
+      _bootstrapProgress = 0;
+      _errorMessage = null;
+      notifyListeners();
+
+      // Initialize and start Tor
+      await Tor.init();
+      await Tor.instance.start();
+
+      _socksPort = Tor.instance.port;
+      _status = TorConnectionStatus.connected;
+      _bootstrapProgress = 100;
+
+      // Set global HttpOverrides so all Dart HTTP goes through SOCKS5
+      HttpOverrides.global = _TorHttpOverrides(_socksPort);
+
+      debugPrint('Tor started on SOCKS5 port $_socksPort');
       notifyListeners();
     } catch (e) {
-      debugPrint('Failed to start TOR: $e');
-      _isConnected = false;
+      _status = TorConnectionStatus.error;
+      _errorMessage = e.toString();
+      debugPrint('Tor start failed: $e');
       notifyListeners();
     }
   }
 
+  /// Stop Tor and reset proxy settings
   Future<void> stop() async {
-    if (!_isConnected) return;
-
     try {
-      _isConnected = false;
-      _hiddenServiceAddress = null;
+      if (Tor.instance.started) {
+        await Tor.instance.stop();
+      }
+      HttpOverrides.global = null;
+      _status = TorConnectionStatus.stopped;
+      _socksPort = 0;
+      _bootstrapProgress = 0;
+      _errorMessage = null;
       notifyListeners();
     } catch (e) {
-      debugPrint('Failed to stop TOR: $e');
+      debugPrint('Tor stop failed: $e');
     }
   }
 
-  String getSocksProxy() {
-    return 'SOCKS5 $_socksHost:$_socksPort';
-  }
-
-  Future<bool> checkConnection() async {
-    if (!_isEnabled) return false;
-
-    try {
-      // In a real implementation, this would check if the SOCKS5 proxy is reachable
-      // For now, just return the current connection status
-      return _isConnected;
-    } catch (e) {
-      debugPrint('TOR connection check failed: $e');
-      return false;
-    }
+  /// Restart Tor
+  Future<void> restart() async {
+    await stop();
+    await start();
   }
 
   @override
   void dispose() {
     stop();
     super.dispose();
+  }
+}
+
+/// HttpOverrides that routes all Dart HTTP traffic through SOCKS5
+class _TorHttpOverrides extends HttpOverrides {
+  final int socksPort;
+
+  _TorHttpOverrides(this.socksPort);
+
+  @override
+  HttpClient createHttpClient(SecurityContext? context) {
+    final client = super.createHttpClient(context);
+    SocksTCPClient.assignToHttpClient(client, [
+      ProxySettings(InternetAddress.loopbackIPv4, socksPort),
+    ]);
+    return client;
   }
 }
 

@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
-import 'package:tor_chat/services/tor_service.dart';
+import 'package:tor_chat/services/tor_service.dart' show TorService, torServiceProvider;
 
 class SocketService extends ChangeNotifier {
   io.Socket? _socket;
@@ -27,21 +27,18 @@ class SocketService extends ChangeNotifier {
 
     _token = token;
 
-    // Configure socket options
-    final options = io.OptionBuilder()
-        .setTransports(['websocket'])
+    // When on .onion, force long-polling (works through SOCKS5 via HttpOverrides).
+    // Raw WebSocket transport doesn't go through HttpOverrides.
+    final usePolling = TorService.isOnionUrl(_serverUrl);
+
+    final optionBuilder = io.OptionBuilder()
+        .setTransports(usePolling ? ['polling'] : ['websocket'])
         .enableAutoConnect()
         .enableReconnection()
         .setReconnectionAttempts(5)
-        .setReconnectionDelay(1000)
-        .build();
+        .setReconnectionDelay(1000);
 
-    // Add TOR proxy if enabled
-    if (_torService.isEnabled && _torService.isConnected) {
-      // Note: socket_io_client doesn't directly support SOCKS proxy
-      // In production, you'd need to use a custom HTTP client or tunnel
-      debugPrint('TOR enabled, but socket_io_client proxy not implemented');
-    }
+    final options = optionBuilder.build();
 
     _socket = io.io(_serverUrl, options);
 

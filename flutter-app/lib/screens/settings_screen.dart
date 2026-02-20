@@ -73,38 +73,35 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           Card(
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            child: SwitchListTile(
-              secondary: const Icon(Icons.security),
-              title: const Text('Enable TOR'),
-              subtitle: torService.isEnabled
-                  ? Text(torService.isConnected
-                      ? 'Connected'
-                      : 'Connecting...')
-                  : const Text('Disabled'),
-              value: torService.isEnabled,
-              onChanged: (value) {
-                torService.setEnabled(value);
-              },
+            child: ListTile(
+              leading: Icon(
+                Icons.security,
+                color: torService.isConnected ? Colors.green : Colors.grey,
+              ),
+              title: const Text('Tor Status'),
+              subtitle: Text(_torStatusText(torService)),
             ),
           ),
-          if (torService.isEnabled && torService.isConnected)
+          if (torService.isConnected)
             Card(
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               child: ListTile(
                 leading: const Icon(Icons.info),
-                title: const Text('SOCKS Proxy'),
-                subtitle: Text('${torService.socksHost}:${torService.socksPort}'),
+                title: const Text('SOCKS Port'),
+                subtitle: Text('127.0.0.1:${torService.socksPort}'),
               ),
             ),
-          if (torService.hiddenServiceAddress != null)
-            Card(
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              child: ListTile(
-                leading: const Icon(Icons.link),
-                title: const Text('Hidden Service'),
-                subtitle: Text(torService.hiddenServiceAddress!),
-              ),
+          Card(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: ListTile(
+              leading: const Icon(Icons.refresh),
+              title: const Text('Restart Tor'),
+              subtitle: const Text('Restart the embedded Tor connection'),
+              onTap: torService.isConnected
+                  ? () => torService.restart()
+                  : null,
             ),
+          ),
           const Divider(height: 32),
           const Padding(
             padding: EdgeInsets.all(16),
@@ -226,6 +223,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ],
       ),
     );
+  }
+
+  String _torStatusText(TorService torService) {
+    switch (torService.status) {
+      case TorConnectionStatus.stopped:
+        return 'Not running (connect to a .onion server to start)';
+      case TorConnectionStatus.bootstrapping:
+        return 'Bootstrapping... ${torService.bootstrapProgress}%';
+      case TorConnectionStatus.connected:
+        return 'Connected';
+      case TorConnectionStatus.error:
+        return 'Error: ${torService.errorMessage ?? "unknown"}';
+    }
   }
 
   Future<void> _clearCache() async {

@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import 'package:dio/io.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:socks_proxy/socks_client.dart';
 import 'package:tor_chat/services/tor_service.dart';
 
 class ApiService {
@@ -59,6 +60,24 @@ class ApiService {
   void setBaseUrl(String url) {
     _baseUrl = url;
     _dio.options.baseUrl = url;
+  }
+
+  /// Configure Dio to route through a SOCKS5 proxy (for Tor)
+  void enableTorProxy(int socksPort) {
+    _dio.httpClientAdapter = IOHttpClientAdapter(
+      createHttpClient: () {
+        final client = HttpClient();
+        SocksTCPClient.assignToHttpClient(client, [
+          ProxySettings(InternetAddress.loopbackIPv4, socksPort),
+        ]);
+        return client;
+      },
+    );
+  }
+
+  /// Disable SOCKS5 proxy, revert to direct connections
+  void disableTorProxy() {
+    _dio.httpClientAdapter = IOHttpClientAdapter();
   }
 
   // Set auth token
