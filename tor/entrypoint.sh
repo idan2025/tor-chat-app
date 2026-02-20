@@ -35,4 +35,20 @@ HiddenServicePort 80 ${TARGET_IP}:${TARGET_PORT}
 TORRC
 
 echo "Starting Tor with hidden service pointing to ${TARGET_IP}:${TARGET_PORT}"
+
+# Print the .onion address once Tor creates the hostname file
+HOSTNAME_FILE="/var/lib/tor/hidden_service/service1/hostname"
+(
+    # Wait for hostname file to appear (created after bootstrap)
+    for i in $(seq 1 120); do
+        if [ -f "$HOSTNAME_FILE" ]; then
+            echo "============================================"
+            echo "  .onion address: $(cat "$HOSTNAME_FILE")"
+            echo "============================================"
+            break
+        fi
+        sleep 1
+    done
+) &
+
 exec tor -f /tmp/torrc
