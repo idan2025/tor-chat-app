@@ -44,21 +44,15 @@ fn App() -> Element {
 
 #[component]
 fn Home() -> Element {
-    let _state = use_context::<state::AppState>();
     let nav = navigator();
 
+    // Simple redirect: if token exists go to chat, otherwise login
     use_effect(move || {
-        spawn(async move {
-            if let Some(token) = utils::storage::get_token() {
-                if state::auth::verify_token(&token).await.is_ok() {
-                    nav.push(Route::Chat {});
-                } else {
-                    nav.push(Route::Login {});
-                }
-            } else {
-                nav.push(Route::Login {});
-            }
-        });
+        if utils::storage::get_token().is_some() {
+            nav.push(Route::Chat {});
+        } else {
+            nav.push(Route::Login {});
+        }
     });
 
     rsx! {

@@ -1,6 +1,5 @@
 use crate::{models::LoginRequest, state::AppState, utils::storage, Route};
 use dioxus::prelude::*;
-// navigator and Link available from dioxus::prelude::*
 
 #[component]
 pub fn Login() -> Element {
@@ -10,6 +9,13 @@ pub fn Login() -> Element {
     let mut password = use_signal(String::new);
     let mut error = use_signal(|| None::<String>);
     let mut loading = use_signal(|| false);
+
+    // If already authenticated, redirect to chat
+    use_effect(move || {
+        if storage::get_token().is_some() {
+            nav.push(Route::Chat {});
+        }
+    });
 
     let on_submit = move |e: Event<FormData>| {
         e.prevent_default();
@@ -30,14 +36,20 @@ pub fn Login() -> Element {
 
                         if let Some(user_data) = response.get("user") {
                             if let Ok(user) = serde_json::from_value(user_data.clone()) {
-                                state.set_current_user(user).await;
+                                state.set_current_user(user);
                             }
                         }
 
-                        // Connect socket
-                        state.socket.connect(token).await;
+                        // Connect socket in background - don't block navigation
+                        let socket = state.socket.clone();
+                        let token_owned = token.to_string();
+                        spawn(async move {
+                            socket.connect(&token_owned).await;
+                        });
 
                         nav.push(Route::Chat {});
+                    } else {
+                        error.set(Some("Login succeeded but no token received".to_string()));
                     }
                 }
                 Err(e) => {

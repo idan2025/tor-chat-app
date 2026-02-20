@@ -1,18 +1,19 @@
-use crate::{models::RegisterRequest, state::AppState, utils::storage, Route};
+use crate::{models::RegisterRequest, state::AppState, Route};
 use dioxus::prelude::*;
 
 #[component]
 pub fn Register() -> Element {
-    let state = use_context::<AppState>();
+    let _state = use_context::<AppState>();
     let nav = navigator();
     let mut username = use_signal(String::new);
     let mut password = use_signal(String::new);
     let mut error = use_signal(|| None::<String>);
+    let mut success = use_signal(|| false);
     let mut loading = use_signal(|| false);
 
     let on_submit = move |e: Event<FormData>| {
         e.prevent_default();
-        let state = state.clone();
+        let state = _state.clone();
         spawn(async move {
             loading.set(true);
             error.set(None);
@@ -24,32 +25,11 @@ pub fn Register() -> Element {
             };
 
             match state.api.register(req).await {
-                Ok(response) => {
-                    if let Some(token) = response.get("token").and_then(|t| t.as_str()) {
-                        // Save token first
-                        storage::save_token(token);
-
-                        // Set user state
-                        if let Some(user_data) = response.get("user") {
-                            if let Ok(user) = serde_json::from_value(user_data.clone()) {
-                                state.set_current_user(user).await;
-                            }
-                        }
-
-                        // Try to connect socket (non-blocking, continue even if fails)
-                        let socket_state = state.clone();
-                        let socket_token = token.to_string();
-                        spawn(async move {
-                            socket_state.socket.connect(&socket_token).await;
-                        });
-
-                        // Navigate to chat immediately
-                        nav.push(Route::Chat {});
-                    } else {
-                        error.set(Some(
-                            "Registration succeeded but no token received".to_string(),
-                        ));
-                    }
+                Ok(_response) => {
+                    success.set(true);
+                    // Navigate to login after short delay so user sees success message
+                    gloo_timers::future::TimeoutFuture::new(1000).await;
+                    nav.push(Route::Login {});
                 }
                 Err(e) => {
                     tracing::error!("Registration failed: {}", e);
@@ -78,6 +58,13 @@ pub fn Register() -> Element {
                     }
                 }
 
+                if success() {
+                    div {
+                        class: "bg-green-900 border border-green-700 text-green-200 px-4 py-3 rounded mb-4",
+                        "Account created successfully! Redirecting to login..."
+                    }
+                }
+
                 if let Some(err) = error() {
                     div {
                         class: "bg-red-900 border border-red-700 text-red-200 px-4 py-3 rounded mb-4",
@@ -96,7 +83,7 @@ pub fn Register() -> Element {
                         input {
                             r#type: "text",
                             class: "w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-purple-500",
-                            placeholder: "Choose a username",
+                            placeholder: "Choose a username (min 3 characters)",
                             value: "{username}",
                             oninput: move |e| username.set(e.value().clone()),
                         }
@@ -111,7 +98,7 @@ pub fn Register() -> Element {
                         input {
                             r#type: "password",
                             class: "w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-purple-500",
-                            placeholder: "Choose a password",
+                            placeholder: "Choose a password (min 8 characters)",
                             value: "{password}",
                             oninput: move |e| password.set(e.value().clone()),
                         }
@@ -120,7 +107,7 @@ pub fn Register() -> Element {
                     button {
                         r#type: "submit",
                         class: "w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-lg transition duration-200",
-                        disabled: loading(),
+                        disabled: loading() || success(),
                         if loading() {
                             "Creating account..."
                         } else {

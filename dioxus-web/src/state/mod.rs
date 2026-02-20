@@ -3,23 +3,24 @@ pub mod auth;
 use crate::api::ApiClient;
 use crate::models::{Message, Room, User};
 use crate::socket::SocketClient;
+use dioxus::prelude::*;
 use std::rc::Rc;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct AppState {
     pub api: Arc<ApiClient>,
     pub socket: Rc<SocketClient>,
-    pub current_user: Arc<RwLock<Option<User>>>,
-    pub rooms: Arc<RwLock<Vec<Room>>>,
-    pub messages: Arc<RwLock<Vec<Message>>>,
-    pub current_room: Arc<RwLock<Option<Room>>>,
+    pub current_user: Signal<Option<User>>,
+    pub rooms: Signal<Vec<Room>>,
+    pub messages: Signal<Vec<Message>>,
+    pub current_room: Signal<Option<Room>>,
+    pub authenticated: Signal<bool>,
 }
 
 impl AppState {
     pub fn new() -> Self {
         let api = Arc::new(ApiClient::new());
-        // Use current origin for socket connection (works with nginx proxy)
         let socket_url = web_sys::window()
             .and_then(|w| w.location().origin().ok())
             .unwrap_or_else(|| "http://localhost:3000".to_string());
@@ -28,31 +29,46 @@ impl AppState {
         Self {
             api,
             socket,
-            current_user: Arc::new(RwLock::new(None)),
-            rooms: Arc::new(RwLock::new(Vec::new())),
-            messages: Arc::new(RwLock::new(Vec::new())),
-            current_room: Arc::new(RwLock::new(None)),
+            current_user: Signal::new(None),
+            rooms: Signal::new(Vec::new()),
+            messages: Signal::new(Vec::new()),
+            current_room: Signal::new(None),
+            authenticated: Signal::new(false),
         }
     }
 
     pub async fn load_rooms(&self) -> Result<(), String> {
         let rooms = self.api.get_rooms().await?;
-        *self.rooms.write().unwrap() = rooms;
+        let mut rooms_sig = self.rooms.clone();
+        rooms_sig.set(rooms);
         Ok(())
     }
 
     pub async fn load_messages(&self, room_id: &str) -> Result<(), String> {
         let messages = self.api.get_room_messages(room_id, 50, 0).await?;
-        *self.messages.write().unwrap() = messages;
+        let mut messages_sig = self.messages.clone();
+        messages_sig.set(messages);
         Ok(())
     }
 
-    pub async fn set_current_user(&self, user: User) {
-        *self.current_user.write().unwrap() = Some(user);
+    pub fn set_current_user(&self, user: User) {
+        let mut user_sig = self.current_user.clone();
+        let mut auth_sig = self.authenticated.clone();
+        user_sig.set(Some(user));
+        auth_sig.set(true);
     }
 
     pub async fn clear_auth(&self) {
-        *self.current_user.write().unwrap() = None;
+        let mut user_sig = self.current_user.clone();
+        let mut auth_sig = self.authenticated.clone();
+        let mut rooms_sig = self.rooms.clone();
+        let mut messages_sig = self.messages.clone();
+        let mut room_sig = self.current_room.clone();
+        user_sig.set(None);
+        auth_sig.set(false);
+        rooms_sig.set(Vec::new());
+        messages_sig.set(Vec::new());
+        room_sig.set(None);
         self.socket.disconnect().await;
         crate::utils::storage::remove_token();
     }

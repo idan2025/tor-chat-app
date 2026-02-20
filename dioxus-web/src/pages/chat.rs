@@ -1,53 +1,64 @@
-use crate::{models::Room, state::AppState, utils, Route};
+use crate::{state::AppState, utils, utils::storage, Route};
 use dioxus::prelude::*;
-// navigator available from dioxus::prelude::*
 
 #[component]
 pub fn Chat() -> Element {
     let state = use_context::<AppState>();
     let nav = navigator();
-    let mut selected_room = use_signal(|| None::<Room>);
+    let mut selected_room_idx = use_signal(|| None::<usize>);
     let mut message_input = use_signal(String::new);
+    let mut loading = use_signal(|| true);
+    let mut error_msg = use_signal(|| None::<String>);
 
-    // Clone everything we need from state upfront
-    let rooms_ref = state.rooms.clone();
-    let messages_ref = state.messages.clone();
+    // Auth guard - check token exists, redirect if not
+    let has_token = storage::get_token().is_some();
+
+    // Clone state for each closure that needs it
     let state_for_effect = state.clone();
     let state_for_send = state.clone();
     let state_for_logout = state.clone();
     let state_for_rooms = state.clone();
 
     use_effect(move || {
-        let state_clone = state_for_effect.clone();
+        if !has_token {
+            nav.push(Route::Login {});
+            return;
+        }
+
+        let state = state_for_effect.clone();
         spawn(async move {
-            if state_clone.load_rooms().await.is_err() {
-                nav.push(Route::Login {});
+            match state.load_rooms().await {
+                Ok(()) => {
+                    loading.set(false);
+                }
+                Err(e) => {
+                    tracing::error!("Failed to load rooms: {}", e);
+                    if e.contains("401") || e.contains("Unauthorized") || e.contains("unauthorized") {
+                        storage::remove_token();
+                        nav.push(Route::Login {});
+                    } else {
+                        error_msg.set(Some(format!("Failed to load rooms: {}", e)));
+                        loading.set(false);
+                    }
+                }
             }
         });
     });
 
-    let rooms = use_resource(move || {
-        let rooms = rooms_ref.clone();
-        async move { rooms.read().unwrap().clone() }
-    });
-
-    let messages = use_resource(move || {
-        let messages = messages_ref.clone();
-        async move { messages.read().unwrap().clone() }
-    });
-
     let on_send = move |_| {
-        if let Some(room) = selected_room() {
-            let content = message_input();
-            if !content.is_empty() {
-                let state = state_for_send.clone();
-                spawn(async move {
-                    state
-                        .socket
-                        .send_message(&room.id.to_string(), &content)
-                        .await;
-                    message_input.set(String::new());
-                });
+        let rooms = state_for_send.rooms.read();
+        let selected = selected_room_idx();
+        if let Some(idx) = selected {
+            if let Some(room) = rooms.get(idx) {
+                let content = message_input();
+                if !content.is_empty() {
+                    let room_id = room.id.to_string();
+                    let state = state_for_send.clone();
+                    spawn(async move {
+                        state.socket.send_message(&room_id, &content).await;
+                        message_input.set(String::new());
+                    });
+                }
             }
         }
     };
@@ -59,6 +70,21 @@ pub fn Chat() -> Element {
             nav.push(Route::Login {});
         });
     };
+
+    if !has_token {
+        return rsx! {
+            div {
+                class: "flex items-center justify-center min-h-screen bg-gray-900",
+                p { class: "text-gray-400", "Redirecting to login..." }
+            }
+        };
+    }
+
+    let rooms = state.rooms.read();
+    let messages = state.messages.read();
+
+    // Get selected room info
+    let selected_room = selected_room_idx().and_then(|idx| rooms.get(idx).cloned());
 
     rsx! {
         div {
@@ -77,42 +103,58 @@ pub fn Chat() -> Element {
 
                 div {
                     class: "flex-1 overflow-y-auto",
-                    match &*rooms.read_unchecked() {
-                        Some(rooms_data) => rsx! {
-                            for room in rooms_data.iter() {
-                                div {
-                                    key: "{room.id}",
-                                    class: "p-4 hover:bg-gray-700 cursor-pointer border-b border-gray-700",
-                                    onclick: {
-                                        let r = room.clone();
-                                        let state = state_for_rooms.clone();
-                                        move |_| {
-                                            let r = r.clone();
-                                            let state = state.clone();
-                                            spawn(async move {
-                                                selected_room.set(Some(r.clone()));
-                                                state.socket.join_room(&r.id.to_string()).await;
-                                                let _ = state.load_messages(&r.id.to_string()).await;
-                                            });
-                                        }
-                                    },
+                    if loading() {
+                        div {
+                            class: "p-4 text-center text-gray-400",
+                            "Loading rooms..."
+                        }
+                    } else if let Some(err) = error_msg() {
+                        div {
+                            class: "p-4 text-center text-red-400 text-sm",
+                            "{err}"
+                        }
+                    } else if rooms.is_empty() {
+                        div {
+                            class: "p-4 text-center text-gray-400",
+                            "No rooms available"
+                        }
+                    } else {
+                        for (idx, room) in rooms.iter().enumerate() {
+                            {
+                                let room_name = room.name.clone();
+                                let room_desc = room.description.clone();
+                                let room_id = room.id.to_string();
+                                let is_selected = selected_room_idx() == Some(idx);
+                                let state = state_for_rooms.clone();
+                                rsx! {
                                     div {
-                                        class: "font-semibold text-white",
-                                        "{room.name}"
-                                    }
-                                    if let Some(desc) = &room.description {
+                                        key: "{room_id}",
+                                        class: if is_selected {
+                                            "p-4 bg-gray-700 cursor-pointer border-b border-gray-700"
+                                        } else {
+                                            "p-4 hover:bg-gray-700 cursor-pointer border-b border-gray-700"
+                                        },
+                                        onclick: move |_| {
+                                            selected_room_idx.set(Some(idx));
+                                            let state = state.clone();
+                                            let rid = room_id.clone();
+                                            spawn(async move {
+                                                state.socket.join_room(&rid).await;
+                                                let _ = state.load_messages(&rid).await;
+                                            });
+                                        },
                                         div {
-                                            class: "text-sm text-gray-400 truncate",
-                                            "{desc}"
+                                            class: "font-semibold text-white",
+                                            "{room_name}"
+                                        }
+                                        if let Some(desc) = &room_desc {
+                                            div {
+                                                class: "text-sm text-gray-400 truncate",
+                                                "{desc}"
+                                            }
                                         }
                                     }
                                 }
-                            }
-                        },
-                        None => rsx! {
-                            div {
-                                class: "p-4 text-center text-gray-400",
-                                "Loading rooms..."
                             }
                         }
                     }
@@ -131,7 +173,7 @@ pub fn Chat() -> Element {
             // Chat area
             div {
                 class: "flex-1 flex flex-col",
-                if let Some(room) = selected_room() {
+                if let Some(room) = &selected_room {
                     div {
                         class: "p-4 border-b border-gray-700 bg-gray-800",
                         h2 {
@@ -149,31 +191,31 @@ pub fn Chat() -> Element {
                     // Messages
                     div {
                         class: "flex-1 overflow-y-auto p-4",
-                        if let Some(msgs_data) = &*messages.read_unchecked() {
-                            {
-                                let reversed: Vec<_> = msgs_data.iter().rev().collect();
-                                rsx! {
-                                    for message in reversed.iter() {
-                                        div {
-                                            key: "{message.id}",
-                                            class: "mb-4",
+                        if messages.is_empty() {
+                            div {
+                                class: "text-center text-gray-400 mt-4",
+                                "No messages yet. Start the conversation!"
+                            }
+                        } else {
+                            for message in messages.iter().rev() {
+                                div {
+                                    key: "{message.id}",
+                                    class: "mb-4",
+                                    div {
+                                        class: "bg-gray-800 rounded-lg p-3 max-w-md",
+                                        if let Some(user) = &message.user {
                                             div {
-                                                class: "bg-gray-800 rounded-lg p-3 max-w-md",
-                                                if let Some(user) = &message.user {
-                                                    div {
-                                                        class: "text-sm font-bold text-purple-400 mb-1",
-                                                        "{user.username}"
-                                                    }
-                                                }
-                                                div {
-                                                    class: "text-white",
-                                                    "{message.content}"
-                                                }
-                                                div {
-                                                    class: "text-xs text-gray-400 mt-1",
-                                                    "{utils::format_time(&message.created_at)}"
-                                                }
+                                                class: "text-sm font-bold text-purple-400 mb-1",
+                                                "{user.username}"
                                             }
+                                        }
+                                        div {
+                                            class: "text-white",
+                                            "{message.content}"
+                                        }
+                                        div {
+                                            class: "text-xs text-gray-400 mt-1",
+                                            "{utils::format_time(&message.created_at)}"
                                         }
                                     }
                                 }
@@ -206,7 +248,11 @@ pub fn Chat() -> Element {
                         class: "flex-1 flex items-center justify-center",
                         p {
                             class: "text-gray-400 text-lg",
-                            "Select a room to start chatting"
+                            if loading() {
+                                "Loading..."
+                            } else {
+                                "Select a room to start chatting"
+                            }
                         }
                     }
                 }
