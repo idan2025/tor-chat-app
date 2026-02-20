@@ -39,31 +39,31 @@ impl AppState {
 
     pub async fn load_rooms(&self) -> Result<(), String> {
         let rooms = self.api.get_rooms().await?;
-        let mut rooms_sig = self.rooms.clone();
+        let mut rooms_sig = self.rooms;
         rooms_sig.set(rooms);
         Ok(())
     }
 
     pub async fn load_messages(&self, room_id: &str) -> Result<(), String> {
         let messages = self.api.get_room_messages(room_id, 50, 0).await?;
-        let mut messages_sig = self.messages.clone();
+        let mut messages_sig = self.messages;
         messages_sig.set(messages);
         Ok(())
     }
 
     pub fn set_current_user(&self, user: User) {
-        let mut user_sig = self.current_user.clone();
-        let mut auth_sig = self.authenticated.clone();
+        let mut user_sig = self.current_user;
+        let mut auth_sig = self.authenticated;
         user_sig.set(Some(user));
         auth_sig.set(true);
     }
 
     pub async fn clear_auth(&self) {
-        let mut user_sig = self.current_user.clone();
-        let mut auth_sig = self.authenticated.clone();
-        let mut rooms_sig = self.rooms.clone();
-        let mut messages_sig = self.messages.clone();
-        let mut room_sig = self.current_room.clone();
+        let mut user_sig = self.current_user;
+        let mut auth_sig = self.authenticated;
+        let mut rooms_sig = self.rooms;
+        let mut messages_sig = self.messages;
+        let mut room_sig = self.current_room;
         user_sig.set(None);
         auth_sig.set(false);
         rooms_sig.set(Vec::new());
