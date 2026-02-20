@@ -45,8 +45,8 @@ services:
       TOR_SOCKS_PORT: ${TOR_SOCKS_PORT:-9050}
       TOR_HIDDEN_SERVICE_DIR: /var/lib/tor/hidden_service
       PORT: 3000
-    ports:
-      - "${BACKEND_PORT:-3000}:3000"
+    expose:
+      - "3000"
     depends_on:
       postgres:
         condition: service_healthy
