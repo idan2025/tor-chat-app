@@ -28,6 +28,13 @@ pub struct SearchQuery {
     q: String,
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SendMessageBody {
+    pub content: String,
+    pub message_type: Option<String>,
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MessageResponse {
@@ -355,6 +362,72 @@ pub async fn get_messages(
     }
 
     Ok(Json(serde_json::json!({ "messages": message_responses })))
+}
+
+// POST /api/rooms/:id/messages - Send message
+pub async fn send_message(
+    State(state): State<Arc<AppState>>,
+    Extension(auth): Extension<AuthUser>,
+    Path(room_id): Path<Uuid>,
+    Json(body): Json<SendMessageBody>,
+) -> Result<Json<serde_json::Value>> {
+    // Check if user is member
+    let is_member = sqlx::query_scalar::<_, bool>(
+        "SELECT EXISTS(SELECT 1 FROM room_members WHERE room_id = $1 AND user_id = $2)",
+    )
+    .bind(room_id)
+    .bind(auth.user_id)
+    .fetch_one(&state.db)
+    .await?;
+
+    if !is_member {
+        return Err(AppError::Authorization(
+            "Not a member of this room".to_string(),
+        ));
+    }
+
+    let message_type = body.message_type.unwrap_or_else(|| "text".to_string());
+
+    let msg = sqlx::query_as::<_, Message>(
+        "INSERT INTO messages (room_id, user_id, content, message_type)
+         VALUES ($1, $2, $3, $4)
+         RETURNING *",
+    )
+    .bind(room_id)
+    .bind(auth.user_id)
+    .bind(&body.content)
+    .bind(&message_type)
+    .fetch_one(&state.db)
+    .await?;
+
+    let response = MessageResponse {
+        id: msg.id,
+        room_id: msg.room_id,
+        user_id: msg.user_id,
+        content: msg.content,
+        message_type: msg.message_type,
+        reply_to: msg.reply_to,
+        forwarded_from: msg.forwarded_from,
+        reactions: msg.reactions,
+        metadata: msg.metadata,
+        created_at: msg.created_at,
+        updated_at: msg.updated_at,
+        user: serde_json::json!({
+            "id": auth.user.id,
+            "username": auth.user.username,
+            "displayName": auth.user.display_name,
+            "avatar": auth.user.avatar,
+            "publicKey": auth.user.public_key,
+        }),
+    };
+
+    tracing::info!(
+        "Message sent in room {} by user {}",
+        room_id,
+        auth.user.username
+    );
+
+    Ok(Json(serde_json::json!({ "message": response })))
 }
 
 // GET /api/rooms/:id/members - Get room members

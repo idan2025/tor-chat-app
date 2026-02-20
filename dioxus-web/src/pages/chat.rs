@@ -87,10 +87,16 @@ pub fn Chat() -> Element {
                     let room_id = room.id.to_string();
                     let state = state_for_send.clone();
                     spawn(async move {
-                        state.socket.send_message(&room_id, &content).await;
-                        message_input.set(String::new());
-                        // Reload messages from API to show the sent message
-                        let _ = state.load_messages(&room_id).await;
+                        match state.api.send_message(&room_id, &content).await {
+                            Ok(_) => {
+                                message_input.set(String::new());
+                                let _ = state.load_messages(&room_id).await;
+                            }
+                            Err(e) => {
+                                tracing::error!("Failed to send message: {}", e);
+                                error_msg.set(Some(format!("Send failed: {}", e)));
+                            }
+                        }
                     });
                 }
             }

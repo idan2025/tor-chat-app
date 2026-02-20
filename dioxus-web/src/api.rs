@@ -18,6 +18,27 @@ impl ApiClient {
         }
     }
 
+    async fn parse_error(response: reqwest::Response, fallback: &str) -> String {
+        let status = response.status();
+        match response.text().await {
+            Ok(body) => {
+                if let Ok(json) = serde_json::from_str::<Value>(&body) {
+                    if let Some(details) = json.get("details").and_then(|v| v.as_str()) {
+                        return details.to_string();
+                    }
+                    if let Some(error) = json.get("error").and_then(|v| v.as_str()) {
+                        return error.to_string();
+                    }
+                    if let Some(message) = json.get("message").and_then(|v| v.as_str()) {
+                        return message.to_string();
+                    }
+                }
+                format!("{}: {}", fallback, status)
+            }
+            Err(_) => format!("{}: {}", fallback, status),
+        }
+    }
+
     fn get_base_url() -> String {
         // Use stored server URL, or fall back to current window origin
         // reqwest 0.13 requires absolute URLs
@@ -56,7 +77,7 @@ impl ApiClient {
         if response.status().is_success() {
             response.json().await.map_err(|e| e.to_string())
         } else {
-            Err(format!("Registration failed: {}", response.status()))
+            Err(Self::parse_error(response, "Registration failed").await)
         }
     }
 
@@ -72,7 +93,7 @@ impl ApiClient {
         if response.status().is_success() {
             response.json().await.map_err(|e| e.to_string())
         } else {
-            Err(format!("Login failed: {}", response.status()))
+            Err(Self::parse_error(response, "Login failed").await)
         }
     }
 
@@ -148,7 +169,7 @@ impl ApiClient {
             let data: Value = response.json().await.map_err(|e| e.to_string())?;
             serde_json::from_value(data["room"].clone()).map_err(|e| e.to_string())
         } else {
-            Err(format!("Failed to create room: {}", response.status()))
+            Err(Self::parse_error(response, "Failed to create room").await)
         }
     }
 
@@ -174,6 +195,31 @@ impl ApiClient {
             serde_json::from_value(data["messages"].clone()).map_err(|e| e.to_string())
         } else {
             Err(format!("Failed to get messages: {}", response.status()))
+        }
+    }
+
+    pub async fn send_message(&self, room_id: &str, content: &str) -> Result<Message, String> {
+        let body = serde_json::json!({
+            "content": content,
+            "messageType": "text",
+        });
+
+        let response = self
+            .request(
+                reqwest::Method::POST,
+                &format!("/api/rooms/{}/messages", room_id),
+            )
+            .await
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| e.to_string())?;
+
+        if response.status().is_success() {
+            let data: Value = response.json().await.map_err(|e| e.to_string())?;
+            serde_json::from_value(data["message"].clone()).map_err(|e| e.to_string())
+        } else {
+            Err(Self::parse_error(response, "Failed to send message").await)
         }
     }
 

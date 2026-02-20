@@ -18,9 +18,24 @@ pub fn Register() -> Element {
             loading.set(true);
             error.set(None);
 
+            let u = username();
+            let p = password();
+
+            if u.len() < 3 {
+                error.set(Some("Username must be at least 3 characters".to_string()));
+                loading.set(false);
+                return;
+            }
+
+            if p.len() < 8 {
+                error.set(Some("Password must be at least 8 characters".to_string()));
+                loading.set(false);
+                return;
+            }
+
             let req = RegisterRequest {
-                username: username(),
-                password: password(),
+                username: u,
+                password: p,
                 display_name: None,
             };
 

@@ -11,15 +11,15 @@ pub struct User {
     pub avatar: Option<String>,
     #[serde(rename = "publicKey")]
     pub public_key: Option<String>,
-    #[serde(rename = "isOnline")]
+    #[serde(rename = "isOnline", default)]
     pub is_online: bool,
     #[serde(rename = "lastSeen")]
     pub last_seen: Option<DateTime<Utc>>,
-    #[serde(rename = "isAdmin")]
+    #[serde(rename = "isAdmin", default)]
     pub is_admin: bool,
-    #[serde(rename = "isBanned")]
+    #[serde(rename = "isBanned", default)]
     pub is_banned: bool,
-    #[serde(rename = "createdAt")]
+    #[serde(rename = "createdAt", default = "chrono::Utc::now")]
     pub created_at: DateTime<Utc>,
 }
 
