@@ -1,6 +1,6 @@
+use arti_client::config::CfgPath;
 use arti_client::{BootstrapBehavior, TorClient, TorClientConfig};
 use futures_util::StreamExt;
-use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::io::{self, AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
@@ -77,12 +77,12 @@ impl TorManager {
         let data_dir = Self::get_tor_data_dir();
         let cache_dir = data_dir.join("cache");
 
-        let config = TorClientConfig::builder()
+        let mut config_builder = TorClientConfig::builder();
+        config_builder
             .storage()
-            .state_dir(data_dir.clone())
-            .cache_dir(cache_dir)
-            .build()
-            .map_err(|e| format!("Storage config error: {e}"))?
+            .state_dir(CfgPath::new(data_dir.to_string_lossy().to_string()))
+            .cache_dir(CfgPath::new(cache_dir.to_string_lossy().to_string()));
+        let config = config_builder
             .build()
             .map_err(|e| format!("Tor config error: {e}"))?;
 

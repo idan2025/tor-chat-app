@@ -620,31 +620,29 @@ fn Settings() -> Element {
             if is_onion {
                 tor_status_text.set(Some("Starting Tor...".to_string()));
 
-                // Spawn progress watcher
+                // Spawn progress watcher (using Dioxus spawn — no Send required)
                 let mut status_rx = state.read().tor_manager.status_receiver();
-                let tor_status_text_clone = tor_status_text.clone();
-                let tor_progress_clone = tor_progress.clone();
-                let progress_task = tokio::spawn(async move {
+                let progress_done = std::rc::Rc::new(std::cell::Cell::new(false));
+                let progress_done_clone = progress_done.clone();
+                spawn(async move {
                     while status_rx.changed().await.is_ok() {
+                        if progress_done_clone.get() {
+                            break;
+                        }
                         let status = status_rx.borrow().clone();
                         match &status {
                             TorStatus::Bootstrapping(pct) => {
-                                tor_progress_clone.clone().set(*pct);
-                                tor_status_text_clone
-                                    .clone()
+                                tor_progress.set(*pct);
+                                tor_status_text
                                     .set(Some(format!("Connecting to Tor network... {}%", pct)));
                             }
                             TorStatus::Connected { .. } => {
-                                tor_progress_clone.clone().set(100);
-                                tor_status_text_clone
-                                    .clone()
-                                    .set(Some("Tor connected!".to_string()));
+                                tor_progress.set(100);
+                                tor_status_text.set(Some("Tor connected!".to_string()));
                                 break;
                             }
                             TorStatus::Error(e) => {
-                                tor_status_text_clone
-                                    .clone()
-                                    .set(Some(format!("Tor error: {}", e)));
+                                tor_status_text.set(Some(format!("Tor error: {}", e)));
                                 break;
                             }
                             _ => {}
@@ -661,11 +659,11 @@ fn Settings() -> Element {
                     Err(e) => {
                         error.set(Some(format!("Tor bootstrap failed: {}", e)));
                         loading.set(false);
-                        progress_task.abort();
+                        progress_done.set(true);
                         return;
                     }
                 }
-                progress_task.abort();
+                progress_done.set(true);
             } else {
                 // Clearnet - disable any previous Tor proxy
                 state.read().api.disable_tor_proxy().await;

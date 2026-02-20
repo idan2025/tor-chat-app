@@ -32,7 +32,7 @@ dependencies:
   # Using sodium_libs directly instead
 
   # TOR Integration (embedded Tor via Arti)
-  tor: ^0.1.1
+  tor: ^0.0.9
   socks5_proxy: ^2.1.1
 
   # UI Components
