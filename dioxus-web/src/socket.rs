@@ -3,9 +3,12 @@ use gloo_net::websocket::{futures::WebSocket, Message as WsMessage};
 use serde_json::Value;
 use std::cell::RefCell;
 use std::rc::Rc;
+use wasm_bindgen_futures::spawn_local;
+
+type WsSink = futures::stream::SplitSink<WebSocket, WsMessage>;
 
 pub struct SocketClient {
-    ws: Rc<RefCell<Option<WebSocket>>>,
+    sink: Rc<RefCell<Option<WsSink>>>,
     base_url: String,
     connected: Rc<RefCell<bool>>,
     token: Rc<RefCell<Option<String>>>,
@@ -14,7 +17,7 @@ pub struct SocketClient {
 impl SocketClient {
     pub fn new(base_url: String) -> Self {
         Self {
-            ws: Rc::new(RefCell::new(None)),
+            sink: Rc::new(RefCell::new(None)),
             base_url,
             connected: Rc::new(RefCell::new(false)),
             token: Rc::new(RefCell::new(None)),
@@ -22,6 +25,12 @@ impl SocketClient {
     }
 
     pub async fn connect(&self, token: &str) {
+        // Don't reconnect if already connected
+        if *self.connected.borrow() {
+            tracing::info!("Socket already connected, skipping");
+            return;
+        }
+
         // Store token for authentication
         *self.token.borrow_mut() = Some(token.to_string());
 
@@ -47,54 +56,45 @@ impl SocketClient {
                         Ok(WsMessage::Text(text)) => {
                             tracing::info!("Received Engine.IO message: {}", text);
 
-                            // Engine.IO open packet starts with "0"
-                            if text.starts_with("0") {
-                                // Send Socket.IO connect packet for default namespace
-                                // Socket.IO connect is "40" (4 = MESSAGE, 0 = CONNECT)
-                                let connect_msg = "40";
-                                if let Err(e) =
-                                    write.send(WsMessage::Text(connect_msg.to_string())).await
+                            if text.starts_with('0') {
+                                // Send Socket.IO connect packet (40)
+                                if let Err(e) = write.send(WsMessage::Text("40".to_string())).await
                                 {
                                     tracing::error!("Failed to send connect packet: {:?}", e);
                                     return;
                                 }
-                                tracing::info!("Sent Socket.IO connect packet");
 
                                 // Wait for connect acknowledgment
                                 if let Some(ack) = read.next().await {
                                     match ack {
                                         Ok(WsMessage::Text(ack_text)) => {
-                                            tracing::info!("Received ack: {}", ack_text);
-
-                                            // Should receive "40" or "40{...}" for successful connect
                                             if ack_text.starts_with("40") {
                                                 *self.connected.borrow_mut() = true;
                                                 tracing::info!("Socket.IO connected!");
 
-                                                // Reassemble the WebSocket
-                                                let ws =
-                                                    write.reunite(read).expect("reunite failed");
-                                                *self.ws.borrow_mut() = Some(ws);
+                                                // Store the write half for sending
+                                                *self.sink.borrow_mut() = Some(write);
 
                                                 // Send authentication event
-                                                // Socket.IO event format: 42["event", data]
                                                 let auth_data = serde_json::json!({"token": token});
                                                 self.emit_internal("authenticate", auth_data).await;
+
+                                                // Spawn background task to handle pings
+                                                let connected = self.connected.clone();
+                                                let sink = self.sink.clone();
+                                                spawn_local(async move {
+                                                    Self::read_loop(read, connected, sink).await;
+                                                });
                                             }
                                         }
                                         Ok(_) => {
-                                            tracing::warn!(
-                                                "Unexpected message type during handshake"
-                                            );
+                                            tracing::warn!("Unexpected message during handshake");
                                         }
                                         Err(e) => {
                                             tracing::error!("Error receiving ack: {:?}", e);
                                         }
                                     }
                                 }
-                            } else if text.starts_with("2") {
-                                // Ping packet, respond with pong
-                                let _ = write.send(WsMessage::Text("3".to_string())).await;
                             }
                         }
                         Ok(_) => {
@@ -112,17 +112,47 @@ impl SocketClient {
         }
     }
 
+    async fn read_loop(
+        mut read: futures::stream::SplitStream<WebSocket>,
+        connected: Rc<RefCell<bool>>,
+        sink: Rc<RefCell<Option<WsSink>>>,
+    ) {
+        while let Some(msg) = read.next().await {
+            match msg {
+                Ok(WsMessage::Text(text)) => {
+                    if text == "2" {
+                        // Engine.IO ping -> respond with pong
+                        let writer = sink.borrow_mut().take();
+                        if let Some(mut w) = writer {
+                            let _ = w.send(WsMessage::Text("3".to_string())).await;
+                            *sink.borrow_mut() = Some(w);
+                        }
+                    } else if text.starts_with("42") {
+                        // Socket.IO event - log for now
+                        tracing::debug!("Received event: {}", text);
+                    }
+                }
+                Ok(WsMessage::Bytes(_)) => {}
+                Err(e) => {
+                    tracing::error!("WebSocket read error: {:?}", e);
+                    break;
+                }
+            }
+        }
+        tracing::warn!("WebSocket read loop ended, marking disconnected");
+        *connected.borrow_mut() = false;
+    }
+
     async fn emit_internal(&self, event: &str, data: Value) {
-        let ws_opt = self.ws.borrow_mut().take();
-        if let Some(mut ws) = ws_opt {
-            // Socket.IO event format: 42["event", data]
+        let writer = self.sink.borrow_mut().take();
+        if let Some(mut w) = writer {
             let msg = format!("42{}", serde_json::json!([event, data]));
             tracing::info!("Emitting: {}", msg);
 
-            if let Err(e) = ws.send(WsMessage::Text(msg)).await {
+            if let Err(e) = w.send(WsMessage::Text(msg)).await {
                 tracing::error!("Failed to send message: {:?}", e);
             }
-            *self.ws.borrow_mut() = Some(ws);
+            *self.sink.borrow_mut() = Some(w);
         } else {
             tracing::warn!("Cannot emit '{}': WebSocket not connected", event);
         }
@@ -175,7 +205,7 @@ impl SocketClient {
 
     pub async fn disconnect(&self) {
         *self.connected.borrow_mut() = false;
-        *self.ws.borrow_mut() = None;
+        *self.sink.borrow_mut() = None;
         *self.token.borrow_mut() = None;
     }
 }

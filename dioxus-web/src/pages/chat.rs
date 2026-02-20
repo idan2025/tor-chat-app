@@ -50,6 +50,13 @@ pub fn Chat() -> Element {
                 }
             }
 
+            // Connect socket if not already connected
+            if !state.socket.is_connected() {
+                if let Some(token) = storage::get_token() {
+                    state.socket.connect(&token).await;
+                }
+            }
+
             match state.load_rooms().await {
                 Ok(()) => {
                     loading.set(false);
