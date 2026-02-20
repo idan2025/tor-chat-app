@@ -76,7 +76,8 @@ pub fn Chat() -> Element {
         });
     });
 
-    let on_send = move |_| {
+    let on_send = move |e: Event<FormData>| {
+        e.prevent_default();
         let rooms = state_for_send.rooms.read();
         let selected = selected_room_idx();
         if let Some(idx) = selected {
@@ -88,6 +89,8 @@ pub fn Chat() -> Element {
                     spawn(async move {
                         state.socket.send_message(&room_id, &content).await;
                         message_input.set(String::new());
+                        // Reload messages from API to show the sent message
+                        let _ = state.load_messages(&room_id).await;
                     });
                 }
             }
