@@ -50,7 +50,12 @@ pub struct Room {
     pub is_public: bool,
     #[serde(rename = "creatorId", alias = "creator_id")]
     pub creator_id: Option<Uuid>,
-    #[serde(rename = "encryptionKey", alias = "encryption_key", alias = "roomKey", alias = "room_key")]
+    #[serde(
+        rename = "encryptionKey",
+        alias = "encryption_key",
+        alias = "roomKey",
+        alias = "room_key"
+    )]
     pub encryption_key: Option<String>,
     #[serde(rename = "maxMembers", alias = "max_members", default)]
     pub max_members: i32,
@@ -63,7 +68,12 @@ pub struct Message {
     pub id: Uuid,
     #[serde(rename = "roomId", alias = "room_id")]
     pub room_id: Uuid,
-    #[serde(rename = "userId", alias = "user_id", alias = "senderId", alias = "sender_id")]
+    #[serde(
+        rename = "userId",
+        alias = "user_id",
+        alias = "senderId",
+        alias = "sender_id"
+    )]
     pub user_id: Uuid,
     #[serde(alias = "encryptedContent", alias = "encrypted_content")]
     pub content: String,
@@ -111,7 +121,10 @@ fn save_config(config: &AppConfig) {
     if let Some(parent) = path.parent() {
         let _ = fs::create_dir_all(parent);
     }
-    let _ = fs::write(&path, serde_json::to_string_pretty(config).unwrap_or_default());
+    let _ = fs::write(
+        &path,
+        serde_json::to_string_pretty(config).unwrap_or_default(),
+    );
 }
 
 // ============================================
@@ -207,7 +220,12 @@ impl ApiClient {
         }
     }
 
-    pub async fn register(&self, username: &str, email: &str, password: &str) -> Result<Value, String> {
+    pub async fn register(
+        &self,
+        username: &str,
+        email: &str,
+        password: &str,
+    ) -> Result<Value, String> {
         let body = serde_json::json!({
             "username": username,
             "email": email,
@@ -227,7 +245,10 @@ impl ApiClient {
         } else {
             let status = response.status();
             let body: Value = response.json().await.unwrap_or_default();
-            Err(body["details"].as_str().unwrap_or(&format!("Registration failed: {}", status)).to_string())
+            Err(body["details"]
+                .as_str()
+                .unwrap_or(&format!("Registration failed: {}", status))
+                .to_string())
         }
     }
 
@@ -250,7 +271,10 @@ impl ApiClient {
         } else {
             let status = response.status();
             let body: Value = response.json().await.unwrap_or_default();
-            Err(body["details"].as_str().unwrap_or(&format!("Login failed: {}", status)).to_string())
+            Err(body["details"]
+                .as_str()
+                .unwrap_or(&format!("Login failed: {}", status))
+                .to_string())
         }
     }
 
@@ -280,7 +304,9 @@ impl ApiClient {
 
         if response.status().is_success() {
             let data: Value = response.json().await.map_err(|e| e.to_string())?;
-            serde_json::from_value(data["rooms"].clone()).unwrap_or_else(|_| Vec::new()).pipe(Ok)
+            serde_json::from_value(data["rooms"].clone())
+                .unwrap_or_else(|_| Vec::new())
+                .pipe(Ok)
         } else {
             Ok(Vec::new())
         }
@@ -327,7 +353,10 @@ impl ApiClient {
 
     pub async fn get_messages(&self, room_id: &str) -> Result<Vec<Message>, String> {
         let response = self
-            .request(reqwest::Method::GET, &format!("/api/rooms/{}/messages?limit=50", room_id))
+            .request(
+                reqwest::Method::GET,
+                &format!("/api/rooms/{}/messages?limit=50", room_id),
+            )
             .await
             .send()
             .await
@@ -335,7 +364,9 @@ impl ApiClient {
 
         if response.status().is_success() {
             let data: Value = response.json().await.map_err(|e| e.to_string())?;
-            serde_json::from_value(data["messages"].clone()).unwrap_or_else(|_| Vec::new()).pipe(Ok)
+            serde_json::from_value(data["messages"].clone())
+                .unwrap_or_else(|_| Vec::new())
+                .pipe(Ok)
         } else {
             Ok(Vec::new())
         }
@@ -348,7 +379,10 @@ impl ApiClient {
         });
 
         let response = self
-            .request(reqwest::Method::POST, &format!("/api/rooms/{}/messages", room_id))
+            .request(
+                reqwest::Method::POST,
+                &format!("/api/rooms/{}/messages", room_id),
+            )
             .await
             .json(&body)
             .send()
@@ -365,7 +399,9 @@ impl ApiClient {
 }
 
 trait Pipe: Sized {
-    fn pipe<R, F: FnOnce(Self) -> R>(self, f: F) -> R { f(self) }
+    fn pipe<R, F: FnOnce(Self) -> R>(self, f: F) -> R {
+        f(self)
+    }
 }
 impl<T> Pipe for T {}
 
@@ -452,7 +488,10 @@ fn main() {
 fn App() -> Element {
     // Load config
     let config = load_config();
-    let server_url = config.server_url.clone().unwrap_or_else(|| "http://localhost:3000".to_string());
+    let server_url = config
+        .server_url
+        .clone()
+        .unwrap_or_else(|| "http://localhost:3000".to_string());
     let token = config.token.clone();
 
     // Create global state
@@ -546,7 +585,9 @@ fn Settings() -> Element {
 
     let mut server_url = use_signal(|| {
         let config = load_config();
-        config.server_url.unwrap_or_else(|| "http://localhost:3000".to_string())
+        config
+            .server_url
+            .unwrap_or_else(|| "http://localhost:3000".to_string())
     });
     let mut error = use_signal(|| None::<String>);
     let mut success = use_signal(|| None::<String>);
@@ -589,17 +630,21 @@ fn Settings() -> Element {
                         match &status {
                             TorStatus::Bootstrapping(pct) => {
                                 tor_progress_clone.clone().set(*pct);
-                                tor_status_text_clone.clone().set(Some(
-                                    format!("Connecting to Tor network... {}%", pct),
-                                ));
+                                tor_status_text_clone
+                                    .clone()
+                                    .set(Some(format!("Connecting to Tor network... {}%", pct)));
                             }
                             TorStatus::Connected { .. } => {
                                 tor_progress_clone.clone().set(100);
-                                tor_status_text_clone.clone().set(Some("Tor connected!".to_string()));
+                                tor_status_text_clone
+                                    .clone()
+                                    .set(Some("Tor connected!".to_string()));
                                 break;
                             }
                             TorStatus::Error(e) => {
-                                tor_status_text_clone.clone().set(Some(format!("Tor error: {}", e)));
+                                tor_status_text_clone
+                                    .clone()
+                                    .set(Some(format!("Tor error: {}", e)));
                                 break;
                             }
                             _ => {}

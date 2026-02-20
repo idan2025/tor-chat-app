@@ -245,7 +245,10 @@ async fn handle_socks5_connection(
     {
         Ok(s) => s,
         Err(e) => {
-            warn!("Tor connect to {}:{} failed: {}", target_host, target_port, e);
+            warn!(
+                "Tor connect to {}:{} failed: {}",
+                target_host, target_port, e
+            );
             // Reply: host unreachable
             stream
                 .write_all(&[0x05, 0x04, 0x00, 0x01, 0, 0, 0, 0, 0, 0])
