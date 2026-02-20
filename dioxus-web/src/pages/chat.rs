@@ -384,8 +384,14 @@ pub fn Chat() -> Element {
                                 for member in members.read().iter() {
                                     div {
                                         class: "p-3 border-b border-gray-700 flex items-center gap-2",
+                                        {
+                                            let user = &member["user"];
+                                            let is_online = user["isOnline"].as_bool().unwrap_or(false);
+                                            let username = user["username"].as_str().unwrap_or("?").to_string();
+                                            let is_admin = user["isAdmin"].as_bool().unwrap_or(false);
+                                            rsx! {
                                         div {
-                                            class: if member["isOnline"].as_bool().unwrap_or(false) {
+                                            class: if is_online {
                                                 "w-2 h-2 bg-green-500 rounded-full"
                                             } else {
                                                 "w-2 h-2 bg-gray-500 rounded-full"
@@ -394,13 +400,15 @@ pub fn Chat() -> Element {
                                         div {
                                             div {
                                                 class: "text-white text-sm",
-                                                {member["username"].as_str().unwrap_or("?").to_string()}
+                                                "{username}"
                                             }
-                                            if member["isAdmin"].as_bool().unwrap_or(false) {
+                                            if is_admin {
                                                 span {
                                                     class: "text-xs text-purple-400",
                                                     "Admin"
                                                 }
+                                            }
+                                        }
                                             }
                                         }
                                     }

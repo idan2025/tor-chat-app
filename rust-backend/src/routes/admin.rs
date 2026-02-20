@@ -270,23 +270,21 @@ pub async fn list_rooms(
                 .fetch_one(&state.db)
                 .await?;
 
-        let creator = sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = $1")
-            .bind(room.creator_id)
-            .fetch_one(&state.db)
-            .await?;
+        let creator_name = if let Some(creator_id) = room.creator_id {
+            sqlx::query_scalar::<_, String>("SELECT username FROM users WHERE id = $1")
+                .bind(creator_id)
+                .fetch_optional(&state.db)
+                .await?
+                .unwrap_or_else(|| "deleted".to_string())
+        } else {
+            "system".to_string()
+        };
 
         let mut room_resp = serde_json::to_value(room.to_member_json()).unwrap();
         if let Some(obj) = room_resp.as_object_mut() {
             obj.insert("memberCount".to_string(), serde_json::json!(member_count));
             obj.insert("messageCount".to_string(), serde_json::json!(message_count));
-            obj.insert(
-                "creator".to_string(),
-                serde_json::json!({
-                    "id": creator.id,
-                    "username": creator.username,
-                    "displayName": creator.display_name,
-                }),
-            );
+            obj.insert("creatorName".to_string(), serde_json::json!(creator_name));
         }
         room_responses.push(room_resp);
     }

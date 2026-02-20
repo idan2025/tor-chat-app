@@ -45,14 +45,18 @@ pub struct MessageResponse {
     pub user: serde_json::Value,
 }
 
-// GET /api/rooms - List public rooms
+// GET /api/rooms - List rooms (public + user's private rooms)
 pub async fn list_rooms(
     State(state): State<Arc<AppState>>,
-    Extension(_auth): Extension<AuthUser>,
+    Extension(auth): Extension<AuthUser>,
 ) -> Result<Json<serde_json::Value>> {
     let rooms = sqlx::query_as::<_, Room>(
-        "SELECT * FROM rooms WHERE is_public = true ORDER BY created_at DESC",
+        "SELECT DISTINCT r.* FROM rooms r
+         LEFT JOIN room_members rm ON r.id = rm.room_id
+         WHERE r.is_public = true OR rm.user_id = $1
+         ORDER BY r.created_at DESC",
     )
+    .bind(auth.user_id)
     .fetch_all(&state.db)
     .await?;
 
