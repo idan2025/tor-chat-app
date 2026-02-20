@@ -4,8 +4,9 @@ RUN apt-get update && apt-get install -y \
     tor \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy Tor configuration
-COPY torrc /etc/tor/torrc
+# Copy entrypoint that resolves Docker hostnames before starting Tor
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 # Create hidden service directory with correct ownership
 RUN mkdir -p /var/lib/tor/hidden_service/service1 && \
@@ -14,4 +15,4 @@ RUN mkdir -p /var/lib/tor/hidden_service/service1 && \
 
 USER debian-tor
 
-CMD ["tor", "-f", "/etc/tor/torrc"]
+ENTRYPOINT ["/entrypoint.sh"]

@@ -1,7 +1,5 @@
-version: '3.8'
-
-# Production docker-compose configuration
-# Use pre-built images from Docker Hub
+# Production docker-compose — pulls pre-built images from Docker Hub.
+# Tor container still builds locally (not pushed to registry).
 
 services:
   postgres:
