@@ -33,9 +33,7 @@ pub fn Chat() -> Element {
                 }
                 Err(e) => {
                     tracing::error!("Failed to load rooms: {}", e);
-                    if e.contains("401")
-                        || e.contains("Unauthorized")
-                        || e.contains("unauthorized")
+                    if e.contains("401") || e.contains("Unauthorized") || e.contains("unauthorized")
                     {
                         storage::remove_token();
                         nav.push(Route::Login {});
