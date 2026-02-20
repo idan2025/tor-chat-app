@@ -40,7 +40,7 @@ impl Config {
                 .unwrap_or_else(|_| "12".to_string())
                 .parse()?,
             tor_enabled: env::var("TOR_ENABLED")
-                .unwrap_or_else(|_| "false".to_string())
+                .unwrap_or_else(|_| "true".to_string())
                 .parse()?,
             tor_socks_host: env::var("TOR_SOCKS_HOST").unwrap_or_else(|_| "127.0.0.1".to_string()),
             tor_socks_port: env::var("TOR_SOCKS_PORT")

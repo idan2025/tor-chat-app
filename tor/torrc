@@ -1,0 +1,8 @@
+# Tor Chat - Tor daemon configuration
+
+# SOCKS5 proxy accessible from other containers
+SocksPort 0.0.0.0:9050
+
+# Hidden service configuration
+HiddenServiceDir /var/lib/tor/hidden_service/service1
+HiddenServicePort 80 backend:3000

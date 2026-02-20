@@ -18,6 +18,17 @@ services:
     networks:
       - tor-chat-network
 
+  tor:
+    build:
+      context: ./tor
+      dockerfile: Dockerfile
+    container_name: tor-chat-tor
+    volumes:
+      - tor_hidden_service:/var/lib/tor/hidden_service
+    networks:
+      - tor-chat-network
+    restart: unless-stopped
+
   backend:
     build:
       context: ./rust-backend
@@ -27,17 +38,21 @@ services:
       DATABASE_URL: postgresql://toruser:torpass@postgres:5432/tor_chat
       JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-this-in-production}
       RUST_LOG: ${RUST_LOG:-info}
-      TOR_SOCKS_HOST: ${TOR_SOCKS_HOST:-127.0.0.1}
+      TOR_ENABLED: "true"
+      TOR_SOCKS_HOST: tor
       TOR_SOCKS_PORT: ${TOR_SOCKS_PORT:-9050}
-      TOR_ENABLED: ${TOR_ENABLED:-true}
+      TOR_HIDDEN_SERVICE_DIR: /var/lib/tor/hidden_service
       PORT: 3000
     ports:
       - "3000:3000"
     depends_on:
       postgres:
         condition: service_healthy
+      tor:
+        condition: service_started
     volumes:
       - backend_uploads:/app/uploads
+      - tor_hidden_service:/var/lib/tor/hidden_service:ro
     networks:
       - tor-chat-network
     restart: unless-stopped
@@ -59,6 +74,8 @@ volumes:
   postgres_data:
     driver: local
   backend_uploads:
+    driver: local
+  tor_hidden_service:
     driver: local
 
 networks:

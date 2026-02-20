@@ -36,7 +36,6 @@ RUN apt-get update && apt-get install -y \
     libsodium23 \
     ca-certificates \
     libssl3 \
-    tor \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy binary from builder
@@ -53,7 +52,8 @@ EXPOSE 3000
 ENV RUST_LOG=info
 ENV DATABASE_URL=postgresql://toruser:torpass@postgres:5432/tor_chat
 ENV JWT_SECRET=change-this-secret-key-in-production
-ENV TOR_SOCKS_HOST=127.0.0.1
+ENV TOR_ENABLED=true
+ENV TOR_SOCKS_HOST=tor
 ENV TOR_SOCKS_PORT=9050
 
 # Run the application
