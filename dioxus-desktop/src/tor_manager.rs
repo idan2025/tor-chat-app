@@ -1,6 +1,7 @@
 use arti_client::config::CfgPath;
 use arti_client::{BootstrapBehavior, TorClient, TorClientConfig};
 use futures_util::StreamExt;
+use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::io::{self, AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;

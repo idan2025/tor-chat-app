@@ -165,9 +165,9 @@ class _ServerConfigScreenState extends ConsumerState<ServerConfigScreen> {
                   padding: const EdgeInsets.all(12),
                   margin: const EdgeInsets.only(bottom: 16),
                   decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.1),
+                    color: Colors.red.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.red.withOpacity(0.3)),
+                    border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
                   ),
                   child: Text(_error!, style: const TextStyle(color: Colors.red)),
                 ),
@@ -188,13 +188,13 @@ class _ServerConfigScreenState extends ConsumerState<ServerConfigScreen> {
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
                     color: _isOnion
-                        ? Colors.deepPurple.withOpacity(0.1)
-                        : Colors.grey.withOpacity(0.1),
+                        ? Colors.deepPurple.withValues(alpha: 0.1)
+                        : Colors.grey.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
                       color: _isOnion
-                          ? Colors.deepPurple.withOpacity(0.3)
-                          : Colors.grey.withOpacity(0.3),
+                          ? Colors.deepPurple.withValues(alpha: 0.3)
+                          : Colors.grey.withValues(alpha: 0.3),
                     ),
                   ),
                   child: Row(

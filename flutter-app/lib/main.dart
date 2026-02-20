@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tor_chat/screens/loading_screen.dart';
 import 'package:tor_chat/services/notification_service.dart';
-import 'package:tor_chat/services/tor_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,10 +24,6 @@ class _TorChatAppState extends ConsumerState<TorChatApp> {
   }
 
   Future<void> _initializeServices() async {
-    // Initialize TOR service
-    final torService = ref.read(torServiceProvider);
-    await torService.checkConnection();
-
     // Initialize notification service
     ref.read(notificationServiceProvider);
   }

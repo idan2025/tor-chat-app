@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:socks_proxy/socks_client.dart';
+import 'package:socks5_proxy/socks_client.dart';
 import 'package:tor/tor.dart';
 
 enum TorConnectionStatus {

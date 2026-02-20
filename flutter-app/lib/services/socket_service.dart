@@ -1,11 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
-import 'package:tor_chat/services/tor_service.dart' show TorService, torServiceProvider;
+import 'package:tor_chat/services/tor_service.dart' show TorService;
 
 class SocketService extends ChangeNotifier {
   io.Socket? _socket;
-  final TorService _torService;
   String? _token;
   String _serverUrl = 'http://localhost:3000';
   bool _isConnected = false;
@@ -14,7 +13,7 @@ class SocketService extends ChangeNotifier {
 
   bool get isConnected => _isConnected;
 
-  SocketService(this._torService);
+  SocketService();
 
   void setServerUrl(String url) {
     _serverUrl = url;
@@ -263,6 +262,5 @@ class SocketService extends ChangeNotifier {
 
 // Riverpod provider
 final socketServiceProvider = ChangeNotifierProvider<SocketService>((ref) {
-  final torService = ref.watch(torServiceProvider);
-  return SocketService(torService);
+  return SocketService();
 });
