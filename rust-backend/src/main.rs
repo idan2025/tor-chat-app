@@ -108,7 +108,10 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/rooms/{id}/join", post(rooms::join_room))
         .route("/api/rooms/{id}/leave", post(rooms::leave_room))
         .route("/api/rooms/{id}", delete(rooms::delete_room))
-        .route("/api/rooms/{id}/messages", get(rooms::get_messages).post(rooms::send_message))
+        .route(
+            "/api/rooms/{id}/messages",
+            get(rooms::get_messages).post(rooms::send_message),
+        )
         .route("/api/rooms/{id}/members", get(rooms::get_members))
         .route("/api/rooms/{id}/members", post(rooms::add_member))
         .route(
