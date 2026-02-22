@@ -8,7 +8,7 @@ dioxus = { version = "0.7", features = ["web", "router"] }
 dioxus-signals = "0.7"
 
 # HTTP Client
-reqwest = { version = "0.13", features = ["json"] }
+reqwest = { version = "0.13", features = ["json", "multipart"] }
 gloo-net = { version = "0.6", features = ["websocket"] }
 futures = "0.3"
 
@@ -25,15 +25,19 @@ web-sys = { version = "0.3", features = [
     "MessageEvent",
     "CloseEvent",
     "ErrorEvent",
+    "HtmlInputElement",
+    "File",
+    "FileList",
+    "FormData",
+    "Blob",
 ] }
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 gloo-storage = "0.3"
 gloo-timers = { version = "0.3", features = ["futures"] }
 
-# Crypto - using WASM-compatible alternatives
-# libsodium-sys-stable doesn't support WASM compilation
-# Using Web Crypto API through web-sys instead
+# Regex for URL parsing
+regex = { version = "1.11", default-features = false, features = ["unicode-perl"] }
 
 # Utilities
 chrono = { version = "0.4", features = ["serde", "wasm-bindgen"] }
@@ -41,6 +45,7 @@ uuid = { version = "1.21", features = ["v4", "serde", "js"] }
 base64 = "0.22"
 tracing = "0.1"
 tracing-wasm = "0.2"
+js-sys = "0.3"
 
 [profile.release]
 opt-level = "z"

@@ -99,14 +99,9 @@ impl TorManager {
         let status_tx = self.status.clone();
         let mut events = tor.bootstrap_events();
         tokio::spawn(async move {
-            loop {
-                match events.next().await {
-                    Some(status) => {
-                        let pct = (status.as_frac().clamp(0.0, 1.0) * 100.0) as u8;
-                        let _ = status_tx.send(TorStatus::Bootstrapping(pct));
-                    }
-                    None => break,
-                }
+            while let Some(status) = events.next().await {
+                let pct = (status.as_frac().clamp(0.0, 1.0) * 100.0) as u8;
+                let _ = status_tx.send(TorStatus::Bootstrapping(pct));
             }
         });
 
