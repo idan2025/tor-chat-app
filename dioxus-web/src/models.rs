@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct User {
     pub id: Uuid,
     pub username: String,
@@ -23,7 +23,7 @@ pub struct User {
     pub created_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Room {
     pub id: Uuid,
     pub name: String,
@@ -34,13 +34,13 @@ pub struct Room {
     pub creator_id: Option<Uuid>,
     #[serde(rename = "roomKey")]
     pub room_key: Option<String>,
-    #[serde(rename = "maxMembers")]
+    #[serde(rename = "maxMembers", default)]
     pub max_members: i32,
-    #[serde(rename = "createdAt")]
+    #[serde(rename = "createdAt", default = "chrono::Utc::now")]
     pub created_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Message {
     pub id: Uuid,
     #[serde(rename = "roomId")]

@@ -6,12 +6,14 @@ use std::rc::Rc;
 use wasm_bindgen_futures::spawn_local;
 
 type WsSink = futures::stream::SplitSink<WebSocket, WsMessage>;
+type EventCallback = Box<dyn Fn(&str, Value)>;
 
 pub struct SocketClient {
     sink: Rc<RefCell<Option<WsSink>>>,
     base_url: String,
     connected: Rc<RefCell<bool>>,
     token: Rc<RefCell<Option<String>>>,
+    event_handler: Rc<RefCell<Option<EventCallback>>>,
 }
 
 impl SocketClient {
@@ -21,7 +23,14 @@ impl SocketClient {
             base_url,
             connected: Rc::new(RefCell::new(false)),
             token: Rc::new(RefCell::new(None)),
+            event_handler: Rc::new(RefCell::new(None)),
         }
+    }
+
+    /// Register a callback that will be invoked for every incoming Socket.IO event.
+    /// The callback receives the event name and the JSON payload.
+    pub fn set_event_handler(&self, handler: impl Fn(&str, Value) + 'static) {
+        *self.event_handler.borrow_mut() = Some(Box::new(handler));
     }
 
     pub async fn connect(&self, token: &str) {
@@ -79,11 +88,13 @@ impl SocketClient {
                                                 let auth_data = serde_json::json!({"token": token});
                                                 self.emit_internal("authenticate", auth_data).await;
 
-                                                // Spawn background task to handle pings
+                                                // Spawn background task to handle pings and events
                                                 let connected = self.connected.clone();
                                                 let sink = self.sink.clone();
+                                                let handler = self.event_handler.clone();
                                                 spawn_local(async move {
-                                                    Self::read_loop(read, connected, sink).await;
+                                                    Self::read_loop(read, connected, sink, handler)
+                                                        .await;
                                                 });
                                             }
                                         }
@@ -116,6 +127,7 @@ impl SocketClient {
         mut read: futures::stream::SplitStream<WebSocket>,
         connected: Rc<RefCell<bool>>,
         sink: Rc<RefCell<Option<WsSink>>>,
+        event_handler: Rc<RefCell<Option<EventCallback>>>,
     ) {
         while let Some(msg) = read.next().await {
             match msg {
@@ -128,8 +140,23 @@ impl SocketClient {
                             *sink.borrow_mut() = Some(w);
                         }
                     } else if text.starts_with("42") {
-                        // Socket.IO event - log for now
-                        tracing::debug!("Received event: {}", text);
+                        // Socket.IO event: 42["event_name", payload]
+                        let json_str = &text[2..];
+                        if let Ok(arr) = serde_json::from_str::<Vec<Value>>(json_str) {
+                            if arr.len() >= 2 {
+                                if let Some(event_name) = arr[0].as_str() {
+                                    let payload = arr[1].clone();
+                                    tracing::debug!(
+                                        "Received event: {} payload: {}",
+                                        event_name,
+                                        payload
+                                    );
+                                    if let Some(handler) = event_handler.borrow().as_ref() {
+                                        handler(event_name, payload);
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
                 Ok(WsMessage::Bytes(_)) => {}

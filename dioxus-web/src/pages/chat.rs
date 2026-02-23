@@ -1,4 +1,4 @@
-use crate::{state::AppState, utils, utils::storage, Route};
+use crate::{components::message_bubble::MessageBubble, state::AppState, utils::storage, Route};
 use dioxus::prelude::*;
 
 #[component]
@@ -54,8 +54,51 @@ pub fn Chat() -> Element {
                 }
             }
 
-            // Connect socket if not already connected
+            // Set up real-time event handler and connect socket
             if !state.socket.is_connected() {
+                let messages_sig = state.messages;
+                let rooms_sig = state.rooms;
+                state.socket.set_event_handler(move |event: &str, payload: serde_json::Value| {
+                    match event {
+                        "new_message" => {
+                            match serde_json::from_value::<crate::models::Message>(payload) {
+                                Ok(msg) => {
+                                    let mut sig = messages_sig;
+                                    let mut msgs = sig.write();
+                                    // Avoid duplicates
+                                    if !msgs.iter().any(|m| m.id == msg.id) {
+                                        msgs.push(msg);
+                                    }
+                                }
+                                Err(e) => tracing::error!("Failed to parse new_message: {}", e),
+                            }
+                        }
+                        "room_created" => {
+                            match serde_json::from_value::<crate::models::Room>(payload) {
+                                Ok(room) => {
+                                    let mut sig = rooms_sig;
+                                    let mut rooms = sig.write();
+                                    if !rooms.iter().any(|r| r.id == room.id) {
+                                        rooms.push(room);
+                                    }
+                                }
+                                Err(e) => tracing::error!("Failed to parse room_created: {}", e),
+                            }
+                        }
+                        "room_deleted" => {
+                            if let Some(room_id_str) = payload.get("roomId").and_then(|v| v.as_str()) {
+                                if let Ok(room_id) = uuid::Uuid::parse_str(room_id_str) {
+                                    let mut sig = rooms_sig;
+                                    sig.write().retain(|r| r.id != room_id);
+                                }
+                            }
+                        }
+                        _ => {
+                            tracing::debug!("Unhandled socket event: {}", event);
+                        }
+                    }
+                });
+
                 if let Some(token) = storage::get_token() {
                     state.socket.connect(&token).await;
                 }
@@ -364,27 +407,10 @@ pub fn Chat() -> Element {
                                     "No messages yet. Start the conversation!"
                                 }
                             } else {
-                                for message in messages.iter().rev() {
-                                    div {
+                                for message in messages.iter() {
+                                    MessageBubble {
                                         key: "{message.id}",
-                                        class: "mb-4",
-                                        div {
-                                            class: "bg-gray-800 rounded-lg p-3 max-w-md",
-                                            if let Some(user) = &message.user {
-                                                div {
-                                                    class: "text-sm font-bold text-purple-400 mb-1",
-                                                    "{user.username}"
-                                                }
-                                            }
-                                            div {
-                                                class: "text-white",
-                                                "{message.content}"
-                                            }
-                                            div {
-                                                class: "text-xs text-gray-400 mt-1",
-                                                "{utils::format_time(&message.created_at)}"
-                                            }
-                                        }
+                                        message: message.clone(),
                                     }
                                 }
                             }

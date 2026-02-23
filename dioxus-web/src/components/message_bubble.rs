@@ -3,8 +3,8 @@ use crate::utils;
 use dioxus::prelude::*;
 
 #[component]
-pub fn MessageBubble(message: ReadSignal<Message>) -> Element {
-    let msg = message();
+pub fn MessageBubble(message: Message) -> Element {
+    let msg = message;
     let is_image = msg.message_type == "image";
     let is_youtube =
         msg.content.contains("youtube.com/watch?v=") || msg.content.contains("youtu.be/");
