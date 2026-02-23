@@ -267,7 +267,11 @@ impl ApiClient {
         }
     }
 
-    pub async fn send_image_message(&self, room_id: &str, image_url: &str) -> Result<Message, String> {
+    pub async fn send_image_message(
+        &self,
+        room_id: &str,
+        image_url: &str,
+    ) -> Result<Message, String> {
         let body = serde_json::json!({
             "content": image_url,
             "messageType": "image",

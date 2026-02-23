@@ -599,8 +599,8 @@ fn Settings() -> Element {
 
     let connect = move |_| {
         let raw_url = server_url().trim().to_string();
-        let state = state.clone();
-        let nav = nav.clone();
+        let state = state;
+        let nav = nav;
 
         spawn(async move {
             loading.set(true);
@@ -790,8 +790,8 @@ fn Login() -> Element {
     let login = move |_| {
         let user = username().trim().to_string();
         let pass = password().trim().to_string();
-        let state = state.clone();
-        let nav = nav.clone();
+        let state = state;
+        let nav = nav;
 
         if user.is_empty() || pass.is_empty() {
             error.set(Some("Please fill in all fields".to_string()));
@@ -909,8 +909,8 @@ fn Register() -> Element {
         let user = username().trim().to_string();
         let mail = email().trim().to_string();
         let pass = password().trim().to_string();
-        let state = state.clone();
-        let nav = nav.clone();
+        let state = state;
+        let nav = nav;
 
         if user.is_empty() || mail.is_empty() || pass.is_empty() {
             error.set(Some("Please fill in all fields".to_string()));
@@ -1039,7 +1039,7 @@ fn Chat() -> Element {
 
     // Load initial data
     use_effect(move || {
-        let state = state.clone();
+        let state = state;
         spawn(async move {
             // Load current user
             if let Ok(user) = state.read().api.get_me().await {
@@ -1059,7 +1059,7 @@ fn Chat() -> Element {
 
     let mut select_room = move |room: Room| {
         let room_id = room.id.to_string();
-        let state = state.clone();
+        let state = state;
 
         current_room.set(Some(room));
         messages.set(Vec::new());
@@ -1072,7 +1072,7 @@ fn Chat() -> Element {
     };
 
     let do_send_message = {
-        let state = state.clone();
+        let state = state;
         move || {
             let content = message_input().trim().to_string();
             if content.is_empty() {
@@ -1085,7 +1085,7 @@ fn Chat() -> Element {
             }
 
             let room_id = room.unwrap().id.to_string();
-            let state = state.clone();
+            let state = state;
 
             message_input.set(String::new());
 
@@ -1103,7 +1103,7 @@ fn Chat() -> Element {
             return;
         }
 
-        let state = state.clone();
+        let state = state;
 
         spawn(async move {
             loading.set(true);
@@ -1119,8 +1119,8 @@ fn Chat() -> Element {
     };
 
     let logout = move |_| {
-        let state = state.clone();
-        let nav = nav.clone();
+        let state = state;
+        let nav = nav;
 
         spawn(async move {
             state.read().clear_auth().await;
@@ -1220,7 +1220,7 @@ fn Chat() -> Element {
                             value: "{message_input}",
                             oninput: move |e| message_input.set(e.value()),
                             onkeypress: {
-                                let mut do_send = do_send_message.clone();
+                                let mut do_send = do_send_message;
                                 move |e| {
                                     if e.key() == Key::Enter {
                                         do_send();
@@ -1231,7 +1231,7 @@ fn Chat() -> Element {
                         button {
                             class: "send-btn",
                             onclick: {
-                                let mut do_send = do_send_message.clone();
+                                let mut do_send = do_send_message;
                                 move |_| do_send()
                             },
                             "Send"

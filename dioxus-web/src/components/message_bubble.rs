@@ -6,7 +6,8 @@ use dioxus::prelude::*;
 pub fn MessageBubble(message: ReadSignal<Message>) -> Element {
     let msg = message();
     let is_image = msg.message_type == "image";
-    let is_youtube = msg.content.contains("youtube.com/watch?v=") || msg.content.contains("youtu.be/");
+    let is_youtube =
+        msg.content.contains("youtube.com/watch?v=") || msg.content.contains("youtu.be/");
 
     rsx! {
         div {
