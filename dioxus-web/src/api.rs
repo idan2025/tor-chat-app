@@ -241,7 +241,7 @@ impl ApiClient {
         }
     }
 
-        // File upload endpoint - takes file bytes and filename
+    // File upload endpoint - takes file bytes and filename
     pub async fn upload_file(&self, file_bytes: Vec<u8>, filename: &str) -> Result<Value, String> {
         use reqwest::multipart::{Form, Part};
 
