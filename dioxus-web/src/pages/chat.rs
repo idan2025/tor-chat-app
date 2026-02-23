@@ -58,46 +58,54 @@ pub fn Chat() -> Element {
             if !state.socket.is_connected() {
                 let messages_sig = state.messages;
                 let rooms_sig = state.rooms;
-                state.socket.set_event_handler(move |event: &str, payload: serde_json::Value| {
-                    match event {
-                        "new_message" => {
-                            match serde_json::from_value::<crate::models::Message>(payload) {
-                                Ok(msg) => {
-                                    let mut sig = messages_sig;
-                                    let mut msgs = sig.write();
-                                    // Avoid duplicates
-                                    if !msgs.iter().any(|m| m.id == msg.id) {
-                                        msgs.push(msg);
+                state
+                    .socket
+                    .set_event_handler(move |event: &str, payload: serde_json::Value| {
+                        match event {
+                            "new_message" => {
+                                match serde_json::from_value::<crate::models::Message>(payload) {
+                                    Ok(msg) => {
+                                        let mut sig = messages_sig;
+                                        let mut msgs = sig.write();
+                                        // Avoid duplicates
+                                        if !msgs.iter().any(|m| m.id == msg.id) {
+                                            msgs.push(msg);
+                                        }
+                                    }
+                                    Err(e) => {
+                                        tracing::error!("Failed to parse new_message: {}", e)
                                     }
                                 }
-                                Err(e) => tracing::error!("Failed to parse new_message: {}", e),
                             }
-                        }
-                        "room_created" => {
-                            match serde_json::from_value::<crate::models::Room>(payload) {
-                                Ok(room) => {
-                                    let mut sig = rooms_sig;
-                                    let mut rooms = sig.write();
-                                    if !rooms.iter().any(|r| r.id == room.id) {
-                                        rooms.push(room);
+                            "room_created" => {
+                                match serde_json::from_value::<crate::models::Room>(payload) {
+                                    Ok(room) => {
+                                        let mut sig = rooms_sig;
+                                        let mut rooms = sig.write();
+                                        if !rooms.iter().any(|r| r.id == room.id) {
+                                            rooms.push(room);
+                                        }
+                                    }
+                                    Err(e) => {
+                                        tracing::error!("Failed to parse room_created: {}", e)
                                     }
                                 }
-                                Err(e) => tracing::error!("Failed to parse room_created: {}", e),
                             }
-                        }
-                        "room_deleted" => {
-                            if let Some(room_id_str) = payload.get("roomId").and_then(|v| v.as_str()) {
-                                if let Ok(room_id) = uuid::Uuid::parse_str(room_id_str) {
-                                    let mut sig = rooms_sig;
-                                    sig.write().retain(|r| r.id != room_id);
+                            "room_deleted" => {
+                                if let Some(room_id_str) =
+                                    payload.get("roomId").and_then(|v| v.as_str())
+                                {
+                                    if let Ok(room_id) = uuid::Uuid::parse_str(room_id_str) {
+                                        let mut sig = rooms_sig;
+                                        sig.write().retain(|r| r.id != room_id);
+                                    }
                                 }
                             }
+                            _ => {
+                                tracing::debug!("Unhandled socket event: {}", event);
+                            }
                         }
-                        _ => {
-                            tracing::debug!("Unhandled socket event: {}", event);
-                        }
-                    }
-                });
+                    });
 
                 if let Some(token) = storage::get_token() {
                     state.socket.connect(&token).await;

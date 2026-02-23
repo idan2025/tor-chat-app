@@ -39,6 +39,9 @@ url = "2.5"
 arti-client = { version = "0.39", features = ["tokio", "onion-service-client"] }
 tor-rtcompat = { version = "0.39", features = ["tokio"] }
 
+# Bundle sqlite3 from source so Windows builds don't need a system sqlite3.lib
+libsqlite3-sys = { version = "0.36", features = ["bundled"] }
+
 [profile.release]
 opt-level = "z"
 lto = true
