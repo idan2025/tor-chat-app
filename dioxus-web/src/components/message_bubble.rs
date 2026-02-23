@@ -83,7 +83,7 @@ fn extract_youtube_id(content: &str) -> Option<String> {
             .unwrap_or(content.len());
         return Some(content[start..end].to_string());
     }
-    
+
     // Check for youtube.com/watch?v= links
     if let Some(pos) = content.find("v=") {
         let start = pos + 2;
@@ -93,6 +93,6 @@ fn extract_youtube_id(content: &str) -> Option<String> {
             .unwrap_or(content.len());
         return Some(content[start..end].to_string());
     }
-    
+
     None
 }

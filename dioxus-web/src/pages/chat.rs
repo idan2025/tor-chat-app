@@ -519,7 +519,7 @@ pub fn Chat() -> Element {
                                                     spawn(async move {
                                                         is_uploading.set(true);
                                                         upload_status.set(Some("Uploading...".to_string()));
-                                                        
+
                                                         let (filename, file_bytes) = file;
                                                         match state.api.upload_file(file_bytes, &filename).await {
                                                             Ok(response) => {
