@@ -241,6 +241,57 @@ impl ApiClient {
         }
     }
 
+        // File upload endpoint - takes file bytes and filename
+    pub async fn upload_file(&self, file_bytes: Vec<u8>, filename: &str) -> Result<Value, String> {
+        use reqwest::multipart::{Form, Part};
+        
+        let part = Part::bytes(file_bytes).file_name(filename.to_string());
+        let form = Form::new().part("file", part);
+
+        let url = format!("{}/api/upload", self.base_url);
+        let mut req = self.client.post(&url).multipart(form);
+
+        if let Some(auth) = self.get_auth_header() {
+            req = req.header("Authorization", auth);
+        }
+
+        let response = req
+            .send()
+            .await
+            .map_err(|e| format!("Upload request failed: {}", e))?;
+
+        if response.status().is_success() {
+            response.json().await.map_err(|e| e.to_string())
+        } else {
+            Err(Self::parse_error(response, "File upload failed").await)
+        }
+    }
+
+    pub async fn send_image_message(&self, room_id: &str, image_url: &str) -> Result<Message, String> {
+        let body = serde_json::json!({
+            "content": image_url,
+            "messageType": "image",
+        });
+
+        let response = self
+            .request(
+                reqwest::Method::POST,
+                &format!("/api/rooms/{}/messages", room_id),
+            )
+            .await
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| e.to_string())?;
+
+        if response.status().is_success() {
+            let data: Value = response.json().await.map_err(|e| e.to_string())?;
+            serde_json::from_value(data["message"].clone()).map_err(|e| e.to_string())
+        } else {
+            Err(Self::parse_error(response, "Failed to send image message").await)
+        }
+    }
+
     // Admin endpoints
     pub async fn admin_get_stats(&self) -> Result<Value, String> {
         let response = self

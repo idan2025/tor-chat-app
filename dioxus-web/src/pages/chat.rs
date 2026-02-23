@@ -19,6 +19,10 @@ pub fn Chat() -> Element {
 
     // Members panel state
     let mut show_members = use_signal(|| false);
+    // File upload state
+    let mut selected_file: Signal<Option<(String, Vec<u8>)>> = use_signal(|| None);
+    let mut upload_status = use_signal(|| None::<String>);
+    let mut is_uploading = use_signal(|| false);
     let mut members: Signal<Vec<serde_json::Value>> = use_signal(Vec::new);
 
     // Auth guard
@@ -436,6 +440,25 @@ pub fn Chat() -> Element {
                     // Input
                     div {
                         class: "p-4 border-t border-gray-700 bg-gray-800",
+                        // File upload status
+                        {
+                            let status = upload_status();
+                            if let Some(msg) = status {
+                                rsx! {
+                                    div {
+                                        class: if msg.starts_with("Error") {
+                                            "mb-2 text-sm text-red-400"
+                                        } else {
+                                            "mb-2 text-sm text-green-400"
+                                        },
+                                        "{msg}"
+                                    }
+                                }
+                            } else {
+                                rsx! {}
+                            }
+                        }
+                        // Message input form
                         form {
                             onsubmit: on_send,
                             class: "flex gap-2",
@@ -450,6 +473,119 @@ pub fn Chat() -> Element {
                                 r#type: "submit",
                                 class: "bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg",
                                 "Send"
+                            }
+                        }
+                        // File upload section
+                        div {
+                            class: "mt-2 flex items-center gap-2",
+                            input {
+                                r#type: "file",
+                                class: "text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-gray-700 file:text-white hover:file:bg-gray-600",
+                                accept: "image/*,video/*",
+                                onchange: move |evt| {
+                                    let files = evt.files();
+                                    if let Some(file_data) = files.first() {
+                                        let file_data = file_data.clone();
+                                        spawn(async move {
+                                            match file_data.read_bytes().await {
+                                                Ok(bytes) => {
+                                                    let file_name = file_data.name();
+                                                    selected_file.set(Some((file_name.clone(), bytes.to_vec())));
+                                                    upload_status.set(Some(format!("Selected: {}", file_name)));
+                                                }
+                                                Err(e) => {
+                                                    upload_status.set(Some(format!("Error reading file: {}", e)));
+                                                }
+                                            }
+                                        });
+                                    }
+                                },
+                            }
+                            // Send File button (only shown when file is selected)
+                            {
+                                let file_opt = selected_file();
+                                if file_opt.is_some() && !is_uploading() {
+                                    let file = file_opt.unwrap();
+                                    let state_upload = state.clone();
+                                    let selected_room = selected_room.clone();
+                                    rsx! {
+                                        button {
+                                            class: "bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm",
+                                            onclick: move |_| {
+                                                if let Some(room) = &selected_room {
+                                                    let file = file.clone();
+                                                    let room_id = room.id.to_string();
+                                                    let state = state_upload.clone();
+                                                    spawn(async move {
+                                                        is_uploading.set(true);
+                                                        upload_status.set(Some("Uploading...".to_string()));
+                                                        
+                                                        let (filename, file_bytes) = file;
+                                                        match state.api.upload_file(file_bytes, &filename).await {
+                                                            Ok(response) => {
+                                                                if let Some(file_url) = response.get("file")
+                                                                    .and_then(|f| f.get("url"))
+                                                                    .and_then(|u| u.as_str()) {
+                                                                    // Send the file URL as an image message
+                                                                    match state.api.send_image_message(&room_id, file_url).await {
+                                                                        Ok(_) => {
+                                                                            upload_status.set(Some("Upload complete!".to_string()));
+                                                                            selected_file.set(None);
+                                                                            // Refresh messages
+                                                                            let _ = state.load_messages(&room_id).await;
+                                                                        }
+                                                                        Err(e) => {
+                                                                            upload_status.set(Some(format!("Error sending: {}", e)));
+                                                                        }
+                                                                    }
+                                                                } else {
+                                                                    upload_status.set(Some("Error: Invalid response".to_string()));
+                                                                }
+                                                            }
+                                                            Err(e) => {
+                                                                upload_status.set(Some(format!("Error uploading: {}", e)));
+                                                            }
+                                                        }
+                                                        is_uploading.set(false);
+                                                    });
+                                                }
+                                            },
+                                            "Send File"
+                                        }
+                                    }
+                                } else {
+                                    rsx! {}
+                                }
+                            }
+                            // Clear selection button
+                            {
+                                if selected_file().is_some() && !is_uploading() {
+                                    rsx! {
+                                        button {
+                                            class: "bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg text-sm",
+                                            onclick: move |_| {
+                                                selected_file.set(None);
+                                                upload_status.set(None);
+                                            },
+                                            "Cancel"
+                                        }
+                                    }
+                                } else {
+                                    rsx! {}
+                                }
+                            }
+                            // Loading indicator
+                            {
+                                if is_uploading() {
+                                    rsx! {
+                                        div {
+                                            class: "text-sm text-gray-400",
+                                            "Uploading..."
+                                        }
+                                    }
+                                } else {
+                                    rsx! {}
+                                }
                             }
                         }
                     }
