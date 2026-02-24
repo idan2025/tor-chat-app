@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tor_chat/components/message_bubble.dart';
 import 'package:tor_chat/models/message.dart';
 import 'package:tor_chat/models/room.dart';
-import 'package:tor_chat/models/user.dart';
 import 'package:tor_chat/providers/auth_provider.dart';
 import 'package:tor_chat/services/api_service.dart';
 import 'package:tor_chat/services/crypto_service.dart';
