@@ -148,6 +148,12 @@ pub struct SocketClient {
     connected: Arc<RwLock<bool>>,
 }
 
+impl Default for SocketClient {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SocketClient {
     pub fn new() -> Self {
         Self {
@@ -241,9 +247,8 @@ impl SocketClient {
                     continue;
                 }
 
-                if msg.starts_with("42") {
+                if let Some(json_part) = msg.strip_prefix("42") {
                     // Socket.IO EVENT packet
-                    let json_part = &msg[2..];
                     if let Ok(arr) = serde_json::from_str::<Vec<Value>>(json_part) {
                         if arr.len() >= 2 {
                             if let Some(event_name) = arr[0].as_str() {
