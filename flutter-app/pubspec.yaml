@@ -45,7 +45,7 @@ dependencies:
   flutter_markdown: ^0.6.18
 
   # Notifications
-  flutter_local_notifications: ^16.3.0
+  flutter_local_notifications: ^17.2.1
 
   # Utilities
   intl: ^0.18.1
