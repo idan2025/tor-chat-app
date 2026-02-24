@@ -419,9 +419,9 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ inputs.version }}
-          name: TOR Chat ${{ inputs.version }}
+          name: ${{ inputs.version }}
           body: |
-            ## TOR Chat ${{ inputs.version }}
+            ## ${{ inputs.version }}
             
             ### Downloads
             - **Android**: `tor-chat-android-${{ inputs.version }}.apk`
