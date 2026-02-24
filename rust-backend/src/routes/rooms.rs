@@ -80,8 +80,11 @@ pub async fn create_room(
 ) -> Result<Json<serde_json::Value>> {
     let crypto_service = CryptoService::new();
 
+    // Default: admins get public rooms, non-admins get private
+    let is_public = req.is_public.unwrap_or(auth.user.is_admin);
+
     // Only admins can create public rooms
-    if req.is_public.unwrap_or(true) && !auth.user.is_admin {
+    if is_public && !auth.user.is_admin {
         return Err(AppError::Authorization(
             "Only admins can create public rooms".to_string(),
         ));
@@ -97,10 +100,10 @@ pub async fn create_room(
     )
     .bind(&req.name)
     .bind(&req.description)
-    .bind(req.is_public.unwrap_or(true))
+    .bind(is_public)
     .bind(auth.user_id)
     .bind(&room_key)
-    .bind(if req.is_public.unwrap_or(true) { "public" } else { "private" })
+    .bind(if is_public { "public" } else { "private" })
     .bind(req.max_members.unwrap_or(100))
     .fetch_one(&state.db)
     .await?;
