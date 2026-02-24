@@ -41,8 +41,10 @@ class ApiService {
       },
       onError: (error, handler) async {
         if (error.response?.statusCode == 401) {
-          // Token expired, logout
-          await logout();
+          // Token expired — clear locally only (don't call logout() to avoid infinite loop)
+          _token = null;
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.remove('auth_token');
         }
         return handler.next(error);
       },
