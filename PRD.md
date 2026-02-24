@@ -62,7 +62,7 @@ TOR Chat is a secure, privacy-focused messaging application that provides end-to
 | Auth | JWT, bcrypt |
 
 ## Current Version
-v0.2.0
+v0.3.3
 
 ## Repository
 https://github.com/idan2025/tor-chat-app

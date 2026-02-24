@@ -208,7 +208,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             child: const ListTile(
               leading: Icon(Icons.info),
               title: Text('Version'),
-              subtitle: Text('0.2.0'),
+              subtitle: Text('0.3.3'),
             ),
           ),
           Card(
