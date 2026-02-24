@@ -245,12 +245,15 @@ class _RoomListScreenState extends ConsumerState<RoomListScreen> {
                                   label: Text('Private'),
                                   backgroundColor: Colors.orange,
                                 ),
-                          onTap: () {
-                            Navigator.of(context).push(
+                          onTap: () async {
+                            final shouldRefresh = await Navigator.of(context).push<bool>(
                               MaterialPageRoute(
                                 builder: (_) => ChatScreen(room: room),
                               ),
                             );
+                            if (shouldRefresh == true) {
+                              _loadRooms();
+                            }
                           },
                         ),
                       );

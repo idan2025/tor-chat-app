@@ -21,6 +21,7 @@ pub struct Room {
 }
 
 #[derive(Debug, Deserialize, Validate)]
+#[serde(rename_all = "camelCase")]
 pub struct CreateRoomRequest {
     #[validate(length(min = 1, max = 100))]
     pub name: String,

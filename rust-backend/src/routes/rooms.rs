@@ -81,7 +81,7 @@ pub async fn create_room(
     let crypto_service = CryptoService::new();
 
     // Only admins can create public rooms
-    if req.is_public.unwrap_or(false) && !auth.user.is_admin {
+    if req.is_public.unwrap_or(true) && !auth.user.is_admin {
         return Err(AppError::Authorization(
             "Only admins can create public rooms".to_string(),
         ));
@@ -97,10 +97,10 @@ pub async fn create_room(
     )
     .bind(&req.name)
     .bind(&req.description)
-    .bind(req.is_public.unwrap_or(false))
+    .bind(req.is_public.unwrap_or(true))
     .bind(auth.user_id)
     .bind(&room_key)
-    .bind(if req.is_public.unwrap_or(false) { "public" } else { "private" })
+    .bind(if req.is_public.unwrap_or(true) { "public" } else { "private" })
     .bind(req.max_members.unwrap_or(100))
     .fetch_one(&state.db)
     .await?;
@@ -551,6 +551,17 @@ pub async fn add_member(
         auth.user.username
     );
 
+    // Broadcast member_added event to the room
+    let _ = state.io.within(room_id.to_string()).emit(
+        "member_added",
+        &serde_json::json!({
+            "roomId": room_id,
+            "userId": user_id,
+            "username": target_user.username,
+            "displayName": target_user.display_name,
+        }),
+    );
+
     Ok(Json(
         serde_json::json!({ "message": "Member added successfully" }),
     ))
@@ -602,6 +613,15 @@ pub async fn remove_member(
     }
 
     tracing::info!("User {} removed from room {}", user_id, room.name);
+
+    // Broadcast member_removed event to the room
+    let _ = state.io.within(room_id.to_string()).emit(
+        "member_removed",
+        &serde_json::json!({
+            "roomId": room_id,
+            "userId": user_id,
+        }),
+    );
 
     Ok(Json(
         serde_json::json!({ "message": "Member removed successfully" }),

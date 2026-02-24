@@ -297,6 +297,60 @@ impl ApiClient {
     }
 
     // Admin endpoints
+    pub async fn get_users(&self) -> Result<Vec<Value>, String> {
+        let response = self
+            .request(reqwest::Method::GET, "/api/auth/users")
+            .await
+            .send()
+            .await
+            .map_err(|e| e.to_string())?;
+
+        if response.status().is_success() {
+            let data: Value = response.json().await.map_err(|e| e.to_string())?;
+            serde_json::from_value(data["users"].clone()).map_err(|e| e.to_string())
+        } else {
+            Err(format!("Failed to get users: {}", response.status()))
+        }
+    }
+
+    pub async fn add_room_member(&self, room_id: &str, user_id: &str) -> Result<(), String> {
+        let body = serde_json::json!({ "userId": user_id });
+        let response = self
+            .request(
+                reqwest::Method::POST,
+                &format!("/api/rooms/{}/members", room_id),
+            )
+            .await
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| e.to_string())?;
+
+        if response.status().is_success() {
+            Ok(())
+        } else {
+            Err(Self::parse_error(response, "Failed to add member").await)
+        }
+    }
+
+    pub async fn remove_room_member(&self, room_id: &str, user_id: &str) -> Result<(), String> {
+        let response = self
+            .request(
+                reqwest::Method::DELETE,
+                &format!("/api/rooms/{}/members/{}", room_id, user_id),
+            )
+            .await
+            .send()
+            .await
+            .map_err(|e| e.to_string())?;
+
+        if response.status().is_success() {
+            Ok(())
+        } else {
+            Err(Self::parse_error(response, "Failed to remove member").await)
+        }
+    }
+
     pub async fn admin_get_stats(&self) -> Result<Value, String> {
         let response = self
             .request(reqwest::Method::GET, "/api/admin/stats")

@@ -19,6 +19,11 @@ pub fn Chat() -> Element {
 
     // Members panel state
     let mut show_members = use_signal(|| false);
+    // Add member modal state
+    let mut show_add_member_modal = use_signal(|| false);
+    let mut all_users: Signal<Vec<serde_json::Value>> = use_signal(Vec::new);
+    let mut add_member_search = use_signal(String::new);
+    let mut add_member_error = use_signal(|| None::<String>);
     // File upload state
     let mut selected_file: Signal<Option<(String, Vec<u8>)>> = use_signal(|| None);
     let mut upload_status = use_signal(|| None::<String>);
@@ -215,7 +220,7 @@ pub fn Chat() -> Element {
                             create_error.set(None);
                             new_room_name.set(String::new());
                             new_room_desc.set(String::new());
-                            new_room_public.set(false);
+                            new_room_public.set(is_admin);
                         },
                         "+"
                     }
@@ -244,6 +249,7 @@ pub fn Chat() -> Element {
                                 let room_name = room.name.clone();
                                 let room_desc = room.description.clone();
                                 let room_id = room.id.to_string();
+                                let room_is_public = room.is_public;
                                 let is_selected = selected_room_idx() == Some(idx);
                                 let state = state_for_rooms.clone();
                                 rsx! {
@@ -265,8 +271,19 @@ pub fn Chat() -> Element {
                                             });
                                         },
                                         div {
-                                            class: "font-semibold text-white",
-                                            "{room_name}"
+                                            class: "flex items-center gap-2",
+                                            div {
+                                                class: "font-semibold text-white",
+                                                "{room_name}"
+                                            }
+                                            span {
+                                                class: if room_is_public {
+                                                    "text-xs px-1.5 py-0.5 rounded bg-green-800 text-green-300"
+                                                } else {
+                                                    "text-xs px-1.5 py-0.5 rounded bg-yellow-800 text-yellow-300"
+                                                },
+                                                if room_is_public { "Public" } else { "Private" }
+                                            }
                                         }
                                         if let Some(desc) = &room_desc {
                                             div {
@@ -429,40 +446,102 @@ pub fn Chat() -> Element {
                             div {
                                 class: "w-56 border-l border-gray-700 bg-gray-800 overflow-y-auto",
                                 div {
-                                    class: "p-3 border-b border-gray-700",
+                                    class: "p-3 border-b border-gray-700 flex items-center justify-between",
                                     h3 {
                                         class: "text-white font-semibold text-sm",
                                         "Members"
                                     }
-                                }
-                                for member in members.read().iter() {
-                                    div {
-                                        class: "p-3 border-b border-gray-700 flex items-center gap-2",
+                                    if is_room_creator || is_admin {
                                         {
-                                            let user = &member["user"];
-                                            let is_online = user["isOnline"].as_bool().unwrap_or(false);
-                                            let username = user["username"].as_str().unwrap_or("?").to_string();
-                                            let is_admin = user["isAdmin"].as_bool().unwrap_or(false);
+                                            let api = state.api.clone();
+                                            let room_id = selected_room.as_ref().map(|r| r.id.to_string()).unwrap_or_default();
                                             rsx! {
-                                        div {
-                                            class: if is_online {
-                                                "w-2 h-2 bg-green-500 rounded-full"
-                                            } else {
-                                                "w-2 h-2 bg-gray-500 rounded-full"
-                                            },
-                                        }
-                                        div {
-                                            div {
-                                                class: "text-white text-sm",
-                                                "{username}"
-                                            }
-                                            if is_admin {
-                                                span {
-                                                    class: "text-xs text-purple-400",
-                                                    "Admin"
+                                                button {
+                                                    class: "text-xs bg-purple-600 hover:bg-purple-700 text-white px-2 py-1 rounded",
+                                                    onclick: move |_| {
+                                                        show_add_member_modal.set(true);
+                                                        add_member_error.set(None);
+                                                        add_member_search.set(String::new());
+                                                        let api = api.clone();
+                                                        spawn(async move {
+                                                            match api.get_users().await {
+                                                                Ok(users) => all_users.set(users),
+                                                                Err(e) => tracing::error!("Failed to load users: {}", e),
+                                                            }
+                                                        });
+                                                    },
+                                                    "+ Add"
                                                 }
                                             }
                                         }
+                                    }
+                                }
+                                for member in members.read().iter() {
+                                    {
+                                        let member_user_id = member["userId"].as_str().unwrap_or("").to_string();
+                                        let user = &member["user"];
+                                        let is_online = user["isOnline"].as_bool().unwrap_or(false);
+                                        let username = user["username"].as_str().unwrap_or("?").to_string();
+                                        let member_is_admin = member["role"].as_str() == Some("admin");
+                                        let is_creator = selected_room.as_ref()
+                                            .and_then(|r| r.creator_id)
+                                            .map(|c| c.to_string() == member_user_id)
+                                            .unwrap_or(false);
+                                        let can_remove = (is_room_creator || is_admin)
+                                            && !is_creator
+                                            && current_user_id.map(|u| u.to_string() != member_user_id).unwrap_or(false);
+                                        let room_id_for_remove = selected_room.as_ref().map(|r| r.id.to_string()).unwrap_or_default();
+                                        let api_for_remove = state.api.clone();
+                                        let api_for_refresh = state.api.clone();
+                                        let rid_for_refresh = room_id_for_remove.clone();
+                                        let member_uid = member_user_id.clone();
+                                        rsx! {
+                                            div {
+                                                class: "p-3 border-b border-gray-700 flex items-center gap-2",
+                                                div {
+                                                    class: if is_online {
+                                                        "w-2 h-2 bg-green-500 rounded-full flex-shrink-0"
+                                                    } else {
+                                                        "w-2 h-2 bg-gray-500 rounded-full flex-shrink-0"
+                                                    },
+                                                }
+                                                div {
+                                                    class: "flex-1 min-w-0",
+                                                    div {
+                                                        class: "text-white text-sm truncate",
+                                                        "{username}"
+                                                    }
+                                                    if member_is_admin {
+                                                        span {
+                                                            class: "text-xs text-purple-400",
+                                                            "Admin"
+                                                        }
+                                                    }
+                                                }
+                                                if can_remove {
+                                                    button {
+                                                        class: "text-xs text-red-400 hover:text-red-300 flex-shrink-0",
+                                                        onclick: move |_| {
+                                                            let api = api_for_remove.clone();
+                                                            let rid = room_id_for_remove.clone();
+                                                            let uid = member_uid.clone();
+                                                            let api_refresh = api_for_refresh.clone();
+                                                            let rid_refresh = rid_for_refresh.clone();
+                                                            spawn(async move {
+                                                                match api.remove_room_member(&rid, &uid).await {
+                                                                    Ok(()) => {
+                                                                        // Refresh members list
+                                                                        if let Ok(m) = api_refresh.get_room_members(&rid_refresh).await {
+                                                                            members.set(m);
+                                                                        }
+                                                                    }
+                                                                    Err(e) => tracing::error!("Failed to remove member: {}", e),
+                                                                }
+                                                            });
+                                                        },
+                                                        "Remove"
+                                                    }
+                                                }
                                             }
                                         }
                                     }
@@ -633,6 +712,117 @@ pub fn Chat() -> Element {
                             } else {
                                 "Select a room to start chatting"
                             }
+                        }
+                    }
+                }
+            }
+
+            // Add Member Modal
+            if show_add_member_modal() {
+                div {
+                    class: "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50",
+                    onclick: move |_| show_add_member_modal.set(false),
+                    div {
+                        class: "bg-gray-800 rounded-lg p-6 w-96 max-w-full mx-4 max-h-[80vh] flex flex-col",
+                        onclick: move |e| e.stop_propagation(),
+                        h2 {
+                            class: "text-xl font-bold text-white mb-4",
+                            "Add Members"
+                        }
+                        if let Some(err) = add_member_error() {
+                            div {
+                                class: "bg-red-900 text-red-200 p-2 rounded mb-4 text-sm",
+                                "{err}"
+                            }
+                        }
+                        input {
+                            r#type: "text",
+                            class: "w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:outline-none focus:border-purple-500 mb-4",
+                            placeholder: "Search users...",
+                            value: "{add_member_search}",
+                            oninput: move |e| add_member_search.set(e.value().clone()),
+                        }
+                        div {
+                            class: "flex-1 overflow-y-auto space-y-2",
+                            {
+                                let search = add_member_search().to_lowercase();
+                                let member_ids: Vec<String> = members.read().iter()
+                                    .filter_map(|m| m["userId"].as_str().map(|s| s.to_string()))
+                                    .collect();
+                                let filtered: Vec<_> = all_users.read().iter()
+                                    .filter(|u| {
+                                        let uid = u["id"].as_str().unwrap_or("");
+                                        let uname = u["username"].as_str().unwrap_or("").to_lowercase();
+                                        !member_ids.contains(&uid.to_string()) &&
+                                        (search.is_empty() || uname.contains(&search))
+                                    })
+                                    .cloned()
+                                    .collect();
+                                rsx! {
+                                    if filtered.is_empty() {
+                                        p {
+                                            class: "text-gray-400 text-sm text-center py-4",
+                                            "No users to add"
+                                        }
+                                    } else {
+                                        for user in filtered {
+                                            {
+                                                let uid = user["id"].as_str().unwrap_or("").to_string();
+                                                let uname = user["username"].as_str().unwrap_or("?").to_string();
+                                                let display = user["displayName"].as_str().map(|s| s.to_string());
+                                                let api = state.api.clone();
+                                                let room_id = selected_room.as_ref().map(|r| r.id.to_string()).unwrap_or_default();
+                                                let api_refresh = state.api.clone();
+                                                let rid_refresh = room_id.clone();
+                                                rsx! {
+                                                    div {
+                                                        class: "flex items-center justify-between p-2 rounded bg-gray-700",
+                                                        div {
+                                                            div {
+                                                                class: "text-white text-sm",
+                                                                "{uname}"
+                                                            }
+                                                            if let Some(dn) = &display {
+                                                                div {
+                                                                    class: "text-xs text-gray-400",
+                                                                    "{dn}"
+                                                                }
+                                                            }
+                                                        }
+                                                        button {
+                                                            class: "bg-purple-600 hover:bg-purple-700 text-white text-xs px-3 py-1 rounded",
+                                                            onclick: move |_| {
+                                                                let api = api.clone();
+                                                                let rid = room_id.clone();
+                                                                let uid = uid.clone();
+                                                                let api_refresh = api_refresh.clone();
+                                                                let rid_refresh = rid_refresh.clone();
+                                                                spawn(async move {
+                                                                    match api.add_room_member(&rid, &uid).await {
+                                                                        Ok(()) => {
+                                                                            // Refresh members list
+                                                                            if let Ok(m) = api_refresh.get_room_members(&rid_refresh).await {
+                                                                                members.set(m);
+                                                                            }
+                                                                        }
+                                                                        Err(e) => add_member_error.set(Some(e)),
+                                                                    }
+                                                                });
+                                                            },
+                                                            "Add"
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        button {
+                            class: "mt-4 w-full bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded",
+                            onclick: move |_| show_add_member_modal.set(false),
+                            "Close"
                         }
                     }
                 }

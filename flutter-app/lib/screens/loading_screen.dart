@@ -5,6 +5,7 @@ import 'package:tor_chat/screens/login_screen.dart';
 import 'package:tor_chat/screens/room_list_screen.dart';
 import 'package:tor_chat/screens/server_config_screen.dart';
 import 'package:tor_chat/services/api_service.dart';
+import 'package:tor_chat/services/socket_service.dart';
 import 'package:tor_chat/services/tor_service.dart';
 
 class LoadingScreen extends ConsumerStatefulWidget {
@@ -68,6 +69,15 @@ class _LoadingScreenState extends ConsumerState<LoadingScreen> {
 
     try {
       await apiService.getMe();
+
+      // Connect socket on auto-login (same as login/register screens)
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
+      if (token != null) {
+        final socketService = ref.read(socketServiceProvider);
+        socketService.setServerUrl(serverUrl);
+        socketService.connect(token);
+      }
 
       if (mounted) {
         Navigator.of(context).pushReplacement(

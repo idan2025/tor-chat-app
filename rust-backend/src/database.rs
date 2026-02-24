@@ -27,7 +27,7 @@ pub async fn create_schema(pool: &PgPool) -> anyhow::Result<()> {
             encryption_key TEXT NOT NULL DEFAULT '',
             creator_id UUID REFERENCES users(id),
             max_members INTEGER DEFAULT 100,
-            is_public BOOLEAN DEFAULT FALSE,
+            is_public BOOLEAN DEFAULT TRUE,
             avatar TEXT,
             created_at TIMESTAMPTZ DEFAULT NOW()
         );
