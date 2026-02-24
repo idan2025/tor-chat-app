@@ -139,9 +139,8 @@ impl SocketClient {
                             let _ = w.send(WsMessage::Text("3".to_string())).await;
                             *sink.borrow_mut() = Some(w);
                         }
-                    } else if text.starts_with("42") {
+                    } else if let Some(json_str) = text.strip_prefix("42") {
                         // Socket.IO event: 42["event_name", payload]
-                        let json_str = &text[2..];
                         if let Ok(arr) = serde_json::from_str::<Vec<Value>>(json_str) {
                             if arr.len() >= 2 {
                                 if let Some(event_name) = arr[0].as_str() {
