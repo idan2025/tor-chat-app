@@ -1180,8 +1180,8 @@ fn Register() -> Element {
             return;
         }
 
-        if pass.len() < 6 {
-            error.set(Some("Password must be at least 6 characters".to_string()));
+        if pass.len() < 8 {
+            error.set(Some("Password must be at least 8 characters".to_string()));
             return;
         }
 
