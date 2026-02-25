@@ -100,7 +100,6 @@ class AuthNotifier extends ChangeNotifier {
 
   Future<void> register({
     required String username,
-    required String email,
     required String password,
     String? displayName,
   }) async {
@@ -109,7 +108,6 @@ class AuthNotifier extends ChangeNotifier {
     try {
       final response = await _apiService.register(
         username: username,
-        email: email,
         password: password,
         displayName: displayName,
       );

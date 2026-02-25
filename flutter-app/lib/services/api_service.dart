@@ -95,13 +95,11 @@ class ApiService {
   // Auth endpoints
   Future<Map<String, dynamic>> register({
     required String username,
-    required String email,
     required String password,
     String? displayName,
   }) async {
     final response = await _dio.post('/api/auth/register', data: {
       'username': username,
-      'email': email,
       'password': password,
       'displayName': displayName,
     });

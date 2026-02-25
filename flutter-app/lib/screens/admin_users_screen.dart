@@ -214,7 +214,7 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
             ListTile(
               leading: const Icon(Icons.person),
               title: Text(user.displayNameOrUsername),
-              subtitle: Text(user.email ?? 'No email'),
+              subtitle: Text('@${user.username}'),
             ),
             const Divider(),
             if (!user.isAdmin)

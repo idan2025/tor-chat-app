@@ -30,27 +30,39 @@ pub async fn upload_file(
                 .ok_or_else(|| AppError::Upload("No content type provided".to_string()))?
                 .to_string();
 
-            // Validate file type
-            let allowed_types = [
-                "image/jpeg",
-                "image/png",
-                "image/gif",
-                "image/webp",
-                "video/mp4",
-                "video/webm",
-                "video/ogg",
-                "application/pdf",
-                "application/msword",
-                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                "application/vnd.ms-excel",
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                "text/plain",
+            // Validate file type: allow broad categories, block dangerous types
+            let blocked_types = [
+                "application/x-executable",
+                "application/x-sharedlib",
+                "application/x-mach-binary",
+                "application/x-dosexec",
+                "application/x-msdownload",
+                "application/x-shellscript",
+                "application/x-bat",
+                "application/x-msdos-program",
             ];
 
-            if !allowed_types.contains(&content_type.as_str()) {
-                return Err(AppError::Upload(
-                    "Invalid file type. Allowed: images, videos, PDFs, documents.".to_string(),
-                ));
+            let is_allowed = content_type.starts_with("image/")
+                || content_type.starts_with("video/")
+                || content_type.starts_with("audio/")
+                || content_type.starts_with("text/")
+                || content_type == "application/pdf"
+                || content_type == "application/msword"
+                || content_type.starts_with("application/vnd.openxmlformats-officedocument.")
+                || content_type.starts_with("application/vnd.ms-")
+                || content_type.starts_with("application/vnd.oasis.opendocument.")
+                || content_type == "application/zip"
+                || content_type == "application/gzip"
+                || content_type == "application/x-tar"
+                || content_type == "application/x-7z-compressed"
+                || content_type == "application/x-rar-compressed"
+                || content_type == "application/octet-stream";
+
+            if !is_allowed || blocked_types.contains(&content_type.as_str()) {
+                return Err(AppError::Upload(format!(
+                    "File type '{}' is not allowed.",
+                    content_type
+                )));
             }
 
             let data = field

@@ -15,7 +15,6 @@ class RegisterScreen extends ConsumerStatefulWidget {
 class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   final _usernameController = TextEditingController();
-  final _emailController = TextEditingController();
   final _displayNameController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -26,7 +25,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   @override
   void dispose() {
     _usernameController.dispose();
-    _emailController.dispose();
     _displayNameController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
@@ -47,7 +45,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       final apiService = ref.read(apiServiceProvider);
       final response = await apiService.register(
         username: _usernameController.text.trim(),
-        email: _emailController.text.trim(),
         password: _passwordController.text,
         displayName: _displayNameController.text.trim().isEmpty
             ? null
@@ -127,25 +124,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     }
                     if (value.length < 3) {
                       return 'Username must be at least 3 characters';
-                    }
-                    return null;
-                  },
-                  textInputAction: TextInputAction.next,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _emailController,
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    prefixIcon: Icon(Icons.email),
-                  ),
-                  keyboardType: TextInputType.emailAddress,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter an email';
-                    }
-                    if (!value.contains('@')) {
-                      return 'Please enter a valid email';
                     }
                     return null;
                   },

@@ -245,7 +245,11 @@ impl ApiClient {
     pub async fn upload_file(&self, file_bytes: Vec<u8>, filename: &str) -> Result<Value, String> {
         use reqwest::multipart::{Form, Part};
 
-        let part = Part::bytes(file_bytes).file_name(filename.to_string());
+        let mime_type = Self::mime_from_filename(filename);
+        let part = Part::bytes(file_bytes)
+            .file_name(filename.to_string())
+            .mime_str(mime_type)
+            .map_err(|e| format!("Invalid MIME type: {}", e))?;
         let form = Form::new().part("file", part);
 
         let url = format!("{}/api/upload", self.base_url);
@@ -555,6 +559,50 @@ impl ApiClient {
             Ok(())
         } else {
             Err(format!("Failed to delete room: {}", response.status()))
+        }
+    }
+
+    fn mime_from_filename(filename: &str) -> &'static str {
+        let ext = filename
+            .rsplit('.')
+            .next()
+            .unwrap_or("")
+            .to_ascii_lowercase();
+        match ext.as_str() {
+            "jpg" | "jpeg" => "image/jpeg",
+            "png" => "image/png",
+            "gif" => "image/gif",
+            "webp" => "image/webp",
+            "svg" => "image/svg+xml",
+            "bmp" => "image/bmp",
+            "ico" => "image/x-icon",
+            "mp4" => "video/mp4",
+            "webm" => "video/webm",
+            "ogg" | "ogv" => "video/ogg",
+            "mov" => "video/quicktime",
+            "avi" => "video/x-msvideo",
+            "mp3" => "audio/mpeg",
+            "wav" => "audio/wav",
+            "flac" => "audio/flac",
+            "aac" => "audio/aac",
+            "pdf" => "application/pdf",
+            "doc" => "application/msword",
+            "docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "xls" => "application/vnd.ms-excel",
+            "xlsx" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "ppt" => "application/vnd.ms-powerpoint",
+            "pptx" => "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            "zip" => "application/zip",
+            "gz" | "gzip" => "application/gzip",
+            "tar" => "application/x-tar",
+            "7z" => "application/x-7z-compressed",
+            "rar" => "application/x-rar-compressed",
+            "txt" => "text/plain",
+            "csv" => "text/csv",
+            "html" | "htm" => "text/html",
+            "json" => "application/json",
+            "xml" => "application/xml",
+            _ => "application/octet-stream",
         }
     }
 }

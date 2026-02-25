@@ -46,9 +46,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           Card(
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             child: ListTile(
-              leading: const Icon(Icons.email),
-              title: const Text('Email'),
-              subtitle: Text(authNotifier.currentUser?.email ?? 'Not set'),
+              leading: const Icon(Icons.person),
+              title: const Text('Username'),
+              subtitle: Text(authNotifier.currentUser?.username ?? 'Not set'),
             ),
           ),
           if (authNotifier.isAdmin)

@@ -25,7 +25,6 @@ use tor_manager::{TorManager, TorStatus};
 pub struct User {
     pub id: Uuid,
     pub username: String,
-    pub email: Option<String>,
     #[serde(rename = "displayName", alias = "display_name")]
     pub display_name: Option<String>,
     pub avatar: Option<String>,
@@ -81,8 +80,12 @@ pub struct Message {
     pub content: String,
     #[serde(rename = "messageType", alias = "message_type", default)]
     pub message_type: String,
+    #[serde(default)]
+    pub reactions: serde_json::Map<String, Value>,
     #[serde(rename = "createdAt", alias = "created_at")]
     pub created_at: Option<DateTime<Utc>>,
+    #[serde(rename = "updatedAt", alias = "updated_at")]
+    pub updated_at: Option<DateTime<Utc>>,
     pub user: Option<User>,
 }
 
@@ -385,12 +388,10 @@ impl ApiClient {
     pub async fn register(
         &self,
         username: &str,
-        email: &str,
         password: &str,
     ) -> Result<Value, String> {
         let body = serde_json::json!({
             "username": username,
-            "email": email,
             "password": password
         });
 
@@ -1166,17 +1167,15 @@ fn Register() -> Element {
     let nav = use_navigator();
 
     let mut username = use_signal(String::new);
-    let mut email = use_signal(String::new);
     let mut password = use_signal(String::new);
     let mut error = use_signal(|| None::<String>);
     let mut loading = use_signal(|| false);
 
     let register = move |_| {
         let user = username().trim().to_string();
-        let mail = email().trim().to_string();
         let pass = password().trim().to_string();
 
-        if user.is_empty() || mail.is_empty() || pass.is_empty() {
+        if user.is_empty() || pass.is_empty() {
             error.set(Some("Please fill in all fields".to_string()));
             return;
         }
@@ -1190,7 +1189,7 @@ fn Register() -> Element {
             loading.set(true);
             error.set(None);
 
-            match state.read().api.register(&user, &mail, &pass).await {
+            match state.read().api.register(&user, &pass).await {
                 Ok(response) => {
                     if let Some(token) = response["token"].as_str() {
                         state.read().api.set_token(Some(token.to_string())).await;
@@ -1229,17 +1228,6 @@ fn Register() -> Element {
                         placeholder: "Choose a username",
                         value: "{username}",
                         oninput: move |e| username.set(e.value()),
-                    }
-                }
-
-                div { class: "form-group",
-                    label { class: "label", "Email" }
-                    input {
-                        class: "input",
-                        r#type: "email",
-                        placeholder: "your@email.com",
-                        value: "{email}",
-                        oninput: move |e| email.set(e.value()),
                     }
                 }
 
@@ -1303,6 +1291,9 @@ fn Chat() -> Element {
     let mut show_add_member = use_signal(|| false);
     let mut all_users: Signal<Vec<Value>> = use_signal(Vec::new);
     let mut add_search = use_signal(String::new);
+
+    // Typing indicator
+    let mut typing_users: Signal<Vec<String>> = use_signal(Vec::new);
 
     // Socket.IO connection + initial data load
     use_effect(move || {
@@ -1386,6 +1377,66 @@ fn Chat() -> Element {
                                 }
                             }
                         }
+                        "user_typing" => {
+                            let username = ev.payload.get("username").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+                            let is_typing = ev.payload.get("typing").and_then(|v| v.as_bool()).unwrap_or(false);
+                            if !username.is_empty() {
+                                let mut users = typing_users.write();
+                                if is_typing {
+                                    if !users.contains(&username) {
+                                        users.push(username);
+                                    }
+                                } else {
+                                    users.retain(|u| u != &username);
+                                }
+                            }
+                        }
+                        "reaction_added" => {
+                            if let (Some(msg_id), Some(emoji), Some(user_id)) = (
+                                ev.payload.get("messageId").and_then(|v| v.as_str()),
+                                ev.payload.get("emoji").and_then(|v| v.as_str()),
+                                ev.payload.get("userId").and_then(|v| v.as_str()),
+                            ) {
+                                if let Ok(id) = Uuid::parse_str(msg_id) {
+                                    let mut msgs = messages.write();
+                                    if let Some(m) = msgs.iter_mut().find(|m| m.id == id) {
+                                        let entry = m.reactions.entry(emoji.to_string()).or_insert_with(|| Value::Array(vec![]));
+                                        if let Value::Array(arr) = entry {
+                                            let uid_val = Value::String(user_id.to_string());
+                                            if !arr.contains(&uid_val) {
+                                                arr.push(uid_val);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        "reaction_removed" => {
+                            if let (Some(msg_id), Some(emoji), Some(user_id)) = (
+                                ev.payload.get("messageId").and_then(|v| v.as_str()),
+                                ev.payload.get("emoji").and_then(|v| v.as_str()),
+                                ev.payload.get("userId").and_then(|v| v.as_str()),
+                            ) {
+                                if let Ok(id) = Uuid::parse_str(msg_id) {
+                                    let mut msgs = messages.write();
+                                    if let Some(m) = msgs.iter_mut().find(|m| m.id == id) {
+                                        let uid_val = Value::String(user_id.to_string());
+                                        if let Some(Value::Array(arr)) = m.reactions.get_mut(emoji) {
+                                            arr.retain(|v| v != &uid_val);
+                                            if arr.is_empty() {
+                                                m.reactions.remove(emoji);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        "member_joined" => {
+                            tracing::info!("Member joined: {:?}", ev.payload);
+                        }
+                        "member_left" => {
+                            tracing::info!("Member left: {:?}", ev.payload);
+                        }
                         "authenticated" => {
                             tracing::info!("Socket authenticated");
                         }
@@ -1403,6 +1454,7 @@ fn Chat() -> Element {
         current_room.set(Some(room));
         messages.set(Vec::new());
         show_members.set(false);
+        typing_users.set(Vec::new());
 
         spawn(async move {
             // Join room via socket
@@ -1754,6 +1806,26 @@ fn Chat() -> Element {
                                     }
                                 }
                             }
+                        }
+                    }
+
+                    // Typing indicator
+                    {
+                        let users = typing_users();
+                        if !users.is_empty() {
+                            let text = if users.len() == 1 {
+                                format!("{} is typing...", users[0])
+                            } else {
+                                format!("{} are typing...", users.join(", "))
+                            };
+                            rsx! {
+                                div { class: "typing-indicator",
+                                    style: "padding: 4px 16px; font-size: 12px; color: #888; font-style: italic;",
+                                    "{text}"
+                                }
+                            }
+                        } else {
+                            rsx! {}
                         }
                     }
 

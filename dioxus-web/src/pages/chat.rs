@@ -454,7 +454,6 @@ pub fn Chat() -> Element {
                                     if is_room_creator || is_admin {
                                         {
                                             let api = state.api.clone();
-                                            let room_id = selected_room.as_ref().map(|r| r.id.to_string()).unwrap_or_default();
                                             rsx! {
                                                 button {
                                                     class: "text-xs bg-purple-600 hover:bg-purple-700 text-white px-2 py-1 rounded",
@@ -594,7 +593,7 @@ pub fn Chat() -> Element {
                             input {
                                 r#type: "file",
                                 class: "text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-gray-700 file:text-white hover:file:bg-gray-600",
-                                accept: "image/*,video/*",
+                                accept: "image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.gz,.7z,.rar",
                                 onchange: move |evt| {
                                     let files = evt.files();
                                     if let Some(file_data) = files.first() {

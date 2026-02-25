@@ -192,7 +192,9 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
                 radius: 16,
                 backgroundColor: Colors.deepPurple,
                 child: Text(
-                  widget.message.user?.username[0].toUpperCase() ?? 'U',
+                  (widget.message.user != null && widget.message.user!.username.isNotEmpty)
+                      ? widget.message.user!.username[0].toUpperCase()
+                      : 'U',
                   style: const TextStyle(fontSize: 12),
                 ),
               ),
@@ -280,9 +282,21 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
                       child: Wrap(
                         spacing: 4,
                         runSpacing: 4,
-                        children: widget.message.reactions.entries.map((entry) {
+                        children: widget.message.reactions.entries.where((entry) {
+                          return entry.value != null;
+                        }).map((entry) {
                           final emoji = entry.key;
-                          final users = entry.value as List;
+                          final value = entry.value;
+                          final int count;
+                          if (value is List) {
+                            count = value.length;
+                          } else if (value is int) {
+                            count = value;
+                          } else if (value is num) {
+                            count = value.toInt();
+                          } else {
+                            count = 1;
+                          }
                           return Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 6,
@@ -298,7 +312,7 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
                                 Text(emoji, style: const TextStyle(fontSize: 12)),
                                 const SizedBox(width: 2),
                                 Text(
-                                  users.length.toString(),
+                                  count.toString(),
                                   style: const TextStyle(fontSize: 10),
                                 ),
                               ],

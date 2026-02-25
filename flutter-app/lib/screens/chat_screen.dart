@@ -64,109 +64,155 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   Future<void> _handleNewMessage(dynamic data) async {
-    final message = Message.fromJson(data);
+    try {
+      if (data is! Map<String, dynamic>) return;
+      final message = Message.fromJson(data);
 
-    // Decrypt message if encrypted
-    if (_roomKey != null) {
-      try {
-        final cryptoService = ref.read(cryptoServiceProvider);
-        final decryptedContent =
-            await cryptoService.decryptRoomMessage(message.content, _roomKey!);
-        final decryptedMessage = message.copyWith(content: decryptedContent);
-        setState(() {
-          _messages.insert(0, decryptedMessage);
-        });
-      } catch (e) {
-        // If decryption fails, show encrypted message
+      // Decrypt message if encrypted
+      if (_roomKey != null) {
+        try {
+          final cryptoService = ref.read(cryptoServiceProvider);
+          final decryptedContent =
+              await cryptoService.decryptRoomMessage(message.content, _roomKey!);
+          final decryptedMessage = message.copyWith(content: decryptedContent);
+          setState(() {
+            _messages.insert(0, decryptedMessage);
+          });
+        } catch (e) {
+          // If decryption fails, show encrypted message
+          setState(() {
+            _messages.insert(0, message);
+          });
+        }
+      } else {
         setState(() {
           _messages.insert(0, message);
         });
       }
-    } else {
-      setState(() {
-        _messages.insert(0, message);
-      });
-    }
 
-    _scrollToBottom();
+      _scrollToBottom();
+    } catch (e) {
+      debugPrint('Error handling new_message: $e');
+    }
   }
 
   void _handleMessageEdited(dynamic data) {
-    final messageId = data['messageId'] as String;
-    final content = data['content'] as String;
+    try {
+      if (data is! Map) return;
+      final messageId = data['messageId'] as String?;
+      final content = data['content'] as String?;
+      if (messageId == null || content == null) return;
 
-    setState(() {
-      final index = _messages.indexWhere((m) => m.id == messageId);
-      if (index != -1) {
-        _messages[index] = _messages[index].copyWith(content: content);
-      }
-    });
+      setState(() {
+        final index = _messages.indexWhere((m) => m.id == messageId);
+        if (index != -1) {
+          _messages[index] = _messages[index].copyWith(content: content);
+        }
+      });
+    } catch (e) {
+      debugPrint('Error handling message_edited: $e');
+    }
   }
 
   void _handleMessageDeleted(dynamic data) {
-    final messageId = data['messageId'] as String;
+    try {
+      if (data is! Map) return;
+      final messageId = data['messageId'] as String?;
+      if (messageId == null) return;
 
-    setState(() {
-      _messages.removeWhere((m) => m.id == messageId);
-    });
+      setState(() {
+        _messages.removeWhere((m) => m.id == messageId);
+      });
+    } catch (e) {
+      debugPrint('Error handling message_deleted: $e');
+    }
   }
 
   void _handleUserTyping(dynamic data) {
-    final username = data['username'] as String? ?? '';
-    final isTyping = data['typing'] as bool? ?? false;
-    final roomId = data['roomId'] as String? ?? '';
+    try {
+      if (data is! Map) return;
+      final username = data['username'] as String? ?? '';
+      final isTyping = data['typing'] as bool? ?? false;
+      final roomId = data['roomId'] as String? ?? '';
 
-    if (roomId != widget.room.id) return;
+      if (roomId != widget.room.id) return;
 
-    setState(() {
-      if (isTyping && !_typingUsers.contains(username)) {
-        _typingUsers.add(username);
-      } else if (!isTyping) {
-        _typingUsers.remove(username);
-      }
-    });
+      setState(() {
+        if (isTyping && !_typingUsers.contains(username)) {
+          _typingUsers.add(username);
+        } else if (!isTyping) {
+          _typingUsers.remove(username);
+        }
+      });
+    } catch (e) {
+      debugPrint('Error handling user_typing: $e');
+    }
   }
 
   void _handleReactionAdded(dynamic data) {
-    final messageId = data['messageId'] as String;
-    final emoji = data['emoji'] as String;
-    final userId = data['userId'] as String;
+    try {
+      if (data is! Map) return;
+      final messageId = data['messageId'] as String?;
+      final emoji = data['emoji'] as String?;
+      final userId = data['userId'] as String?;
+      if (messageId == null || emoji == null || userId == null) return;
 
-    setState(() {
-      final index = _messages.indexWhere((m) => m.id == messageId);
-      if (index != -1) {
-        final msg = _messages[index];
-        final reactions = Map<String, dynamic>.from(msg.reactions);
-        final users = List<String>.from(reactions[emoji] ?? []);
-        if (!users.contains(userId)) {
-          users.add(userId);
+      setState(() {
+        final index = _messages.indexWhere((m) => m.id == messageId);
+        if (index != -1) {
+          final msg = _messages[index];
+          final reactions = Map<String, dynamic>.from(msg.reactions);
+          final existing = reactions[emoji];
+          final List<String> users;
+          if (existing is List) {
+            users = List<String>.from(existing);
+          } else {
+            users = <String>[];
+          }
+          if (!users.contains(userId)) {
+            users.add(userId);
+          }
+          reactions[emoji] = users;
+          _messages[index] = msg.copyWith(reactions: reactions);
         }
-        reactions[emoji] = users;
-        _messages[index] = msg.copyWith(reactions: reactions);
-      }
-    });
+      });
+    } catch (e) {
+      debugPrint('Error handling reaction_added: $e');
+    }
   }
 
   void _handleReactionRemoved(dynamic data) {
-    final messageId = data['messageId'] as String;
-    final emoji = data['emoji'] as String;
-    final userId = data['userId'] as String;
+    try {
+      if (data is! Map) return;
+      final messageId = data['messageId'] as String?;
+      final emoji = data['emoji'] as String?;
+      final userId = data['userId'] as String?;
+      if (messageId == null || emoji == null || userId == null) return;
 
-    setState(() {
-      final index = _messages.indexWhere((m) => m.id == messageId);
-      if (index != -1) {
-        final msg = _messages[index];
-        final reactions = Map<String, dynamic>.from(msg.reactions);
-        final users = List<String>.from(reactions[emoji] ?? []);
-        users.remove(userId);
-        if (users.isEmpty) {
-          reactions.remove(emoji);
-        } else {
-          reactions[emoji] = users;
+      setState(() {
+        final index = _messages.indexWhere((m) => m.id == messageId);
+        if (index != -1) {
+          final msg = _messages[index];
+          final reactions = Map<String, dynamic>.from(msg.reactions);
+          final existing = reactions[emoji];
+          final List<String> users;
+          if (existing is List) {
+            users = List<String>.from(existing);
+          } else {
+            users = <String>[];
+          }
+          users.remove(userId);
+          if (users.isEmpty) {
+            reactions.remove(emoji);
+          } else {
+            reactions[emoji] = users;
+          }
+          _messages[index] = msg.copyWith(reactions: reactions);
         }
-        _messages[index] = msg.copyWith(reactions: reactions);
-      }
-    });
+      });
+    } catch (e) {
+      debugPrint('Error handling reaction_removed: $e');
+    }
   }
 
   void _onTextChanged(String text) {
@@ -331,6 +377,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       itemBuilder: (context, index) {
                         final member = snapshot.data![index];
                         final user = member['user'];
+                        if (user == null || user is! Map) {
+                          return const SizedBox.shrink();
+                        }
                         final username = user['username'] as String? ?? '?';
                         final displayName = user['displayName'] as String?;
                         final isOnline = user['isOnline'] as bool? ?? false;

@@ -1,7 +1,6 @@
 class User {
   final String id;
   final String username;
-  final String? email;
   final String? displayName;
   final String? avatar;
   final String? publicKey;
@@ -14,7 +13,6 @@ class User {
   User({
     required this.id,
     required this.username,
-    this.email,
     this.displayName,
     this.avatar,
     this.publicKey,
@@ -29,7 +27,6 @@ class User {
     return User(
       id: json['id'] as String,
       username: json['username'] as String,
-      email: json['email'] as String?,
       displayName: json['displayName'] as String?,
       avatar: json['avatar'] as String?,
       publicKey: json['publicKey'] as String?,
@@ -47,7 +44,6 @@ class User {
     return {
       'id': id,
       'username': username,
-      'email': email,
       'displayName': displayName,
       'avatar': avatar,
       'publicKey': publicKey,
@@ -62,7 +58,6 @@ class User {
   User copyWith({
     String? id,
     String? username,
-    String? email,
     String? displayName,
     String? avatar,
     String? publicKey,
@@ -75,7 +70,6 @@ class User {
     return User(
       id: id ?? this.id,
       username: username ?? this.username,
-      email: email ?? this.email,
       displayName: displayName ?? this.displayName,
       avatar: avatar ?? this.avatar,
       publicKey: publicKey ?? this.publicKey,
