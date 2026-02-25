@@ -1,12 +1,15 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:tor_chat/models/message.dart';
 import 'package:tor_chat/services/socket_service.dart';
 
 class MessageBubble extends ConsumerStatefulWidget {
   final Message message;
   final bool isMe;
+  final String serverUrl;
   final VoidCallback? onReply;
   final VoidCallback? onForward;
 
@@ -14,6 +17,7 @@ class MessageBubble extends ConsumerStatefulWidget {
     super.key,
     required this.message,
     required this.isMe,
+    required this.serverUrl,
     this.onReply,
     this.onForward,
   });
@@ -176,6 +180,325 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
     return DateFormat('HH:mm').format(dateTime);
   }
 
+  /// Build the full URL for server-hosted files (e.g. /uploads/...)
+  String _fullUrl(String path) {
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      return path;
+    }
+    return '${widget.serverUrl}$path';
+  }
+
+  /// Extract YouTube video ID from a URL
+  String? _extractYouTubeId(String text) {
+    // youtu.be/VIDEO_ID
+    final shortMatch = RegExp(r'youtu\.be/([a-zA-Z0-9_-]{11})').firstMatch(text);
+    if (shortMatch != null) return shortMatch.group(1);
+
+    // youtube.com/watch?v=VIDEO_ID
+    final longMatch = RegExp(r'youtube\.com/watch\?v=([a-zA-Z0-9_-]{11})').firstMatch(text);
+    if (longMatch != null) return longMatch.group(1);
+
+    // youtube.com/embed/VIDEO_ID
+    final embedMatch = RegExp(r'youtube\.com/embed/([a-zA-Z0-9_-]{11})').firstMatch(text);
+    if (embedMatch != null) return embedMatch.group(1);
+
+    return null;
+  }
+
+  bool _isYouTubeUrl(String text) => _extractYouTubeId(text) != null;
+
+  Future<void> _launchUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  /// Determine file type icon from URL/extension
+  IconData _fileIcon(String url) {
+    final lower = url.toLowerCase();
+    if (lower.endsWith('.pdf')) return Icons.picture_as_pdf;
+    if (lower.endsWith('.doc') || lower.endsWith('.docx')) return Icons.description;
+    if (lower.endsWith('.xls') || lower.endsWith('.xlsx')) return Icons.table_chart;
+    if (lower.endsWith('.txt')) return Icons.text_snippet;
+    if (lower.endsWith('.zip') || lower.endsWith('.gz') || lower.endsWith('.rar') || lower.endsWith('.7z')) return Icons.folder_zip;
+    if (lower.endsWith('.mp4') || lower.endsWith('.webm') || lower.endsWith('.mov') || lower.endsWith('.avi')) return Icons.video_file;
+    if (lower.endsWith('.mp3') || lower.endsWith('.wav') || lower.endsWith('.flac') || lower.endsWith('.aac')) return Icons.audio_file;
+    return Icons.insert_drive_file;
+  }
+
+  /// Extract display filename from URL path
+  String _fileName(String url) {
+    final segments = Uri.parse(url).pathSegments;
+    if (segments.isNotEmpty) {
+      final name = segments.last;
+      // Strip timestamp-uuid prefix if present (e.g. "1234567890-uuid.jpg" -> show as-is)
+      return name.length > 40 ? '${name.substring(0, 37)}...' : name;
+    }
+    return 'File';
+  }
+
+  Widget _buildImageContent() {
+    final imageUrl = _fullUrl(widget.message.content);
+    return GestureDetector(
+      onTap: () => _showFullScreenImage(imageUrl),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 300, maxWidth: 280),
+          child: CachedNetworkImage(
+            imageUrl: imageUrl,
+            fit: BoxFit.cover,
+            placeholder: (context, url) => Container(
+              height: 150,
+              color: Colors.grey[800],
+              child: const Center(
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+            errorWidget: (context, url, error) => Container(
+              height: 80,
+              color: Colors.grey[800],
+              child: const Center(
+                child: Icon(Icons.broken_image, color: Colors.grey, size: 40),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showFullScreenImage(String imageUrl) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => Scaffold(
+          backgroundColor: Colors.black,
+          appBar: AppBar(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            leading: IconButton(
+              icon: const Icon(Icons.close, color: Colors.white),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ),
+          body: Center(
+            child: InteractiveViewer(
+              child: CachedNetworkImage(
+                imageUrl: imageUrl,
+                fit: BoxFit.contain,
+                placeholder: (context, url) =>
+                    const CircularProgressIndicator(),
+                errorWidget: (context, url, error) =>
+                    const Icon(Icons.broken_image, color: Colors.grey, size: 64),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildYouTubeContent() {
+    final videoId = _extractYouTubeId(widget.message.content)!;
+    final thumbnailUrl = 'https://img.youtube.com/vi/$videoId/hqdefault.jpg';
+    final videoUrl = 'https://www.youtube.com/watch?v=$videoId';
+
+    return GestureDetector(
+      onTap: () => _launchUrl(videoUrl),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 200, maxWidth: 280),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              CachedNetworkImage(
+                imageUrl: thumbnailUrl,
+                fit: BoxFit.cover,
+                width: 280,
+                height: 200,
+                placeholder: (context, url) => Container(
+                  height: 200,
+                  color: Colors.grey[800],
+                  child: const Center(
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
+                errorWidget: (context, url, error) => Container(
+                  height: 200,
+                  color: Colors.grey[800],
+                  child: const Center(
+                    child: Icon(Icons.video_library, color: Colors.grey, size: 40),
+                  ),
+                ),
+              ),
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                padding: const EdgeInsets.all(12),
+                child: const Icon(Icons.play_arrow, color: Colors.white, size: 36),
+              ),
+              Positioned(
+                bottom: 8,
+                left: 8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.red,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: const Text(
+                    'YouTube',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVideoContent() {
+    final fileUrl = _fullUrl(widget.message.content);
+    return GestureDetector(
+      onTap: () => _launchUrl(fileUrl),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.black26,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.video_file, color: Colors.blue, size: 32),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _fileName(widget.message.content),
+                    style: const TextStyle(fontSize: 13),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const Text(
+                    'Tap to open video',
+                    style: TextStyle(fontSize: 11, color: Colors.grey),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFileContent() {
+    final fileUrl = _fullUrl(widget.message.content);
+    return GestureDetector(
+      onTap: () => _launchUrl(fileUrl),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.black26,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(_fileIcon(widget.message.content), color: Colors.blue, size: 32),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _fileName(widget.message.content),
+                    style: const TextStyle(fontSize: 13),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const Text(
+                    'Tap to download',
+                    style: TextStyle(fontSize: 11, color: Colors.grey),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTextContent() {
+    final content = widget.message.content;
+
+    // Check if text contains a YouTube URL
+    if (_isYouTubeUrl(content)) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildYouTubeContent(),
+          const SizedBox(height: 4),
+          Text(
+            content,
+            style: const TextStyle(
+              fontSize: 13,
+              color: Colors.lightBlueAccent,
+              decoration: TextDecoration.underline,
+            ),
+          ),
+        ],
+      );
+    }
+
+    // Check if text looks like an image URL (e.g. pasted link to /uploads/...)
+    if (_looksLikeImageUrl(content)) {
+      return _buildImageContent();
+    }
+
+    return Text(
+      content,
+      style: const TextStyle(fontSize: 15),
+    );
+  }
+
+  bool _looksLikeImageUrl(String text) {
+    final lower = text.toLowerCase().trim();
+    // Only match if the entire content is a single URL to an image
+    if (lower.contains(' ') || lower.contains('\n')) return false;
+    return (lower.startsWith('/uploads/') || lower.startsWith('http'))
+        && (lower.endsWith('.jpg') || lower.endsWith('.jpeg')
+            || lower.endsWith('.png') || lower.endsWith('.gif')
+            || lower.endsWith('.webp') || lower.endsWith('.svg')
+            || lower.endsWith('.bmp'));
+  }
+
+  Widget _buildMessageContent() {
+    switch (widget.message.messageType) {
+      case 'image':
+        return _buildImageContent();
+      case 'video':
+        return _buildVideoContent();
+      case 'file':
+        return _buildFileContent();
+      case 'text':
+      default:
+        return _buildTextContent();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -248,10 +571,7 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
                         ],
                       ),
                     ),
-                  Text(
-                    widget.message.content,
-                    style: const TextStyle(fontSize: 15),
-                  ),
+                  _buildMessageContent(),
                   const SizedBox(height: 4),
                   Row(
                     mainAxisSize: MainAxisSize.min,

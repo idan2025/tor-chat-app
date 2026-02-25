@@ -8,10 +8,13 @@ class SocketService extends ChangeNotifier {
   String? _token;
   String _serverUrl = 'http://localhost:3000';
   bool _isConnected = false;
+  bool _isAuthenticated = false;
 
   final Map<String, Function(dynamic)> _eventHandlers = {};
+  final Set<String> _pendingRooms = {};
 
   bool get isConnected => _isConnected;
+  bool get isAuthenticated => _isAuthenticated;
 
   SocketService();
 
@@ -53,6 +56,7 @@ class SocketService extends ChangeNotifier {
 
     _socket!.onDisconnect((_) {
       _isConnected = false;
+      _isAuthenticated = false;
       debugPrint('Socket disconnected');
       notifyListeners();
     });
@@ -74,7 +78,9 @@ class SocketService extends ChangeNotifier {
   void _registerStandardHandlers() {
     _socket!.on('authenticated', (data) {
       debugPrint('Authenticated: $data');
+      _isAuthenticated = true;
       _callHandler('authenticated', data);
+      _flushPendingRooms();
     });
 
     _socket!.on('error', (data) {
@@ -159,13 +165,27 @@ class SocketService extends ChangeNotifier {
     _eventHandlers.remove(event);
   }
 
+  // Flush queued room joins after authentication
+  void _flushPendingRooms() {
+    if (_socket == null || !_socket!.connected) return;
+    for (final roomId in _pendingRooms) {
+      debugPrint('Joining pending room: $roomId');
+      _socket!.emit('join_room', {'roomId': roomId});
+    }
+  }
+
   // Emit events
   void joinRoom(String roomId) {
-    if (_socket == null || !_socket!.connected) return;
-    _socket!.emit('join_room', {'roomId': roomId});
+    _pendingRooms.add(roomId);
+    if (_socket != null && _socket!.connected && _isAuthenticated) {
+      _socket!.emit('join_room', {'roomId': roomId});
+    } else {
+      debugPrint('Socket not ready, queued joinRoom for: $roomId');
+    }
   }
 
   void leaveRoom(String roomId) {
+    _pendingRooms.remove(roomId);
     if (_socket == null || !_socket!.connected) return;
     _socket!.emit('leave_room', {'roomId': roomId});
   }
@@ -248,6 +268,8 @@ class SocketService extends ChangeNotifier {
       _socket!.dispose();
       _socket = null;
       _isConnected = false;
+      _isAuthenticated = false;
+      _pendingRooms.clear();
       _eventHandlers.clear();
       notifyListeners();
     }

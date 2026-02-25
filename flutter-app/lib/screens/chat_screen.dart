@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tor_chat/components/message_bubble.dart';
+import 'package:tor_chat/components/message_input.dart';
 import 'package:tor_chat/models/message.dart';
 import 'package:tor_chat/models/room.dart';
 import 'package:tor_chat/providers/auth_provider.dart';
@@ -20,7 +21,6 @@ class ChatScreen extends ConsumerStatefulWidget {
 }
 
 class _ChatScreenState extends ConsumerState<ChatScreen> {
-  final _messageController = TextEditingController();
   final _scrollController = ScrollController();
   List<Message> _messages = [];
   bool _isLoading = true;
@@ -63,10 +63,34 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     await _loadMessages();
   }
 
+  /// Safely cast socket event data to Map<String, dynamic>.
+  /// socket_io_client may deliver data as Map<dynamic, dynamic>,
+  /// Map<String, dynamic>, or even wrapped in a List.
+  Map<String, dynamic>? _castSocketData(dynamic data) {
+    if (data is Map<String, dynamic>) return data;
+    if (data is Map) return Map<String, dynamic>.from(data);
+    if (data is List && data.isNotEmpty) {
+      final first = data[0];
+      if (first is Map<String, dynamic>) return first;
+      if (first is Map) return Map<String, dynamic>.from(first);
+    }
+    debugPrint('Unexpected socket data type: ${data.runtimeType}');
+    return null;
+  }
+
   Future<void> _handleNewMessage(dynamic data) async {
     try {
-      if (data is! Map<String, dynamic>) return;
-      final message = Message.fromJson(data);
+      final map = _castSocketData(data);
+      if (map == null) return;
+
+      // Only handle messages for this room
+      final msgRoomId = map['roomId'] as String?;
+      if (msgRoomId != null && msgRoomId != widget.room.id) return;
+
+      final message = Message.fromJson(map);
+
+      // Skip duplicates
+      if (_messages.any((m) => m.id == message.id)) return;
 
       // Decrypt message if encrypted
       if (_roomKey != null) {
@@ -75,19 +99,25 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           final decryptedContent =
               await cryptoService.decryptRoomMessage(message.content, _roomKey!);
           final decryptedMessage = message.copyWith(content: decryptedContent);
-          setState(() {
-            _messages.insert(0, decryptedMessage);
-          });
+          if (mounted) {
+            setState(() {
+              _messages.insert(0, decryptedMessage);
+            });
+          }
         } catch (e) {
-          // If decryption fails, show encrypted message
+          // If decryption fails, show message as-is (may be plaintext)
+          if (mounted) {
+            setState(() {
+              _messages.insert(0, message);
+            });
+          }
+        }
+      } else {
+        if (mounted) {
           setState(() {
             _messages.insert(0, message);
           });
         }
-      } else {
-        setState(() {
-          _messages.insert(0, message);
-        });
       }
 
       _scrollToBottom();
@@ -98,9 +128,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   void _handleMessageEdited(dynamic data) {
     try {
-      if (data is! Map) return;
-      final messageId = data['messageId'] as String?;
-      final content = data['content'] as String?;
+      final map = _castSocketData(data);
+      if (map == null) return;
+      final messageId = map['messageId'] as String?;
+      final content = map['content'] as String?;
       if (messageId == null || content == null) return;
 
       setState(() {
@@ -116,8 +147,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   void _handleMessageDeleted(dynamic data) {
     try {
-      if (data is! Map) return;
-      final messageId = data['messageId'] as String?;
+      final map = _castSocketData(data);
+      if (map == null) return;
+      final messageId = map['messageId'] as String?;
       if (messageId == null) return;
 
       setState(() {
@@ -130,10 +162,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   void _handleUserTyping(dynamic data) {
     try {
-      if (data is! Map) return;
-      final username = data['username'] as String? ?? '';
-      final isTyping = data['typing'] as bool? ?? false;
-      final roomId = data['roomId'] as String? ?? '';
+      final map = _castSocketData(data);
+      if (map == null) return;
+      final username = map['username'] as String? ?? '';
+      final isTyping = map['typing'] as bool? ?? false;
+      final roomId = map['roomId'] as String? ?? '';
 
       if (roomId != widget.room.id) return;
 
@@ -151,10 +184,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   void _handleReactionAdded(dynamic data) {
     try {
-      if (data is! Map) return;
-      final messageId = data['messageId'] as String?;
-      final emoji = data['emoji'] as String?;
-      final userId = data['userId'] as String?;
+      final map = _castSocketData(data);
+      if (map == null) return;
+      final messageId = map['messageId'] as String?;
+      final emoji = map['emoji'] as String?;
+      final userId = map['userId'] as String?;
       if (messageId == null || emoji == null || userId == null) return;
 
       setState(() {
@@ -183,10 +217,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   void _handleReactionRemoved(dynamic data) {
     try {
-      if (data is! Map) return;
-      final messageId = data['messageId'] as String?;
-      final emoji = data['emoji'] as String?;
-      final userId = data['userId'] as String?;
+      final map = _castSocketData(data);
+      if (map == null) return;
+      final messageId = map['messageId'] as String?;
+      final emoji = map['emoji'] as String?;
+      final userId = map['userId'] as String?;
       if (messageId == null || emoji == null || userId == null) return;
 
       setState(() {
@@ -215,16 +250,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
   }
 
-  void _onTextChanged(String text) {
+  void _onTypingChanged(bool typing) {
     final socketService = ref.read(socketServiceProvider);
 
-    // Send typing indicator
     _typingTimer?.cancel();
-    socketService.sendTyping(widget.room.id, true);
-
-    _typingTimer = Timer(const Duration(seconds: 2), () {
+    if (typing) {
+      socketService.sendTyping(widget.room.id, true);
+      _typingTimer = Timer(const Duration(seconds: 2), () {
+        socketService.sendTyping(widget.room.id, false);
+      });
+    } else {
       socketService.sendTyping(widget.room.id, false);
-    });
+    }
   }
 
   Future<void> _loadMessages() async {
@@ -286,11 +323,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
   }
 
-  Future<void> _sendMessage() async {
-    final text = _messageController.text.trim();
+  Future<void> _sendMessage(String text) async {
     if (text.isEmpty) return;
-
-    _messageController.clear();
 
     // Stop typing indicator
     _typingTimer?.cancel();
@@ -308,6 +342,23 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     socketService.sendMessage(
       roomId: widget.room.id,
       content: content,
+    );
+  }
+
+  Future<void> _sendFileMessage(String fileUrl, String messageType) async {
+    final socketService = ref.read(socketServiceProvider);
+
+    // Encrypt file URL if room key exists
+    String content = fileUrl;
+    if (_roomKey != null) {
+      final cryptoService = ref.read(cryptoServiceProvider);
+      content = await cryptoService.encryptRoomMessage(fileUrl, _roomKey!);
+    }
+
+    socketService.sendMessage(
+      roomId: widget.room.id,
+      content: content,
+      messageType: messageType,
     );
   }
 
@@ -656,7 +707,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   @override
   void dispose() {
-    _messageController.dispose();
     _scrollController.dispose();
     _typingTimer?.cancel();
 
@@ -680,6 +730,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final isAdmin = authNotifier.isAdmin;
     final isCreator = widget.room.creatorId == currentUserId;
     final canDelete = isCreator || isAdmin;
+    final serverUrl = ref.read(apiServiceProvider).baseUrl;
 
     return Scaffold(
       appBar: AppBar(
@@ -762,6 +813,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                           return MessageBubble(
                             message: message,
                             isMe: isMe,
+                            serverUrl: serverUrl,
                           );
                         },
                       ),
@@ -782,34 +834,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 ),
               ),
             ),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: const BoxDecoration(
-              color: Color(0xFF1E1E1E),
-              border: Border(
-                top: BorderSide(color: Colors.grey, width: 0.5),
-              ),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _messageController,
-                    decoration: const InputDecoration(
-                      hintText: 'Type a message...',
-                      border: InputBorder.none,
-                    ),
-                    textInputAction: TextInputAction.send,
-                    onChanged: _onTextChanged,
-                    onSubmitted: (_) => _sendMessage(),
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.send),
-                  onPressed: _sendMessage,
-                ),
-              ],
-            ),
+          MessageInput(
+            onSendMessage: _sendMessage,
+            onSendFile: _sendFileMessage,
+            onTyping: _onTypingChanged,
           ),
         ],
       ),

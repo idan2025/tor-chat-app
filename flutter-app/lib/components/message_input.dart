@@ -4,7 +4,7 @@ import 'package:tor_chat/services/file_service.dart';
 
 class MessageInput extends ConsumerStatefulWidget {
   final Function(String) onSendMessage;
-  final Function(String)? onSendFile;
+  final Function(String url, String messageType)? onSendFile;
   final Function(bool)? onTyping;
 
   const MessageInput({
@@ -108,7 +108,7 @@ class _MessageInputState extends ConsumerState<MessageInput> {
 
       if (mounted) {
         Navigator.pop(context); // Close uploading dialog
-        widget.onSendFile?.call(fileUrl);
+        widget.onSendFile?.call(fileUrl, 'image');
       }
     } catch (e) {
       if (mounted) {
@@ -139,7 +139,7 @@ class _MessageInputState extends ConsumerState<MessageInput> {
 
       if (mounted) {
         Navigator.pop(context);
-        widget.onSendFile?.call(fileUrl);
+        widget.onSendFile?.call(fileUrl, 'video');
       }
     } catch (e) {
       if (mounted) {
@@ -172,7 +172,7 @@ class _MessageInputState extends ConsumerState<MessageInput> {
 
       if (mounted) {
         Navigator.pop(context);
-        widget.onSendFile?.call(fileUrl);
+        widget.onSendFile?.call(fileUrl, 'file');
       }
     } catch (e) {
       if (mounted) {

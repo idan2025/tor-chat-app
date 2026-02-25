@@ -12,6 +12,8 @@ class ApiService {
   String? _token;
   String _baseUrl = 'http://localhost:3000';
 
+  String get baseUrl => _baseUrl;
+
   ApiService(this._torService) {
     _initDio();
   }
