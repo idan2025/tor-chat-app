@@ -21,6 +21,7 @@ use axum::{
     routing::{delete, get, post},
     Router,
 };
+use socketioxide::extract::{Data, SocketRef};
 use socketioxide::SocketIo;
 use std::sync::Arc;
 use std::time::Duration;
@@ -65,21 +66,113 @@ async fn main() -> anyhow::Result<()> {
     let state = Arc::new(AppState::new(db_pool, config.clone(), io.clone()));
 
     // Register Socket.IO event handlers
-    io.ns("/", |socket: socketioxide::extract::SocketRef| async move {
-        tracing::info!("Socket connected: {}", socket.id);
+    // NOTE: We capture state via closures instead of using socketioxide's State
+    // extractor, because SocketIo::new_layer() doesn't register any state and
+    // AppState contains SocketIo (circular dependency prevents using the builder).
+    let ns_state = state.clone();
+    io.ns("/", move |socket: SocketRef| {
+        let state = ns_state.clone();
+        async move {
+            tracing::info!("Socket connected: {}", socket.id);
 
-        socket.on("authenticate", on_authenticate);
-        socket.on("join_room", on_join_room);
-        socket.on("leave_room", on_leave_room);
-        socket.on("send_message", on_send_message);
-        socket.on("typing", on_typing);
-        socket.on("add_reaction", on_add_reaction);
-        socket.on("remove_reaction", on_remove_reaction);
-        socket.on("edit_message", on_edit_message);
-        socket.on("delete_message", on_delete_message);
-        socket.on("mark_read", on_mark_read);
-        socket.on("forward_message", on_forward_message);
-        socket.on_disconnect(on_disconnect);
+            let s = state.clone();
+            socket.on(
+                "authenticate",
+                move |socket: SocketRef, Data(data): Data<AuthData>| {
+                    let state = s.clone();
+                    async move { on_authenticate(socket, data, state).await }
+                },
+            );
+
+            let s = state.clone();
+            socket.on(
+                "join_room",
+                move |socket: SocketRef, Data(data): Data<JoinRoomData>| {
+                    let state = s.clone();
+                    async move { on_join_room(socket, data, state).await }
+                },
+            );
+
+            socket.on("leave_room", on_leave_room);
+
+            let s = state.clone();
+            socket.on(
+                "send_message",
+                move |socket: SocketRef, Data(data): Data<SendMessageData>| {
+                    let state = s.clone();
+                    async move { on_send_message(socket, data, state).await }
+                },
+            );
+
+            let s = state.clone();
+            socket.on(
+                "typing",
+                move |socket: SocketRef, Data(data): Data<TypingData>| {
+                    let state = s.clone();
+                    async move { on_typing(socket, data, state).await }
+                },
+            );
+
+            let s = state.clone();
+            socket.on(
+                "add_reaction",
+                move |socket: SocketRef, Data(data): Data<ReactionData>| {
+                    let state = s.clone();
+                    async move { on_add_reaction(socket, data, state).await }
+                },
+            );
+
+            let s = state.clone();
+            socket.on(
+                "remove_reaction",
+                move |socket: SocketRef, Data(data): Data<ReactionData>| {
+                    let state = s.clone();
+                    async move { on_remove_reaction(socket, data, state).await }
+                },
+            );
+
+            let s = state.clone();
+            socket.on(
+                "edit_message",
+                move |socket: SocketRef, Data(data): Data<EditMessageData>| {
+                    let state = s.clone();
+                    async move { on_edit_message(socket, data, state).await }
+                },
+            );
+
+            let s = state.clone();
+            socket.on(
+                "delete_message",
+                move |socket: SocketRef, Data(data): Data<DeleteMessageData>| {
+                    let state = s.clone();
+                    async move { on_delete_message(socket, data, state).await }
+                },
+            );
+
+            let s = state.clone();
+            socket.on(
+                "mark_read",
+                move |socket: SocketRef, Data(data): Data<MarkReadData>| {
+                    let state = s.clone();
+                    async move { on_mark_read(socket, data, state).await }
+                },
+            );
+
+            let s = state.clone();
+            socket.on(
+                "forward_message",
+                move |socket: SocketRef, Data(data): Data<ForwardMessageData>| {
+                    let state = s.clone();
+                    async move { on_forward_message(socket, data, state).await }
+                },
+            );
+
+            let s = state.clone();
+            socket.on_disconnect(move |socket: SocketRef| {
+                let state = s.clone();
+                async move { on_disconnect(socket, state).await }
+            });
+        }
     });
 
     tracing::info!("Socket.IO handlers registered");

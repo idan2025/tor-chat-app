@@ -2,7 +2,7 @@ use crate::models::{Message, Room, User};
 use crate::services::AuthService;
 use crate::state::AppState;
 use serde::{Deserialize, Serialize};
-use socketioxide::extract::{Data, SocketRef, State};
+use socketioxide::extract::{Data, SocketRef};
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -115,11 +115,7 @@ async fn check_room_membership(room_id: Uuid, user_id: Uuid, state: &AppState) -
 }
 
 // 1. authenticate - Handle socket authentication
-pub async fn on_authenticate(
-    socket: SocketRef,
-    Data(data): Data<AuthData>,
-    State(state): State<Arc<AppState>>,
-) {
+pub async fn on_authenticate(socket: SocketRef, data: AuthData, state: Arc<AppState>) {
     match get_user_from_token(&data.token, &state).await {
         Some((user_id, user)) => {
             // Associate socket with user
@@ -180,11 +176,7 @@ pub async fn on_authenticate(
 }
 
 // 2. join_room - Join a room
-pub async fn on_join_room(
-    socket: SocketRef,
-    Data(data): Data<JoinRoomData>,
-    State(state): State<Arc<AppState>>,
-) {
+pub async fn on_join_room(socket: SocketRef, data: JoinRoomData, state: Arc<AppState>) {
     let user_id = match get_socket_user_info(&socket, &state).await {
         Some((id, _)) => id,
         None => {
@@ -258,11 +250,7 @@ pub async fn on_leave_room(socket: SocketRef, Data(data): Data<LeaveRoomData>) {
 }
 
 // 4. send_message - Send a message to a room
-pub async fn on_send_message(
-    socket: SocketRef,
-    Data(data): Data<SendMessageData>,
-    State(state): State<Arc<AppState>>,
-) {
+pub async fn on_send_message(socket: SocketRef, data: SendMessageData, state: Arc<AppState>) {
     let (user_id, user) = match get_socket_user_info(&socket, &state).await {
         Some((id, u)) => (id, u),
         None => return,
@@ -349,11 +337,7 @@ pub async fn on_send_message(
 }
 
 // 5. typing - Indicate typing status
-pub async fn on_typing(
-    socket: SocketRef,
-    Data(data): Data<TypingData>,
-    State(state): State<Arc<AppState>>,
-) {
+pub async fn on_typing(socket: SocketRef, data: TypingData, state: Arc<AppState>) {
     let (user_id, user) = match get_socket_user_info(&socket, &state).await {
         Some((id, u)) => (id, u),
         None => return,
@@ -386,11 +370,7 @@ pub async fn on_typing(
 }
 
 // 6. add_reaction - Add reaction to a message
-pub async fn on_add_reaction(
-    socket: SocketRef,
-    Data(data): Data<ReactionData>,
-    State(state): State<Arc<AppState>>,
-) {
+pub async fn on_add_reaction(socket: SocketRef, data: ReactionData, state: Arc<AppState>) {
     let user_id = match get_socket_user_info(&socket, &state).await {
         Some((id, _)) => id,
         None => return,
@@ -451,11 +431,7 @@ pub async fn on_add_reaction(
 }
 
 // 7. remove_reaction - Remove reaction from a message
-pub async fn on_remove_reaction(
-    socket: SocketRef,
-    Data(data): Data<ReactionData>,
-    State(state): State<Arc<AppState>>,
-) {
+pub async fn on_remove_reaction(socket: SocketRef, data: ReactionData, state: Arc<AppState>) {
     let user_id = match get_socket_user_info(&socket, &state).await {
         Some((id, _)) => id,
         None => return,
@@ -514,11 +490,7 @@ pub async fn on_remove_reaction(
 }
 
 // 8. edit_message - Edit a message
-pub async fn on_edit_message(
-    socket: SocketRef,
-    Data(data): Data<EditMessageData>,
-    State(state): State<Arc<AppState>>,
-) {
+pub async fn on_edit_message(socket: SocketRef, data: EditMessageData, state: Arc<AppState>) {
     let user_id = match get_socket_user_info(&socket, &state).await {
         Some((id, _)) => id,
         None => return,
@@ -572,11 +544,7 @@ pub async fn on_edit_message(
 }
 
 // 9. delete_message - Delete a message
-pub async fn on_delete_message(
-    socket: SocketRef,
-    Data(data): Data<DeleteMessageData>,
-    State(state): State<Arc<AppState>>,
-) {
+pub async fn on_delete_message(socket: SocketRef, data: DeleteMessageData, state: Arc<AppState>) {
     let (user_id, user) = match get_socket_user_info(&socket, &state).await {
         Some((id, u)) => (id, u),
         None => return,
@@ -627,11 +595,7 @@ pub async fn on_delete_message(
 }
 
 // 10. mark_read - Mark message as read
-pub async fn on_mark_read(
-    socket: SocketRef,
-    Data(data): Data<MarkReadData>,
-    State(state): State<Arc<AppState>>,
-) {
+pub async fn on_mark_read(socket: SocketRef, data: MarkReadData, state: Arc<AppState>) {
     let user_id = match get_socket_user_info(&socket, &state).await {
         Some((id, _)) => id,
         None => return,
@@ -662,11 +626,7 @@ pub async fn on_mark_read(
 }
 
 // 11. forward_message - Forward a message to another room
-pub async fn on_forward_message(
-    socket: SocketRef,
-    Data(data): Data<ForwardMessageData>,
-    State(state): State<Arc<AppState>>,
-) {
+pub async fn on_forward_message(socket: SocketRef, data: ForwardMessageData, state: Arc<AppState>) {
     let (user_id, user) = match get_socket_user_info(&socket, &state).await {
         Some((id, u)) => (id, u),
         None => return,
@@ -746,7 +706,7 @@ pub async fn on_forward_message(
 }
 
 // 12. disconnect - Handle socket disconnect
-pub async fn on_disconnect(socket: SocketRef, State(state): State<Arc<AppState>>) {
+pub async fn on_disconnect(socket: SocketRef, state: Arc<AppState>) {
     if let Some((user_id, _)) = get_socket_user_info(&socket, &state).await {
         // Remove from tracking
         state.remove_socket_user(&socket.id.to_string()).await;
