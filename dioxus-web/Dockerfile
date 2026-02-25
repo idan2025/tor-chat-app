@@ -65,6 +65,20 @@ server {
         proxy_read_timeout 7d;
     }
 
+    # Proxy uploaded files to backend (^~ overrides regex matches like *.jpg)
+    location ^~ /uploads/ {
+        set $backend http://backend:3000;
+        proxy_pass $backend;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_valid 200 30d;
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+    }
+
     location / {
         try_files $uri $uri/ /index.html;
     }

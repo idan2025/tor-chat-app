@@ -119,6 +119,21 @@ class UpdateService extends ChangeNotifier {
     }
   }
 
+  /// Clean up any previously downloaded APKs from the updates directory.
+  Future<void> cleanupOldUpdates() async {
+    try {
+      final dir = await getExternalStorageDirectory();
+      if (dir == null) return;
+
+      final updatesDir = Directory('${dir.path}/updates');
+      if (await updatesDir.exists()) {
+        await updatesDir.delete(recursive: true);
+      }
+    } catch (_) {
+      // Cleanup is best-effort, don't propagate errors
+    }
+  }
+
   Future<void> downloadAndInstall() async {
     if (_updateInfo == null || _updateInfo!.downloadUrl.isEmpty) {
       _error = 'No download URL available';
@@ -139,9 +154,12 @@ class UpdateService extends ChangeNotifier {
       }
 
       final updatesDir = Directory('${dir.path}/updates');
-      if (!await updatesDir.exists()) {
-        await updatesDir.create(recursive: true);
+
+      // Clean up any old APKs before downloading
+      if (await updatesDir.exists()) {
+        await updatesDir.delete(recursive: true);
       }
+      await updatesDir.create(recursive: true);
 
       final filePath = '${updatesDir.path}/tor-chat-update.apk';
 

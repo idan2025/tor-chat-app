@@ -24,6 +24,8 @@ class _RoomListScreenState extends ConsumerState<RoomListScreen> {
     _loadRooms();
     _setupSocketListeners();
     _checkForUpdates();
+    // Clean up APKs from previous updates
+    ref.read(updateServiceProvider).cleanupOldUpdates();
   }
 
   void _setupSocketListeners() {
