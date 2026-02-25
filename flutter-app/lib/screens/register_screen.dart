@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tor_chat/screens/room_list_screen.dart';
 import 'package:tor_chat/services/api_service.dart';
 import 'package:tor_chat/services/crypto_service.dart';
@@ -57,8 +58,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       // Store public key
       await cryptoService.storePublicKey(keypair['publicKey']!);
 
-      // Connect to Socket.IO
+      // Connect to Socket.IO with the configured server URL
       final socketService = ref.read(socketServiceProvider);
+      final prefs = await SharedPreferences.getInstance();
+      final serverUrl = prefs.getString('server_url');
+      if (serverUrl != null) {
+        socketService.setServerUrl(serverUrl);
+      }
       socketService.connect(token);
 
       if (mounted) {
