@@ -5,6 +5,7 @@ import 'package:tor_chat/screens/chat_screen.dart';
 import 'package:tor_chat/screens/login_screen.dart';
 import 'package:tor_chat/services/api_service.dart';
 import 'package:tor_chat/services/socket_service.dart';
+import 'package:tor_chat/services/update_service.dart';
 
 class RoomListScreen extends ConsumerStatefulWidget {
   const RoomListScreen({super.key});
@@ -22,6 +23,7 @@ class _RoomListScreenState extends ConsumerState<RoomListScreen> {
     super.initState();
     _loadRooms();
     _setupSocketListeners();
+    _checkForUpdates();
   }
 
   void _setupSocketListeners() {
@@ -34,6 +36,106 @@ class _RoomListScreenState extends ConsumerState<RoomListScreen> {
     socketService.on('room_deleted', (data) {
       _loadRooms();
     });
+  }
+
+  Future<void> _checkForUpdates() async {
+    final updateService = ref.read(updateServiceProvider);
+    final info = await updateService.checkForUpdate();
+    if (info != null && info.updateAvailable && mounted) {
+      _showUpdateDialog(info);
+    }
+  }
+
+  void _showUpdateDialog(UpdateInfo info) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Update Available'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('v${info.currentVersion} -> v${info.latestVersion}'),
+            if (info.releaseNotes.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              const Text('What\'s new:', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 4),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 200),
+                child: SingleChildScrollView(
+                  child: Text(
+                    info.releaseNotes,
+                    style: const TextStyle(fontSize: 13, color: Colors.grey),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Later'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _startUpdate();
+            },
+            child: const Text('Update Now'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _startUpdate() {
+    final updateService = ref.read(updateServiceProvider);
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Consumer(
+        builder: (context, ref, _) {
+          final service = ref.watch(updateServiceProvider);
+
+          if (service.error != null) {
+            return AlertDialog(
+              title: const Text('Update Failed'),
+              content: Text(service.error!),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    service.clearError();
+                    Navigator.pop(context);
+                  },
+                  child: const Text('Close'),
+                ),
+              ],
+            );
+          }
+
+          return AlertDialog(
+            title: const Text('Downloading Update'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                LinearProgressIndicator(value: service.downloadProgress),
+                const SizedBox(height: 12),
+                Text('${(service.downloadProgress * 100).toStringAsFixed(0)}%'),
+                if (service.downloadProgress >= 1.0)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 8),
+                    child: Text('Installing...', style: TextStyle(color: Colors.green)),
+                  ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+
+    updateService.downloadAndInstall();
   }
 
   Future<void> _loadRooms() async {
@@ -172,6 +274,11 @@ class _RoomListScreenState extends ConsumerState<RoomListScreen> {
       appBar: AppBar(
         title: const Text('TOR Chat'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.system_update),
+            tooltip: 'Check for updates',
+            onPressed: _checkForUpdates,
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: _logout,

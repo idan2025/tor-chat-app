@@ -47,6 +47,9 @@ dependencies:
   # Notifications
   flutter_local_notifications: ^17.2.1
 
+  # App info & updates
+  package_info_plus: ^8.0.0
+
   # Utilities
   intl: ^0.18.1
   uuid: ^4.3.1
