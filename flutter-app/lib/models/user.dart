@@ -8,7 +8,7 @@ class User {
   final DateTime? lastSeen;
   final bool isAdmin;
   final bool isBanned;
-  final DateTime createdAt;
+  final DateTime? createdAt;
 
   User({
     required this.id,
@@ -20,7 +20,7 @@ class User {
     this.lastSeen,
     this.isAdmin = false,
     this.isBanned = false,
-    required this.createdAt,
+    this.createdAt,
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
@@ -36,7 +36,9 @@ class User {
           : null,
       isAdmin: json['isAdmin'] as bool? ?? false,
       isBanned: json['isBanned'] as bool? ?? false,
-      createdAt: DateTime.parse(json['createdAt'] as String),
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'] as String)
+          : null,
     );
   }
 
@@ -51,7 +53,7 @@ class User {
       'lastSeen': lastSeen?.toIso8601String(),
       'isAdmin': isAdmin,
       'isBanned': isBanned,
-      'createdAt': createdAt.toIso8601String(),
+      'createdAt': createdAt?.toIso8601String(),
     };
   }
 
