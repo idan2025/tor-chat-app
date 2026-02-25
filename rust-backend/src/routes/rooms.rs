@@ -555,15 +555,19 @@ pub async fn add_member(
     );
 
     // Broadcast member_added event to the room
-    let _emit = state.io.within(room_id.to_string()).emit(
-        "member_added",
-        &serde_json::json!({
-            "roomId": room_id,
-            "userId": user_id,
-            "username": target_user.username,
-            "displayName": target_user.display_name,
-        }),
-    ).await;
+    let _emit = state
+        .io
+        .within(room_id.to_string())
+        .emit(
+            "member_added",
+            &serde_json::json!({
+                "roomId": room_id,
+                "userId": user_id,
+                "username": target_user.username,
+                "displayName": target_user.display_name,
+            }),
+        )
+        .await;
 
     Ok(Json(
         serde_json::json!({ "message": "Member added successfully" }),
@@ -618,13 +622,17 @@ pub async fn remove_member(
     tracing::info!("User {} removed from room {}", user_id, room.name);
 
     // Broadcast member_removed event to the room
-    let _emit = state.io.within(room_id.to_string()).emit(
-        "member_removed",
-        &serde_json::json!({
-            "roomId": room_id,
-            "userId": user_id,
-        }),
-    ).await;
+    let _emit = state
+        .io
+        .within(room_id.to_string())
+        .emit(
+            "member_removed",
+            &serde_json::json!({
+                "roomId": room_id,
+                "userId": user_id,
+            }),
+        )
+        .await;
 
     Ok(Json(
         serde_json::json!({ "message": "Member removed successfully" }),

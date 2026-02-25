@@ -385,11 +385,7 @@ impl ApiClient {
         }
     }
 
-    pub async fn register(
-        &self,
-        username: &str,
-        password: &str,
-    ) -> Result<Value, String> {
+    pub async fn register(&self, username: &str, password: &str) -> Result<Value, String> {
         let body = serde_json::json!({
             "username": username,
             "password": password
@@ -1378,8 +1374,17 @@ fn Chat() -> Element {
                             }
                         }
                         "user_typing" => {
-                            let username = ev.payload.get("username").and_then(|v| v.as_str()).unwrap_or_default().to_string();
-                            let is_typing = ev.payload.get("typing").and_then(|v| v.as_bool()).unwrap_or(false);
+                            let username = ev
+                                .payload
+                                .get("username")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or_default()
+                                .to_string();
+                            let is_typing = ev
+                                .payload
+                                .get("typing")
+                                .and_then(|v| v.as_bool())
+                                .unwrap_or(false);
                             if !username.is_empty() {
                                 let mut users = typing_users.write();
                                 if is_typing {
@@ -1400,7 +1405,10 @@ fn Chat() -> Element {
                                 if let Ok(id) = Uuid::parse_str(msg_id) {
                                     let mut msgs = messages.write();
                                     if let Some(m) = msgs.iter_mut().find(|m| m.id == id) {
-                                        let entry = m.reactions.entry(emoji.to_string()).or_insert_with(|| Value::Array(vec![]));
+                                        let entry = m
+                                            .reactions
+                                            .entry(emoji.to_string())
+                                            .or_insert_with(|| Value::Array(vec![]));
                                         if let Value::Array(arr) = entry {
                                             let uid_val = Value::String(user_id.to_string());
                                             if !arr.contains(&uid_val) {
@@ -1421,7 +1429,8 @@ fn Chat() -> Element {
                                     let mut msgs = messages.write();
                                     if let Some(m) = msgs.iter_mut().find(|m| m.id == id) {
                                         let uid_val = Value::String(user_id.to_string());
-                                        if let Some(Value::Array(arr)) = m.reactions.get_mut(emoji) {
+                                        if let Some(Value::Array(arr)) = m.reactions.get_mut(emoji)
+                                        {
                                             arr.retain(|v| v != &uid_val);
                                             if arr.is_empty() {
                                                 m.reactions.remove(emoji);
@@ -1461,10 +1470,7 @@ fn Chat() -> Element {
             state
                 .read()
                 .socket
-                .send_event(
-                    "join_room",
-                    &serde_json::json!({"roomId": room_id}),
-                )
+                .send_event("join_room", &serde_json::json!({"roomId": room_id}))
                 .await;
 
             // Load messages via API
