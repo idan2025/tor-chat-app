@@ -5,6 +5,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+enum UpdateType { version, patch, none }
 
 class UpdateInfo {
   final String latestVersion;
@@ -12,6 +15,7 @@ class UpdateInfo {
   final String downloadUrl;
   final String releaseNotes;
   final bool updateAvailable;
+  final UpdateType updateType;
 
   UpdateInfo({
     required this.latestVersion,
@@ -19,6 +23,7 @@ class UpdateInfo {
     required this.downloadUrl,
     required this.releaseNotes,
     required this.updateAvailable,
+    this.updateType = UpdateType.none,
   });
 }
 
@@ -27,7 +32,19 @@ class UpdateService extends ChangeNotifier {
   static const _githubOwner = 'idan2025';
   static const _githubRepo = 'tor-chat-app';
 
+  // SharedPreferences keys for asset fingerprinting
+  static const _keyAssetId = 'update_last_asset_id';
+  static const _keyAssetUpdatedAt = 'update_last_asset_updated_at';
+  static const _keyAssetSize = 'update_last_asset_size';
+  static const _keyAssetVersion = 'update_last_asset_version';
+
   final Dio _dio = Dio();
+
+  // Transient state from the latest API fetch (used between check and download)
+  int _lastFetchedAssetId = 0;
+  String _lastFetchedAssetUpdatedAt = '';
+  int _lastFetchedAssetSize = 0;
+  String _lastFetchedAssetVersion = '';
 
   UpdateInfo? _updateInfo;
   double _downloadProgress = 0;
@@ -66,18 +83,45 @@ class UpdateService extends ChangeNotifier {
       final latestVersion = tagName.startsWith('v') ? tagName.substring(1) : tagName;
       final body = data['body'] as String? ?? '';
 
-      // Find APK asset
+      // Find APK asset and extract metadata
       String downloadUrl = '';
+      int assetId = 0;
+      String assetUpdatedAt = '';
+      int assetSize = 0;
       final assets = data['assets'] as List<dynamic>? ?? [];
       for (final asset in assets) {
         final name = (asset['name'] as String? ?? '').toLowerCase();
         if (name.endsWith('.apk')) {
           downloadUrl = asset['browser_download_url'] as String? ?? '';
+          assetId = asset['id'] as int? ?? 0;
+          assetUpdatedAt = asset['updated_at'] as String? ?? '';
+          assetSize = asset['size'] as int? ?? 0;
           break;
         }
       }
 
-      final updateAvailable = _isNewer(latestVersion, currentVersion);
+      // Store fetched asset metadata for later use in downloadAndInstall
+      _lastFetchedAssetId = assetId;
+      _lastFetchedAssetUpdatedAt = assetUpdatedAt;
+      _lastFetchedAssetSize = assetSize;
+      _lastFetchedAssetVersion = latestVersion;
+
+      // Determine update type
+      UpdateType updateType = UpdateType.none;
+      bool updateAvailable = false;
+
+      if (_isNewer(latestVersion, currentVersion)) {
+        updateType = UpdateType.version;
+        updateAvailable = true;
+      } else if (assetId > 0) {
+        final patchAvailable = await _isAssetChanged(
+          assetId, assetUpdatedAt, assetSize, latestVersion,
+        );
+        if (patchAvailable) {
+          updateType = UpdateType.patch;
+          updateAvailable = true;
+        }
+      }
 
       _updateInfo = UpdateInfo(
         latestVersion: latestVersion,
@@ -85,6 +129,7 @@ class UpdateService extends ChangeNotifier {
         downloadUrl: downloadUrl,
         releaseNotes: body,
         updateAvailable: updateAvailable,
+        updateType: updateType,
       );
 
       _isChecking = false;
@@ -178,6 +223,14 @@ class UpdateService extends ChangeNotifier {
       _downloadProgress = 1.0;
       notifyListeners();
 
+      // Persist asset fingerprint after successful download
+      await _saveAssetInfo(
+        _lastFetchedAssetId,
+        _lastFetchedAssetUpdatedAt,
+        _lastFetchedAssetSize,
+        _lastFetchedAssetVersion,
+      );
+
       // Trigger install via platform channel
       await _channel.invokeMethod('installApk', {'filePath': filePath});
     } catch (e) {
@@ -185,6 +238,46 @@ class UpdateService extends ChangeNotifier {
       _isDownloading = false;
       notifyListeners();
     }
+  }
+
+  /// Check if the GitHub asset has changed since we last saved it.
+  /// Returns false on first run (seeds current values) and when the stored
+  /// version differs from the release version (prevents false positives after
+  /// external upgrades like Play Store or sideload).
+  Future<bool> _isAssetChanged(
+    int assetId, String updatedAt, int size, String version,
+  ) async {
+    final prefs = await SharedPreferences.getInstance();
+    final storedAssetId = prefs.getInt(_keyAssetId);
+
+    // First run — no stored data yet. Seed and return false.
+    if (storedAssetId == null) {
+      await _saveAssetInfo(assetId, updatedAt, size, version);
+      return false;
+    }
+
+    final storedVersion = prefs.getString(_keyAssetVersion) ?? '';
+
+    // If stored version doesn't match the current release version, the user
+    // upgraded externally. Re-seed to avoid a false patch prompt.
+    if (storedVersion != version) {
+      await _saveAssetInfo(assetId, updatedAt, size, version);
+      return false;
+    }
+
+    // Same version — compare asset ID to detect re-uploaded APKs
+    return assetId != storedAssetId;
+  }
+
+  /// Persist asset fingerprint info to SharedPreferences.
+  Future<void> _saveAssetInfo(
+    int assetId, String updatedAt, int size, String version,
+  ) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_keyAssetId, assetId);
+    await prefs.setString(_keyAssetUpdatedAt, updatedAt);
+    await prefs.setInt(_keyAssetSize, size);
+    await prefs.setString(_keyAssetVersion, version);
   }
 
   void clearError() {

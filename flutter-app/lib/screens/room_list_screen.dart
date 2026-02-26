@@ -49,15 +49,22 @@ class _RoomListScreenState extends ConsumerState<RoomListScreen> {
   }
 
   void _showUpdateDialog(UpdateInfo info) {
+    final isPatch = info.updateType == UpdateType.patch;
+    final title = isPatch ? 'Patch Available' : 'Update Available';
+    final body = isPatch
+        ? 'A new build of v${info.latestVersion} is available.'
+        : 'v${info.currentVersion} -> v${info.latestVersion}';
+    final buttonText = isPatch ? 'Install Patch' : 'Update Now';
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Update Available'),
+        title: Text(title),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('v${info.currentVersion} -> v${info.latestVersion}'),
+            Text(body),
             if (info.releaseNotes.isNotEmpty) ...[
               const SizedBox(height: 12),
               const Text('What\'s new:', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -84,7 +91,7 @@ class _RoomListScreenState extends ConsumerState<RoomListScreen> {
               Navigator.pop(context);
               _startUpdate();
             },
-            child: const Text('Update Now'),
+            child: Text(buttonText),
           ),
         ],
       ),
