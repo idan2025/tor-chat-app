@@ -328,12 +328,14 @@ pub async fn on_send_message(socket: SocketRef, data: SendMessageData, state: Ar
         }
     });
 
-    // Broadcast to room
+    // Broadcast to room (within() should include sender per docs, but
+    // also emit directly to sender as a safety net — client deduplicates)
     socket
         .within(data.room_id)
         .emit("new_message", &message_response)
         .await
         .ok();
+    socket.emit("new_message", &message_response).ok();
 }
 
 // 5. typing - Indicate typing status
@@ -356,10 +358,11 @@ pub async fn on_typing(socket: SocketRef, data: TypingData, state: Arc<AppState>
     // Broadcast typing status to room (excluding sender)
     socket
         .broadcast()
-        .within(data.room_id)
+        .within(data.room_id.clone())
         .emit(
             "user_typing",
             &serde_json::json!({
+                "roomId": data.room_id,
                 "userId": user_id,
                 "username": user.username,
                 "typing": data.typing
@@ -415,19 +418,18 @@ pub async fn on_add_reaction(socket: SocketRef, data: ReactionData, state: Arc<A
         .await;
 
     // Broadcast reaction to room
+    let reaction_response = serde_json::json!({
+        "messageId": message_id,
+        "userId": user_id,
+        "emoji": data.emoji,
+        "reactions": reactions
+    });
     socket
         .within(message.room_id.to_string())
-        .emit(
-            "reaction_added",
-            &serde_json::json!({
-                "messageId": message_id,
-                "userId": user_id,
-                "emoji": data.emoji,
-                "reactions": reactions
-            }),
-        )
+        .emit("reaction_added", &reaction_response)
         .await
         .ok();
+    socket.emit("reaction_added", &reaction_response).ok();
 }
 
 // 7. remove_reaction - Remove reaction from a message
@@ -474,19 +476,18 @@ pub async fn on_remove_reaction(socket: SocketRef, data: ReactionData, state: Ar
         .execute(&state.db)
         .await;
 
+    let reaction_response = serde_json::json!({
+        "messageId": message_id,
+        "userId": user_id,
+        "emoji": data.emoji,
+        "reactions": reactions
+    });
     socket
         .within(message.room_id.to_string())
-        .emit(
-            "reaction_removed",
-            &serde_json::json!({
-                "messageId": message_id,
-                "userId": user_id,
-                "emoji": data.emoji,
-                "reactions": reactions
-            }),
-        )
+        .emit("reaction_removed", &reaction_response)
         .await
         .ok();
+    socket.emit("reaction_removed", &reaction_response).ok();
 }
 
 // 8. edit_message - Edit a message
@@ -529,18 +530,17 @@ pub async fn on_edit_message(socket: SocketRef, data: EditMessageData, state: Ar
         .execute(&state.db)
         .await;
 
+    let edit_response = serde_json::json!({
+        "messageId": message_id,
+        "content": data.content,
+        "updatedAt": chrono::Utc::now()
+    });
     socket
         .within(message.room_id.to_string())
-        .emit(
-            "message_edited",
-            &serde_json::json!({
-                "messageId": message_id,
-                "content": data.content,
-                "updatedAt": chrono::Utc::now()
-            }),
-        )
+        .emit("message_edited", &edit_response)
         .await
         .ok();
+    socket.emit("message_edited", &edit_response).ok();
 }
 
 // 9. delete_message - Delete a message
@@ -582,16 +582,15 @@ pub async fn on_delete_message(socket: SocketRef, data: DeleteMessageData, state
         .execute(&state.db)
         .await;
 
+    let delete_response = serde_json::json!({
+        "messageId": message_id
+    });
     socket
         .within(message.room_id.to_string())
-        .emit(
-            "message_deleted",
-            &serde_json::json!({
-                "messageId": message_id
-            }),
-        )
+        .emit("message_deleted", &delete_response)
         .await
         .ok();
+    socket.emit("message_deleted", &delete_response).ok();
 }
 
 // 10. mark_read - Mark message as read
@@ -703,6 +702,7 @@ pub async fn on_forward_message(socket: SocketRef, data: ForwardMessageData, sta
         .emit("new_message", &message_response)
         .await
         .ok();
+    socket.emit("new_message", &message_response).ok();
 }
 
 // 12. disconnect - Handle socket disconnect
