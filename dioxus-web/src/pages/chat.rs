@@ -310,6 +310,12 @@ pub fn Chat() -> Element {
                             "Admin Panel"
                         }
                     }
+                    a {
+                        class: "block w-full bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded text-center",
+                        href: "https://github.com/idan2025/tor-chat-app/releases/latest",
+                        target: "_blank",
+                        "Download Apps"
+                    }
                     button {
                         class: "w-full bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded",
                         onclick: on_logout,
