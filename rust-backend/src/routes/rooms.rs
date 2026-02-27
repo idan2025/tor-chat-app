@@ -368,10 +368,11 @@ pub async fn get_messages(
 
         // Fetch reply message if reply_to is set
         let reply_message = if let Some(reply_id) = msg.reply_to {
-            if let Ok(reply_msg) = sqlx::query_as::<_, Message>("SELECT * FROM messages WHERE id = $1")
-                .bind(reply_id)
-                .fetch_one(&state.db)
-                .await
+            if let Ok(reply_msg) =
+                sqlx::query_as::<_, Message>("SELECT * FROM messages WHERE id = $1")
+                    .bind(reply_id)
+                    .fetch_one(&state.db)
+                    .await
             {
                 let reply_user = sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = $1")
                     .bind(reply_msg.user_id)

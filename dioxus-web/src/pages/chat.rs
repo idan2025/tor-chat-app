@@ -70,7 +70,9 @@ pub fn Chat() -> Element {
                     .set_event_handler(move |event: &str, payload: serde_json::Value| {
                         match event {
                             "new_message" => {
-                                match serde_json::from_value::<crate::models::Message>(payload.clone()) {
+                                match serde_json::from_value::<crate::models::Message>(
+                                    payload.clone(),
+                                ) {
                                     Ok(msg) => {
                                         let mut sig = messages_sig;
                                         let mut msgs = sig.write();
@@ -80,11 +82,16 @@ pub fn Chat() -> Element {
                                         }
                                         drop(msgs);
                                         // Increment unread count for non-selected rooms
-                                        if let Some(room_id_str) = payload.get("roomId").and_then(|v| v.as_str()) {
-                                            if let Ok(room_id) = uuid::Uuid::parse_str(room_id_str) {
+                                        if let Some(room_id_str) =
+                                            payload.get("roomId").and_then(|v| v.as_str())
+                                        {
+                                            if let Ok(room_id) = uuid::Uuid::parse_str(room_id_str)
+                                            {
                                                 let mut rsig = rooms_sig;
                                                 let mut rooms = rsig.write();
-                                                if let Some(room) = rooms.iter_mut().find(|r| r.id == room_id) {
+                                                if let Some(room) =
+                                                    rooms.iter_mut().find(|r| r.id == room_id)
+                                                {
                                                     room.unread_count += 1;
                                                 }
                                             }
@@ -120,11 +127,21 @@ pub fn Chat() -> Element {
                                 }
                             }
                             "message_pinned" => {
-                                if let Some(msg_id_str) = payload.get("messageId").and_then(|v| v.as_str()) {
+                                if let Some(msg_id_str) =
+                                    payload.get("messageId").and_then(|v| v.as_str())
+                                {
                                     if let Ok(msg_id) = uuid::Uuid::parse_str(msg_id_str) {
-                                        let pinned_by = payload.get("pinnedBy").and_then(|v| v.as_str()).and_then(|s| uuid::Uuid::parse_str(s).ok());
-                                        let pinned_at_str = payload.get("pinnedAt").and_then(|v| v.as_str());
-                                        let pinned_at = pinned_at_str.and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok().map(|d| d.with_timezone(&chrono::Utc)));
+                                        let pinned_by = payload
+                                            .get("pinnedBy")
+                                            .and_then(|v| v.as_str())
+                                            .and_then(|s| uuid::Uuid::parse_str(s).ok());
+                                        let pinned_at_str =
+                                            payload.get("pinnedAt").and_then(|v| v.as_str());
+                                        let pinned_at = pinned_at_str.and_then(|s| {
+                                            chrono::DateTime::parse_from_rfc3339(s)
+                                                .ok()
+                                                .map(|d| d.with_timezone(&chrono::Utc))
+                                        });
                                         let mut sig = messages_sig;
                                         let mut msgs = sig.write();
                                         if let Some(m) = msgs.iter_mut().find(|m| m.id == msg_id) {
@@ -135,7 +152,9 @@ pub fn Chat() -> Element {
                                 }
                             }
                             "message_unpinned" => {
-                                if let Some(msg_id_str) = payload.get("messageId").and_then(|v| v.as_str()) {
+                                if let Some(msg_id_str) =
+                                    payload.get("messageId").and_then(|v| v.as_str())
+                                {
                                     if let Ok(msg_id) = uuid::Uuid::parse_str(msg_id_str) {
                                         let mut sig = messages_sig;
                                         let mut msgs = sig.write();
@@ -188,7 +207,11 @@ pub fn Chat() -> Element {
                     let state = state_for_send.clone();
                     let reply_id = reply_to_msg().map(|m| m.id.to_string());
                     spawn(async move {
-                        match state.api.send_message(&room_id, &content, reply_id.as_deref()).await {
+                        match state
+                            .api
+                            .send_message(&room_id, &content, reply_id.as_deref())
+                            .await
+                        {
                             Ok(_) => {
                                 message_input.set(String::new());
                                 reply_to_msg.set(None);
