@@ -1,6 +1,6 @@
 use crate::error::{AppError, Result};
 use crate::middleware::{AuthUser, ValidatedJson};
-use crate::models::{CreateRoomRequest, Message, Room, RoomMember, RoomResponse, User};
+use crate::models::{CreateRoomRequest, Message, Room, RoomMember, User};
 use crate::services::CryptoService;
 use crate::state::AppState;
 use axum::{

@@ -126,7 +126,7 @@ pub fn MessageBubble(
                         if let Some(handler) = &on_reply {
                             {
                                 let msg_clone = msg.clone();
-                                let handler = handler.clone();
+                                let handler = *handler;
                                 rsx! {
                                     button {
                                         class: "text-xs text-gray-400 hover:text-purple-400 px-1",
@@ -145,7 +145,7 @@ pub fn MessageBubble(
                                 if let Some(handler) = &on_unpin {
                                     {
                                         let msg_clone = msg.clone();
-                                        let handler = handler.clone();
+                                        let handler = *handler;
                                         rsx! {
                                             button {
                                                 class: "text-xs text-yellow-400 hover:text-yellow-300 px-1",
@@ -162,7 +162,7 @@ pub fn MessageBubble(
                                 if let Some(handler) = &on_pin {
                                     {
                                         let msg_clone = msg.clone();
-                                        let handler = handler.clone();
+                                        let handler = *handler;
                                         rsx! {
                                             button {
                                                 class: "text-xs text-gray-400 hover:text-yellow-400 px-1",
