@@ -38,6 +38,8 @@ pub struct Room {
     pub max_members: i32,
     #[serde(rename = "createdAt", default = "chrono::Utc::now")]
     pub created_at: DateTime<Utc>,
+    #[serde(rename = "unreadCount", default)]
+    pub unread_count: i64,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -61,6 +63,12 @@ pub struct Message {
     #[serde(rename = "updatedAt")]
     pub updated_at: Option<DateTime<Utc>>,
     pub user: Option<User>,
+    #[serde(rename = "pinnedBy")]
+    pub pinned_by: Option<Uuid>,
+    #[serde(rename = "pinnedAt")]
+    pub pinned_at: Option<DateTime<Utc>>,
+    #[serde(rename = "replyMessage")]
+    pub reply_message: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

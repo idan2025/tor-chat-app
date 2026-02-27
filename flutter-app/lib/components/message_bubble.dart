@@ -12,6 +12,9 @@ class MessageBubble extends ConsumerStatefulWidget {
   final String serverUrl;
   final VoidCallback? onReply;
   final VoidCallback? onForward;
+  final bool isAdmin;
+  final VoidCallback? onPin;
+  final VoidCallback? onUnpin;
 
   const MessageBubble({
     super.key,
@@ -20,6 +23,9 @@ class MessageBubble extends ConsumerStatefulWidget {
     required this.serverUrl,
     this.onReply,
     this.onForward,
+    this.isAdmin = false,
+    this.onPin,
+    this.onUnpin,
   });
 
   @override
@@ -59,6 +65,24 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
                 onTap: () {
                   Navigator.pop(context);
                   widget.onForward?.call();
+                },
+              ),
+            if (widget.isAdmin && !widget.message.isPinned && widget.onPin != null)
+              ListTile(
+                leading: const Icon(Icons.push_pin, color: Colors.amber),
+                title: const Text('Pin Message'),
+                onTap: () {
+                  Navigator.pop(context);
+                  widget.onPin?.call();
+                },
+              ),
+            if (widget.isAdmin && widget.message.isPinned && widget.onUnpin != null)
+              ListTile(
+                leading: const Icon(Icons.push_pin_outlined, color: Colors.grey),
+                title: const Text('Unpin Message'),
+                onTap: () {
+                  Navigator.pop(context);
+                  widget.onUnpin?.call();
                 },
               ),
             if (widget.isMe)
@@ -178,6 +202,11 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
 
   String _formatTime(DateTime dateTime) {
     return DateFormat('HH:mm').format(dateTime);
+  }
+
+  String _truncate(String text, int maxLength) {
+    if (text.length <= maxLength) return text;
+    return '${text.substring(0, maxLength)}...';
   }
 
   /// Build the full URL for server-hosted files (e.g. /uploads/...)
@@ -556,6 +585,21 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
                         ),
                       ),
                     ),
+                  if (widget.message.isPinned)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          Icon(Icons.push_pin, size: 12, color: Colors.amber),
+                          SizedBox(width: 4),
+                          Text(
+                            'Pinned',
+                            style: TextStyle(fontSize: 10, color: Colors.amber),
+                          ),
+                        ],
+                      ),
+                    ),
                   if (widget.message.isForwarded)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 4),
@@ -567,6 +611,48 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
                           Text(
                             'Forwarded',
                             style: TextStyle(fontSize: 10, color: Colors.grey),
+                          ),
+                        ],
+                      ),
+                    ),
+                  // Quoted reply block
+                  if (widget.message.replyMessage != null)
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 6),
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        border: Border(
+                          left: BorderSide(
+                            color: Colors.deepPurpleAccent,
+                            width: 3,
+                          ),
+                        ),
+                        color: Colors.black26,
+                        borderRadius: const BorderRadius.only(
+                          topRight: Radius.circular(8),
+                          bottomRight: Radius.circular(8),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            widget.message.replyMessage!['user']?['username'] as String? ?? 'Unknown',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.deepPurpleAccent,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _truncate(widget.message.replyMessage!['content'] as String? ?? '', 100),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey[400],
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ],
                       ),

@@ -38,6 +38,21 @@ class _RoomListScreenState extends ConsumerState<RoomListScreen> {
     socketService.on('room_deleted', (data) {
       _loadRooms();
     });
+
+    socketService.on('new_message', (data) {
+      if (data is Map) {
+        final map = Map<String, dynamic>.from(data);
+        final roomId = map['roomId'] as String?;
+        if (roomId != null && mounted) {
+          setState(() {
+            final idx = _rooms.indexWhere((r) => r.id == roomId);
+            if (idx != -1) {
+              _rooms[idx].unreadCount += 1;
+            }
+          });
+        }
+      }
+    });
   }
 
   Future<void> _checkForUpdates() async {
@@ -337,12 +352,39 @@ class _RoomListScreenState extends ConsumerState<RoomListScreen> {
                           vertical: 8,
                         ),
                         child: ListTile(
-                          leading: CircleAvatar(
-                            child: Icon(
-                              room.isPublic
-                                  ? Icons.public
-                                  : Icons.lock,
-                            ),
+                          leading: Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              CircleAvatar(
+                                child: Icon(
+                                  room.isPublic
+                                      ? Icons.public
+                                      : Icons.lock,
+                                ),
+                              ),
+                              if (room.unreadCount > 0)
+                                Positioned(
+                                  right: -4,
+                                  top: -4,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: const BoxDecoration(
+                                      color: Colors.deepPurple,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
+                                    child: Text(
+                                      room.unreadCount > 99 ? '99+' : room.unreadCount.toString(),
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
                           title: Text(room.name),
                           subtitle: room.description != null

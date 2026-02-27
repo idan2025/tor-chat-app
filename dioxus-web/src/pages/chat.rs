@@ -29,6 +29,8 @@ pub fn Chat() -> Element {
     let mut upload_status = use_signal(|| None::<String>);
     let mut is_uploading = use_signal(|| false);
     let mut members: Signal<Vec<serde_json::Value>> = use_signal(Vec::new);
+    // Reply state
+    let mut reply_to_msg: Signal<Option<crate::models::Message>> = use_signal(|| None);
 
     // Auth guard
     let has_token = storage::get_token().is_some();
@@ -68,13 +70,24 @@ pub fn Chat() -> Element {
                     .set_event_handler(move |event: &str, payload: serde_json::Value| {
                         match event {
                             "new_message" => {
-                                match serde_json::from_value::<crate::models::Message>(payload) {
+                                match serde_json::from_value::<crate::models::Message>(payload.clone()) {
                                     Ok(msg) => {
                                         let mut sig = messages_sig;
                                         let mut msgs = sig.write();
                                         // Avoid duplicates
                                         if !msgs.iter().any(|m| m.id == msg.id) {
-                                            msgs.push(msg);
+                                            msgs.push(msg.clone());
+                                        }
+                                        drop(msgs);
+                                        // Increment unread count for non-selected rooms
+                                        if let Some(room_id_str) = payload.get("roomId").and_then(|v| v.as_str()) {
+                                            if let Ok(room_id) = uuid::Uuid::parse_str(room_id_str) {
+                                                let mut rsig = rooms_sig;
+                                                let mut rooms = rsig.write();
+                                                if let Some(room) = rooms.iter_mut().find(|r| r.id == room_id) {
+                                                    room.unread_count += 1;
+                                                }
+                                            }
                                         }
                                     }
                                     Err(e) => {
@@ -103,6 +116,33 @@ pub fn Chat() -> Element {
                                     if let Ok(room_id) = uuid::Uuid::parse_str(room_id_str) {
                                         let mut sig = rooms_sig;
                                         sig.write().retain(|r| r.id != room_id);
+                                    }
+                                }
+                            }
+                            "message_pinned" => {
+                                if let Some(msg_id_str) = payload.get("messageId").and_then(|v| v.as_str()) {
+                                    if let Ok(msg_id) = uuid::Uuid::parse_str(msg_id_str) {
+                                        let pinned_by = payload.get("pinnedBy").and_then(|v| v.as_str()).and_then(|s| uuid::Uuid::parse_str(s).ok());
+                                        let pinned_at_str = payload.get("pinnedAt").and_then(|v| v.as_str());
+                                        let pinned_at = pinned_at_str.and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok().map(|d| d.with_timezone(&chrono::Utc)));
+                                        let mut sig = messages_sig;
+                                        let mut msgs = sig.write();
+                                        if let Some(m) = msgs.iter_mut().find(|m| m.id == msg_id) {
+                                            m.pinned_by = pinned_by;
+                                            m.pinned_at = pinned_at;
+                                        }
+                                    }
+                                }
+                            }
+                            "message_unpinned" => {
+                                if let Some(msg_id_str) = payload.get("messageId").and_then(|v| v.as_str()) {
+                                    if let Ok(msg_id) = uuid::Uuid::parse_str(msg_id_str) {
+                                        let mut sig = messages_sig;
+                                        let mut msgs = sig.write();
+                                        if let Some(m) = msgs.iter_mut().find(|m| m.id == msg_id) {
+                                            m.pinned_by = None;
+                                            m.pinned_at = None;
+                                        }
                                     }
                                 }
                             }
@@ -146,10 +186,12 @@ pub fn Chat() -> Element {
                 if !content.is_empty() {
                     let room_id = room.id.to_string();
                     let state = state_for_send.clone();
+                    let reply_id = reply_to_msg().map(|m| m.id.to_string());
                     spawn(async move {
-                        match state.api.send_message(&room_id, &content).await {
+                        match state.api.send_message(&room_id, &content, reply_id.as_deref()).await {
                             Ok(_) => {
                                 message_input.set(String::new());
+                                reply_to_msg.set(None);
                                 let _ = state.load_messages(&room_id).await;
                             }
                             Err(e) => {
@@ -251,6 +293,7 @@ pub fn Chat() -> Element {
                                 let room_id = room.id.to_string();
                                 let room_is_public = room.is_public;
                                 let is_selected = selected_room_idx() == Some(idx);
+                                let unread = room.unread_count;
                                 let state = state_for_rooms.clone();
                                 rsx! {
                                     div {
@@ -263,18 +306,41 @@ pub fn Chat() -> Element {
                                         onclick: move |_| {
                                             selected_room_idx.set(Some(idx));
                                             show_members.set(false);
+                                            reply_to_msg.set(None);
+                                            // Clear unread count for this room
+                                            {
+                                                let mut rsig = state.rooms;
+                                                let mut rooms = rsig.write();
+                                                if let Some(r) = rooms.get_mut(idx) {
+                                                    r.unread_count = 0;
+                                                }
+                                            }
                                             let state = state.clone();
                                             let rid = room_id.clone();
                                             spawn(async move {
                                                 state.socket.join_room(&rid).await;
                                                 let _ = state.load_messages(&rid).await;
+                                                // Mark read with latest message
+                                                let msgs = state.messages.read();
+                                                if let Some(latest) = msgs.last() {
+                                                    state.socket.emit("mark_read", serde_json::json!({
+                                                        "roomId": rid,
+                                                        "messageId": latest.id.to_string(),
+                                                    })).await;
+                                                }
                                             });
                                         },
                                         div {
                                             class: "flex items-center gap-2",
                                             div {
-                                                class: "font-semibold text-white",
+                                                class: "font-semibold text-white flex-1",
                                                 "{room_name}"
+                                            }
+                                            if unread > 0 {
+                                                span {
+                                                    class: "bg-purple-600 text-white text-xs font-bold rounded-full px-2 py-0.5 min-w-[20px] text-center",
+                                                    "{unread}"
+                                                }
                                             }
                                             span {
                                                 class: if room_is_public {
@@ -431,7 +497,44 @@ pub fn Chat() -> Element {
 
                         // Messages
                         div {
-                            class: "flex-1 overflow-y-auto p-4",
+                            class: "flex-1 overflow-y-auto p-4 flex flex-col",
+                            // Pinned messages banner
+                            {
+                                let pinned: Vec<_> = messages.iter().filter(|m| m.pinned_by.is_some()).collect();
+                                if !pinned.is_empty() {
+                                    rsx! {
+                                        div {
+                                            class: "bg-yellow-900 bg-opacity-30 border border-yellow-700 rounded-lg p-2 mb-3",
+                                            div {
+                                                class: "text-xs font-semibold text-yellow-400 mb-1",
+                                                "📌 Pinned Messages ({pinned.len()})"
+                                            }
+                                            for pm in pinned.iter() {
+                                                {
+                                                    let username = pm.user.as_ref().map(|u| u.username.as_str()).unwrap_or("?");
+                                                    let content: String = if pm.content.len() > 80 {
+                                                        format!("{}...", &pm.content[..80])
+                                                    } else {
+                                                        pm.content.clone()
+                                                    };
+                                                    rsx! {
+                                                        div {
+                                                            class: "text-xs text-gray-300 truncate",
+                                                            span {
+                                                                class: "text-purple-400 font-semibold",
+                                                                "{username}: "
+                                                            }
+                                                            "{content}"
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    rsx! {}
+                                }
+                            }
                             if messages.is_empty() {
                                 div {
                                     class: "text-center text-gray-400 mt-4",
@@ -439,9 +542,37 @@ pub fn Chat() -> Element {
                                 }
                             } else {
                                 for message in messages.iter() {
-                                    MessageBubble {
-                                        key: "{message.id}",
-                                        message: message.clone(),
+                                    {
+                                        let socket_pin = state.socket.clone();
+                                        let socket_unpin = state.socket.clone();
+                                        rsx! {
+                                            MessageBubble {
+                                                key: "{message.id}",
+                                                message: message.clone(),
+                                                is_admin: is_admin,
+                                                on_reply: move |m: crate::models::Message| {
+                                                    reply_to_msg.set(Some(m));
+                                                },
+                                                on_pin: move |m: crate::models::Message| {
+                                                    let socket = socket_pin.clone();
+                                                    let mid = m.id.to_string();
+                                                    spawn(async move {
+                                                        socket.emit("pin_message", serde_json::json!({
+                                                            "messageId": mid,
+                                                        })).await;
+                                                    });
+                                                },
+                                                on_unpin: move |m: crate::models::Message| {
+                                                    let socket = socket_unpin.clone();
+                                                    let mid = m.id.to_string();
+                                                    spawn(async move {
+                                                        socket.emit("unpin_message", serde_json::json!({
+                                                            "messageId": mid,
+                                                        })).await;
+                                                    });
+                                                },
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -558,6 +689,28 @@ pub fn Chat() -> Element {
                     // Input
                     div {
                         class: "p-4 border-t border-gray-700 bg-gray-800",
+                        // Reply preview bar
+                        if let Some(reply_msg) = reply_to_msg() {
+                            div {
+                                class: "flex items-center gap-2 mb-2 bg-gray-700 rounded-lg p-2 border-l-4 border-purple-500",
+                                div {
+                                    class: "flex-1 min-w-0",
+                                    div {
+                                        class: "text-xs font-semibold text-purple-400",
+                                        "Replying to {reply_msg.user.as_ref().map(|u| u.username.as_str()).unwrap_or(\"?\")}"
+                                    }
+                                    div {
+                                        class: "text-xs text-gray-300 truncate",
+                                        "{reply_msg.content}"
+                                    }
+                                }
+                                button {
+                                    class: "text-gray-400 hover:text-white text-lg px-2",
+                                    onclick: move |_| reply_to_msg.set(None),
+                                    "×"
+                                }
+                            }
+                        }
                         // File upload status
                         {
                             let status = upload_status();

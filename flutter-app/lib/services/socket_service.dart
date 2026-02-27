@@ -147,6 +147,14 @@ class SocketService extends ChangeNotifier {
     _socket!.on('message_read', (data) {
       _callHandler('message_read', data);
     });
+
+    _socket!.on('message_pinned', (data) {
+      _callHandler('message_pinned', data);
+    });
+
+    _socket!.on('message_unpinned', (data) {
+      _callHandler('message_unpinned', data);
+    });
   }
 
   void _callHandler(String event, dynamic data) {
@@ -250,6 +258,20 @@ class SocketService extends ChangeNotifier {
     if (_socket == null || !_socket!.connected) return;
     _socket!.emit('mark_read', {
       'roomId': roomId,
+      'messageId': messageId,
+    });
+  }
+
+  void pinMessage(String messageId) {
+    if (_socket == null || !_socket!.connected) return;
+    _socket!.emit('pin_message', {
+      'messageId': messageId,
+    });
+  }
+
+  void unpinMessage(String messageId) {
+    if (_socket == null || !_socket!.connected) return;
+    _socket!.emit('unpin_message', {
       'messageId': messageId,
     });
   }

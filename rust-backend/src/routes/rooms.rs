@@ -33,6 +33,7 @@ pub struct SearchQuery {
 pub struct SendMessageBody {
     pub content: String,
     pub message_type: Option<String>,
+    pub reply_to: Option<Uuid>,
 }
 
 #[derive(Serialize)]
@@ -50,6 +51,9 @@ pub struct MessageResponse {
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: Option<chrono::DateTime<chrono::Utc>>,
     pub user: serde_json::Value,
+    pub pinned_by: Option<Uuid>,
+    pub pinned_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub reply_message: Option<serde_json::Value>,
 }
 
 // GET /api/rooms - List rooms (public + user's private rooms)
@@ -67,7 +71,27 @@ pub async fn list_rooms(
     .fetch_all(&state.db)
     .await?;
 
-    let room_responses: Vec<RoomResponse> = rooms.into_iter().map(|r| r.to_public_json()).collect();
+    let mut room_responses = Vec::new();
+    for r in &rooms {
+        let unread_count: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM messages m
+             JOIN room_members rm ON rm.room_id = m.room_id AND rm.user_id = $2
+             WHERE m.room_id = $1
+             AND (rm.last_read_message_id IS NULL
+                  OR m.created_at > (SELECT created_at FROM messages WHERE id = rm.last_read_message_id))"
+        )
+        .bind(r.id)
+        .bind(auth.user_id)
+        .fetch_one(&state.db)
+        .await
+        .unwrap_or(0);
+
+        let mut json = serde_json::to_value(r.to_public_json()).unwrap_or_default();
+        if let Some(obj) = json.as_object_mut() {
+            obj.insert("unreadCount".to_string(), serde_json::json!(unread_count));
+        }
+        room_responses.push(json);
+    }
 
     Ok(Json(serde_json::json!({ "rooms": room_responses })))
 }
@@ -342,6 +366,37 @@ pub async fn get_messages(
             .fetch_one(&state.db)
             .await?;
 
+        // Fetch reply message if reply_to is set
+        let reply_message = if let Some(reply_id) = msg.reply_to {
+            if let Ok(reply_msg) = sqlx::query_as::<_, Message>("SELECT * FROM messages WHERE id = $1")
+                .bind(reply_id)
+                .fetch_one(&state.db)
+                .await
+            {
+                let reply_user = sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = $1")
+                    .bind(reply_msg.user_id)
+                    .fetch_optional(&state.db)
+                    .await
+                    .ok()
+                    .flatten();
+                Some(serde_json::json!({
+                    "id": reply_msg.id,
+                    "content": reply_msg.content,
+                    "userId": reply_msg.user_id,
+                    "messageType": reply_msg.message_type,
+                    "user": reply_user.map(|u| serde_json::json!({
+                        "id": u.id,
+                        "username": u.username,
+                        "displayName": u.display_name,
+                    })),
+                }))
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
         message_responses.push(MessageResponse {
             id: msg.id,
             room_id: msg.room_id,
@@ -354,6 +409,9 @@ pub async fn get_messages(
             metadata: msg.metadata,
             created_at: msg.created_at,
             updated_at: msg.updated_at,
+            pinned_by: msg.pinned_by,
+            pinned_at: msg.pinned_at,
+            reply_message,
             user: serde_json::json!({
                 "id": user.id,
                 "username": user.username,
@@ -392,14 +450,15 @@ pub async fn send_message(
     let message_type = body.message_type.unwrap_or_else(|| "text".to_string());
 
     let msg = sqlx::query_as::<_, Message>(
-        "INSERT INTO messages (room_id, user_id, content, message_type)
-         VALUES ($1, $2, $3, $4)
+        "INSERT INTO messages (room_id, user_id, content, message_type, reply_to)
+         VALUES ($1, $2, $3, $4, $5)
          RETURNING *",
     )
     .bind(room_id)
     .bind(auth.user_id)
     .bind(&body.content)
     .bind(&message_type)
+    .bind(body.reply_to)
     .fetch_one(&state.db)
     .await?;
 
@@ -415,6 +474,9 @@ pub async fn send_message(
         metadata: msg.metadata,
         created_at: msg.created_at,
         updated_at: msg.updated_at,
+        pinned_by: msg.pinned_by,
+        pinned_at: msg.pinned_at,
+        reply_message: None,
         user: serde_json::json!({
             "id": auth.user.id,
             "username": auth.user.username,
@@ -689,6 +751,9 @@ pub async fn search_messages(
             metadata: msg.metadata,
             created_at: msg.created_at,
             updated_at: msg.updated_at,
+            pinned_by: msg.pinned_by,
+            pinned_at: msg.pinned_at,
+            reply_message: None,
             user: serde_json::json!({
                 "id": user.id,
                 "username": user.username,

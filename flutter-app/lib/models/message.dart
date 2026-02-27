@@ -13,6 +13,9 @@ class Message {
   final DateTime createdAt;
   final DateTime? updatedAt;
   final User? user;
+  final String? pinnedBy;
+  final DateTime? pinnedAt;
+  final Map<String, dynamic>? replyMessage;
 
   Message({
     required this.id,
@@ -27,6 +30,9 @@ class Message {
     required this.createdAt,
     this.updatedAt,
     this.user,
+    this.pinnedBy,
+    this.pinnedAt,
+    this.replyMessage,
   });
 
   factory Message.fromJson(Map<String, dynamic> json) {
@@ -47,6 +53,13 @@ class Message {
       user: json['user'] != null
           ? User.fromJson(json['user'] as Map<String, dynamic>)
           : null,
+      pinnedBy: json['pinnedBy'] as String?,
+      pinnedAt: json['pinnedAt'] != null
+          ? DateTime.parse(json['pinnedAt'] as String)
+          : null,
+      replyMessage: json['replyMessage'] != null
+          ? Map<String, dynamic>.from(json['replyMessage'] as Map)
+          : null,
     );
   }
 
@@ -64,6 +77,9 @@ class Message {
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt?.toIso8601String(),
       'user': user?.toJson(),
+      'pinnedBy': pinnedBy,
+      'pinnedAt': pinnedAt?.toIso8601String(),
+      'replyMessage': replyMessage,
     };
   }
 
@@ -80,6 +96,10 @@ class Message {
     DateTime? createdAt,
     DateTime? updatedAt,
     User? user,
+    String? pinnedBy,
+    DateTime? pinnedAt,
+    Map<String, dynamic>? replyMessage,
+    bool clearPinned = false,
   }) {
     return Message(
       id: id ?? this.id,
@@ -94,12 +114,16 @@ class Message {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       user: user ?? this.user,
+      pinnedBy: clearPinned ? null : (pinnedBy ?? this.pinnedBy),
+      pinnedAt: clearPinned ? null : (pinnedAt ?? this.pinnedAt),
+      replyMessage: replyMessage ?? this.replyMessage,
     );
   }
 
   bool get isEdited => updatedAt != null;
   bool get isForwarded => forwardedFrom != null;
   bool get hasReactions => reactions.isNotEmpty;
+  bool get isPinned => pinnedBy != null;
 
   bool get isText => messageType == 'text';
   bool get isImage => messageType == 'image';

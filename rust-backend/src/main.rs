@@ -47,7 +47,7 @@ async fn main() -> anyhow::Result<()> {
 
     // Load configuration
     let config = Config::from_env()?;
-    tracing::info!("Starting TOR Chat Backend v0.2.0");
+    tracing::info!("Starting TOR Chat Backend v0.3.7");
     tracing::info!("Server: {}:{}", config.host, config.port);
     tracing::info!("TOR enabled: {}", config.tor_enabled);
 
@@ -164,6 +164,24 @@ async fn main() -> anyhow::Result<()> {
                 move |socket: SocketRef, Data(data): Data<ForwardMessageData>| {
                     let state = s.clone();
                     async move { on_forward_message(socket, data, state).await }
+                },
+            );
+
+            let s = state.clone();
+            socket.on(
+                "pin_message",
+                move |socket: SocketRef, Data(data): Data<PinMessageData>| {
+                    let state = s.clone();
+                    async move { on_pin_message(socket, data, state).await }
+                },
+            );
+
+            let s = state.clone();
+            socket.on(
+                "unpin_message",
+                move |socket: SocketRef, Data(data): Data<PinMessageData>| {
+                    let state = s.clone();
+                    async move { on_unpin_message(socket, data, state).await }
                 },
             );
 

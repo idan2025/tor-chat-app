@@ -198,11 +198,14 @@ impl ApiClient {
         }
     }
 
-    pub async fn send_message(&self, room_id: &str, content: &str) -> Result<Message, String> {
-        let body = serde_json::json!({
+    pub async fn send_message(&self, room_id: &str, content: &str, reply_to: Option<&str>) -> Result<Message, String> {
+        let mut body = serde_json::json!({
             "content": content,
             "messageType": "text",
         });
+        if let Some(reply_id) = reply_to {
+            body["replyTo"] = serde_json::json!(reply_id);
+        }
 
         let response = self
             .request(

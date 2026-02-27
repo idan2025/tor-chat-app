@@ -17,6 +17,8 @@ pub struct Message {
     pub metadata: Option<serde_json::Value>,
     pub created_at: DateTime<Utc>,
     pub updated_at: Option<DateTime<Utc>>,
+    pub pinned_by: Option<Uuid>,
+    pub pinned_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Deserialize, Validate)]
@@ -55,6 +57,9 @@ pub struct MessageResponse {
     pub metadata: Option<serde_json::Value>,
     pub created_at: DateTime<Utc>,
     pub updated_at: Option<DateTime<Utc>>,
+    pub pinned_by: Option<Uuid>,
+    pub pinned_at: Option<DateTime<Utc>>,
+    pub reply_message: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Serialize)]

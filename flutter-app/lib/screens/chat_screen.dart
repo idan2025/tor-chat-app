@@ -30,6 +30,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   List<String> _typingUsers = [];
   Timer? _typingTimer;
 
+  // Reply state
+  Message? _replyingTo;
+
   @override
   void initState() {
     super.initState();
@@ -48,6 +51,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     socketService.on('user_typing', _handleUserTyping);
     socketService.on('reaction_added', _handleReactionAdded);
     socketService.on('reaction_removed', _handleReactionRemoved);
+    socketService.on('message_pinned', _handleMessagePinned);
+    socketService.on('message_unpinned', _handleMessageUnpinned);
 
     // Load room key
     final storageService = ref.read(storageServiceProvider);
@@ -61,6 +66,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     // Load messages
     await _loadMessages();
+
+    // Mark read with latest message
+    if (_messages.isNotEmpty) {
+      socketService.markRead(widget.room.id, _messages.first.id);
+    }
   }
 
   /// Safely cast socket event data to Map<String, dynamic>.
@@ -250,6 +260,47 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
   }
 
+  void _handleMessagePinned(dynamic data) {
+    try {
+      final map = _castSocketData(data);
+      if (map == null) return;
+      final messageId = map['messageId'] as String?;
+      final pinnedBy = map['pinnedBy'] as String?;
+      final pinnedAtStr = map['pinnedAt'] as String?;
+      if (messageId == null) return;
+
+      setState(() {
+        final index = _messages.indexWhere((m) => m.id == messageId);
+        if (index != -1) {
+          _messages[index] = _messages[index].copyWith(
+            pinnedBy: pinnedBy,
+            pinnedAt: pinnedAtStr != null ? DateTime.tryParse(pinnedAtStr) : null,
+          );
+        }
+      });
+    } catch (e) {
+      debugPrint('Error handling message_pinned: $e');
+    }
+  }
+
+  void _handleMessageUnpinned(dynamic data) {
+    try {
+      final map = _castSocketData(data);
+      if (map == null) return;
+      final messageId = map['messageId'] as String?;
+      if (messageId == null) return;
+
+      setState(() {
+        final index = _messages.indexWhere((m) => m.id == messageId);
+        if (index != -1) {
+          _messages[index] = _messages[index].copyWith(clearPinned: true);
+        }
+      });
+    } catch (e) {
+      debugPrint('Error handling message_unpinned: $e');
+    }
+  }
+
   void _onTypingChanged(bool typing) {
     final socketService = ref.read(socketServiceProvider);
 
@@ -342,7 +393,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     socketService.sendMessage(
       roomId: widget.room.id,
       content: content,
+      replyTo: _replyingTo?.id,
     );
+
+    // Clear reply state
+    if (_replyingTo != null) {
+      setState(() => _replyingTo = null);
+    }
   }
 
   Future<void> _sendFileMessage(String fileUrl, String messageType) async {
@@ -719,6 +776,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     socketService.off('user_typing');
     socketService.off('reaction_added');
     socketService.off('reaction_removed');
+    socketService.off('message_pinned');
+    socketService.off('message_unpinned');
 
     super.dispose();
   }
@@ -790,6 +849,33 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       ),
       body: Column(
         children: [
+          // Pinned messages banner
+          if (_messages.any((m) => m.isPinned))
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              color: Colors.amber.withValues(alpha: 0.15),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    '📌 Pinned Messages',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.amber,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  ..._messages.where((m) => m.isPinned).take(3).map((m) => Text(
+                    '${m.user?.username ?? "?"}: ${m.content.length > 60 ? "${m.content.substring(0, 60)}..." : m.content}',
+                    style: TextStyle(fontSize: 11, color: Colors.grey[400]),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  )),
+                ],
+              ),
+            ),
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -809,11 +895,22 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         itemBuilder: (context, index) {
                           final message = _messages[index];
                           final isMe = message.userId == currentUserId;
+                          final socketService = ref.read(socketServiceProvider);
 
                           return MessageBubble(
                             message: message,
                             isMe: isMe,
                             serverUrl: serverUrl,
+                            isAdmin: isAdmin,
+                            onReply: () {
+                              setState(() => _replyingTo = message);
+                            },
+                            onPin: () {
+                              socketService.pinMessage(message.id);
+                            },
+                            onUnpin: () {
+                              socketService.unpinMessage(message.id);
+                            },
                           );
                         },
                       ),
@@ -832,6 +929,51 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   color: Colors.grey,
                   fontStyle: FontStyle.italic,
                 ),
+              ),
+            ),
+          // Reply preview bar
+          if (_replyingTo != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              color: const Color(0xFF2C2C2C),
+              child: Row(
+                children: [
+                  Container(
+                    width: 3,
+                    height: 36,
+                    color: Colors.deepPurpleAccent,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Replying to ${_replyingTo!.user?.username ?? "?"}',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.deepPurpleAccent,
+                          ),
+                        ),
+                        Text(
+                          _replyingTo!.content.length > 80
+                              ? '${_replyingTo!.content.substring(0, 80)}...'
+                              : _replyingTo!.content,
+                          style: TextStyle(fontSize: 11, color: Colors.grey[400]),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 18),
+                    onPressed: () => setState(() => _replyingTo = null),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
               ),
             ),
           MessageInput(

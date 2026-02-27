@@ -83,6 +83,12 @@ pub struct ForwardMessageData {
     target_room_id: String,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct PinMessageData {
+    #[serde(rename = "messageId")]
+    message_id: String,
+}
+
 #[derive(Debug, Serialize)]
 pub struct ErrorResponse {
     error: String,
@@ -307,6 +313,37 @@ pub async fn on_send_message(socket: SocketRef, data: SendMessageData, state: Ar
         }
     };
 
+    // Fetch reply message if reply_to is set
+    let reply_message_json = if let Some(reply_id) = message.reply_to {
+        if let Ok(reply_msg) = sqlx::query_as::<_, Message>("SELECT * FROM messages WHERE id = $1")
+            .bind(reply_id)
+            .fetch_one(&state.db)
+            .await
+        {
+            let reply_user = sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = $1")
+                .bind(reply_msg.user_id)
+                .fetch_optional(&state.db)
+                .await
+                .ok()
+                .flatten();
+            Some(serde_json::json!({
+                "id": reply_msg.id,
+                "content": reply_msg.content,
+                "userId": reply_msg.user_id,
+                "messageType": reply_msg.message_type,
+                "user": reply_user.map(|u| serde_json::json!({
+                    "id": u.id,
+                    "username": u.username,
+                    "displayName": u.display_name,
+                })),
+            }))
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
     let message_response = serde_json::json!({
         "id": message.id,
         "roomId": message.room_id,
@@ -319,6 +356,9 @@ pub async fn on_send_message(socket: SocketRef, data: SendMessageData, state: Ar
         "metadata": message.metadata,
         "createdAt": message.created_at,
         "updatedAt": message.updated_at,
+        "pinnedBy": message.pinned_by,
+        "pinnedAt": message.pinned_at,
+        "replyMessage": reply_message_json,
         "user": {
             "id": user.id,
             "username": user.username,
@@ -605,9 +645,24 @@ pub async fn on_mark_read(socket: SocketRef, data: MarkReadData, state: Arc<AppS
         Err(_) => return,
     };
 
+    let message_id = match Uuid::parse_str(&data.message_id) {
+        Ok(id) => id,
+        Err(_) => return,
+    };
+
     if !check_room_membership(room_id, user_id, &state).await {
         return;
     }
+
+    // Update last_read_message_id in DB
+    let _ = sqlx::query(
+        "UPDATE room_members SET last_read_message_id = $1, last_read_at = NOW() WHERE room_id = $2 AND user_id = $3"
+    )
+    .bind(message_id)
+    .bind(room_id)
+    .bind(user_id)
+    .execute(&state.db)
+    .await;
 
     // Broadcast read receipt to room
     socket
@@ -616,6 +671,7 @@ pub async fn on_mark_read(socket: SocketRef, data: MarkReadData, state: Arc<AppS
         .emit(
             "message_read",
             &serde_json::json!({
+                "roomId": room_id,
                 "userId": user_id,
                 "messageId": data.message_id
             }),
@@ -705,7 +761,146 @@ pub async fn on_forward_message(socket: SocketRef, data: ForwardMessageData, sta
     socket.emit("new_message", &message_response).ok();
 }
 
-// 12. disconnect - Handle socket disconnect
+// 12. pin_message - Pin a message
+pub async fn on_pin_message(socket: SocketRef, data: PinMessageData, state: Arc<AppState>) {
+    let (user_id, user) = match get_socket_user_info(&socket, &state).await {
+        Some((id, u)) => (id, u),
+        None => return,
+    };
+
+    let message_id = match Uuid::parse_str(&data.message_id) {
+        Ok(id) => id,
+        Err(_) => return,
+    };
+
+    let message = match sqlx::query_as::<_, Message>("SELECT * FROM messages WHERE id = $1")
+        .bind(message_id)
+        .fetch_optional(&state.db)
+        .await
+    {
+        Ok(Some(msg)) => msg,
+        _ => return,
+    };
+
+    if !check_room_membership(message.room_id, user_id, &state).await {
+        return;
+    }
+
+    // Only admins or room creator can pin
+    let is_room_admin = sqlx::query_scalar::<_, String>(
+        "SELECT role FROM room_members WHERE room_id = $1 AND user_id = $2",
+    )
+    .bind(message.room_id)
+    .bind(user_id)
+    .fetch_optional(&state.db)
+    .await
+    .ok()
+    .flatten()
+    .map(|r| r == "admin")
+    .unwrap_or(false);
+
+    if !is_room_admin && !user.is_admin {
+        socket
+            .emit(
+                "error",
+                &ErrorResponse {
+                    error: "Only admins can pin messages".to_string(),
+                },
+            )
+            .ok();
+        return;
+    }
+
+    let now = chrono::Utc::now();
+    let _ = sqlx::query("UPDATE messages SET pinned_by = $1, pinned_at = $2 WHERE id = $3")
+        .bind(user_id)
+        .bind(now)
+        .bind(message_id)
+        .execute(&state.db)
+        .await;
+
+    let pin_response = serde_json::json!({
+        "messageId": message_id,
+        "roomId": message.room_id,
+        "pinnedBy": user_id,
+        "pinnedAt": now,
+    });
+    socket
+        .within(message.room_id.to_string())
+        .emit("message_pinned", &pin_response)
+        .await
+        .ok();
+    socket.emit("message_pinned", &pin_response).ok();
+}
+
+// 13. unpin_message - Unpin a message
+pub async fn on_unpin_message(socket: SocketRef, data: PinMessageData, state: Arc<AppState>) {
+    let (user_id, user) = match get_socket_user_info(&socket, &state).await {
+        Some((id, u)) => (id, u),
+        None => return,
+    };
+
+    let message_id = match Uuid::parse_str(&data.message_id) {
+        Ok(id) => id,
+        Err(_) => return,
+    };
+
+    let message = match sqlx::query_as::<_, Message>("SELECT * FROM messages WHERE id = $1")
+        .bind(message_id)
+        .fetch_optional(&state.db)
+        .await
+    {
+        Ok(Some(msg)) => msg,
+        _ => return,
+    };
+
+    if !check_room_membership(message.room_id, user_id, &state).await {
+        return;
+    }
+
+    // Only admins or room creator can unpin
+    let is_room_admin = sqlx::query_scalar::<_, String>(
+        "SELECT role FROM room_members WHERE room_id = $1 AND user_id = $2",
+    )
+    .bind(message.room_id)
+    .bind(user_id)
+    .fetch_optional(&state.db)
+    .await
+    .ok()
+    .flatten()
+    .map(|r| r == "admin")
+    .unwrap_or(false);
+
+    if !is_room_admin && !user.is_admin {
+        socket
+            .emit(
+                "error",
+                &ErrorResponse {
+                    error: "Only admins can unpin messages".to_string(),
+                },
+            )
+            .ok();
+        return;
+    }
+
+    let _ = sqlx::query("UPDATE messages SET pinned_by = NULL, pinned_at = NULL WHERE id = $1")
+        .bind(message_id)
+        .execute(&state.db)
+        .await;
+
+    let unpin_response = serde_json::json!({
+        "messageId": message_id,
+        "roomId": message.room_id,
+    });
+    socket
+        .within(message.room_id.to_string())
+        .emit("message_unpinned", &unpin_response)
+        .await
+        .ok();
+    socket.emit("message_unpinned", &unpin_response).ok();
+}
+
+// 14. disconnect - Handle socket disconnect
 pub async fn on_disconnect(socket: SocketRef, state: Arc<AppState>) {
     if let Some((user_id, _)) = get_socket_user_info(&socket, &state).await {
         // Remove from tracking

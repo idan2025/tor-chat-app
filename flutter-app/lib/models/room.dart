@@ -9,6 +9,7 @@ class Room {
   final DateTime createdAt;
   final int? memberCount;
   final int? messageCount;
+  int unreadCount;
 
   Room({
     required this.id,
@@ -21,6 +22,7 @@ class Room {
     required this.createdAt,
     this.memberCount,
     this.messageCount,
+    this.unreadCount = 0,
   });
 
   factory Room.fromJson(Map<String, dynamic> json) {
@@ -35,6 +37,7 @@ class Room {
       createdAt: DateTime.parse(json['createdAt'] as String),
       memberCount: json['memberCount'] as int?,
       messageCount: json['messageCount'] as int?,
+      unreadCount: json['unreadCount'] as int? ?? 0,
     );
   }
 
@@ -50,6 +53,7 @@ class Room {
       'createdAt': createdAt.toIso8601String(),
       'memberCount': memberCount,
       'messageCount': messageCount,
+      'unreadCount': unreadCount,
     };
   }
 
@@ -64,6 +68,7 @@ class Room {
     DateTime? createdAt,
     int? memberCount,
     int? messageCount,
+    int? unreadCount,
   }) {
     return Room(
       id: id ?? this.id,
@@ -76,6 +81,7 @@ class Room {
       createdAt: createdAt ?? this.createdAt,
       memberCount: memberCount ?? this.memberCount,
       messageCount: messageCount ?? this.messageCount,
+      unreadCount: unreadCount ?? this.unreadCount,
     );
   }
 }

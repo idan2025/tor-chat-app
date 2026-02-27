@@ -67,6 +67,9 @@ pub async fn create_schema(pool: &PgPool) -> anyhow::Result<()> {
         CREATE INDEX IF NOT EXISTS idx_room_members_room_id ON room_members(room_id);
         CREATE INDEX IF NOT EXISTS idx_room_members_user_id ON room_members(user_id);
         CREATE INDEX IF NOT EXISTS idx_room_members_room_user ON room_members(room_id, user_id);
+
+        ALTER TABLE messages ADD COLUMN IF NOT EXISTS pinned_by UUID REFERENCES users(id);
+        ALTER TABLE messages ADD COLUMN IF NOT EXISTS pinned_at TIMESTAMPTZ;
         "#,
     )
     .execute(pool)
