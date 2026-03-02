@@ -4,7 +4,6 @@ use crate::{
     utils::{self, storage},
     Route,
 };
-use chrono::Datelike;
 use dioxus::prelude::*;
 
 #[component]
@@ -96,8 +95,7 @@ pub fn Chat() -> Element {
                                         if let Some(room_id_str) =
                                             payload.get("roomId").and_then(|v| v.as_str())
                                         {
-                                            if let Ok(room_id) =
-                                                uuid::Uuid::parse_str(room_id_str)
+                                            if let Ok(room_id) = uuid::Uuid::parse_str(room_id_str)
                                             {
                                                 let current = current_room_sig.read();
                                                 let is_current = current
@@ -106,9 +104,8 @@ pub fn Chat() -> Element {
                                                 if !is_current {
                                                     let mut rsig = rooms_sig;
                                                     let mut rooms = rsig.write();
-                                                    if let Some(room) = rooms
-                                                        .iter_mut()
-                                                        .find(|r| r.id == room_id)
+                                                    if let Some(room) =
+                                                        rooms.iter_mut().find(|r| r.id == room_id)
                                                     {
                                                         room.unread_count += 1;
                                                     }
@@ -163,9 +160,7 @@ pub fn Chat() -> Element {
                                         });
                                         let mut sig = messages_sig;
                                         let mut msgs = sig.write();
-                                        if let Some(m) =
-                                            msgs.iter_mut().find(|m| m.id == msg_id)
-                                        {
+                                        if let Some(m) = msgs.iter_mut().find(|m| m.id == msg_id) {
                                             m.pinned_by = pinned_by;
                                             m.pinned_at = pinned_at;
                                         }
@@ -179,9 +174,7 @@ pub fn Chat() -> Element {
                                     if let Ok(msg_id) = uuid::Uuid::parse_str(msg_id_str) {
                                         let mut sig = messages_sig;
                                         let mut msgs = sig.write();
-                                        if let Some(m) =
-                                            msgs.iter_mut().find(|m| m.id == msg_id)
-                                        {
+                                        if let Some(m) = msgs.iter_mut().find(|m| m.id == msg_id) {
                                             m.pinned_by = None;
                                             m.pinned_at = None;
                                         }
@@ -205,9 +198,7 @@ pub fn Chat() -> Element {
                 }
                 Err(e) => {
                     tracing::error!("Failed to load rooms: {}", e);
-                    if e.contains("401")
-                        || e.contains("Unauthorized")
-                        || e.contains("unauthorized")
+                    if e.contains("401") || e.contains("Unauthorized") || e.contains("unauthorized")
                     {
                         storage::remove_token();
                         nav.push(Route::Login {});

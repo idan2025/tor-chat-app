@@ -260,8 +260,7 @@ pub fn MessageBubble(
 /// Renders text with clickable URL links
 #[component]
 fn RichTextContent(text: String) -> Element {
-    let url_re =
-        Regex::new(r"(https?://[^\s<>\)\]]+)").unwrap();
+    let url_re = Regex::new(r"(https?://[^\s<>\)\]]+)").unwrap();
 
     let mut parts: Vec<(bool, String)> = Vec::new();
     let mut last_end = 0;
