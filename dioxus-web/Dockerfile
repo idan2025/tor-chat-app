@@ -38,6 +38,8 @@ server {
     root /usr/share/nginx/html;
     index index.html;
 
+    client_max_body_size 0;  # Disable nginx limit; backend enforces 1GB
+
     # Proxy API requests to backend
     location /api/ {
         set $backend http://backend:3000;
@@ -47,6 +49,9 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 600s;
+        proxy_send_timeout 600s;
+        proxy_request_buffering off;
     }
 
     # Proxy Socket.IO requests to backend

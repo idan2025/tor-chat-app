@@ -1,4 +1,10 @@
-use crate::{components::message_bubble::MessageBubble, state::AppState, utils::storage, Route};
+use crate::{
+    components::message_bubble::{DateSeparator, MessageBubble},
+    state::AppState,
+    utils::{self, storage},
+    Route,
+};
+use chrono::Datelike;
 use dioxus::prelude::*;
 
 #[component]
@@ -65,6 +71,7 @@ pub fn Chat() -> Element {
             if !state.socket.is_connected() {
                 let messages_sig = state.messages;
                 let rooms_sig = state.rooms;
+                let current_room_sig = state.current_room;
                 state
                     .socket
                     .set_event_handler(move |event: &str, payload: serde_json::Value| {
@@ -81,18 +88,30 @@ pub fn Chat() -> Element {
                                             msgs.push(msg.clone());
                                         }
                                         drop(msgs);
-                                        // Increment unread count for non-selected rooms
+
+                                        // Auto-scroll after new message
+                                        utils::scroll_to_bottom("messages-container");
+
+                                        // Increment unread count only for rooms NOT currently viewed
                                         if let Some(room_id_str) =
                                             payload.get("roomId").and_then(|v| v.as_str())
                                         {
-                                            if let Ok(room_id) = uuid::Uuid::parse_str(room_id_str)
+                                            if let Ok(room_id) =
+                                                uuid::Uuid::parse_str(room_id_str)
                                             {
-                                                let mut rsig = rooms_sig;
-                                                let mut rooms = rsig.write();
-                                                if let Some(room) =
-                                                    rooms.iter_mut().find(|r| r.id == room_id)
-                                                {
-                                                    room.unread_count += 1;
+                                                let current = current_room_sig.read();
+                                                let is_current = current
+                                                    .as_ref()
+                                                    .is_some_and(|r| r.id == room_id);
+                                                if !is_current {
+                                                    let mut rsig = rooms_sig;
+                                                    let mut rooms = rsig.write();
+                                                    if let Some(room) = rooms
+                                                        .iter_mut()
+                                                        .find(|r| r.id == room_id)
+                                                    {
+                                                        room.unread_count += 1;
+                                                    }
                                                 }
                                             }
                                         }
@@ -144,7 +163,9 @@ pub fn Chat() -> Element {
                                         });
                                         let mut sig = messages_sig;
                                         let mut msgs = sig.write();
-                                        if let Some(m) = msgs.iter_mut().find(|m| m.id == msg_id) {
+                                        if let Some(m) =
+                                            msgs.iter_mut().find(|m| m.id == msg_id)
+                                        {
                                             m.pinned_by = pinned_by;
                                             m.pinned_at = pinned_at;
                                         }
@@ -158,7 +179,9 @@ pub fn Chat() -> Element {
                                     if let Ok(msg_id) = uuid::Uuid::parse_str(msg_id_str) {
                                         let mut sig = messages_sig;
                                         let mut msgs = sig.write();
-                                        if let Some(m) = msgs.iter_mut().find(|m| m.id == msg_id) {
+                                        if let Some(m) =
+                                            msgs.iter_mut().find(|m| m.id == msg_id)
+                                        {
                                             m.pinned_by = None;
                                             m.pinned_at = None;
                                         }
@@ -182,7 +205,9 @@ pub fn Chat() -> Element {
                 }
                 Err(e) => {
                     tracing::error!("Failed to load rooms: {}", e);
-                    if e.contains("401") || e.contains("Unauthorized") || e.contains("unauthorized")
+                    if e.contains("401")
+                        || e.contains("Unauthorized")
+                        || e.contains("unauthorized")
                     {
                         storage::remove_token();
                         nav.push(Route::Login {});
@@ -216,6 +241,7 @@ pub fn Chat() -> Element {
                                 message_input.set(String::new());
                                 reply_to_msg.set(None);
                                 let _ = state.load_messages(&room_id).await;
+                                utils::scroll_to_bottom("messages-container");
                             }
                             Err(e) => {
                                 tracing::error!("Failed to send message: {}", e);
@@ -239,8 +265,8 @@ pub fn Chat() -> Element {
     if !has_token {
         return rsx! {
             div {
-                class: "flex items-center justify-center min-h-screen bg-gray-900",
-                p { class: "text-gray-400", "Redirecting to login..." }
+                class: "flex items-center justify-center min-h-screen bg-dc-chat",
+                p { class: "text-dc-text-muted", "Redirecting to login..." }
             }
         };
     }
@@ -251,6 +277,14 @@ pub fn Chat() -> Element {
 
     let is_admin = current_user.as_ref().is_some_and(|u| u.is_admin);
     let current_user_id = current_user.as_ref().map(|u| u.id);
+    let current_username = current_user
+        .as_ref()
+        .map(|u| u.username.clone())
+        .unwrap_or_default();
+    let current_display = current_user
+        .as_ref()
+        .and_then(|u| u.display_name.clone())
+        .unwrap_or_else(|| current_username.clone());
 
     // Get selected room info
     let selected_room = selected_room_idx().and_then(|idx| rooms.get(idx).cloned());
@@ -266,19 +300,31 @@ pub fn Chat() -> Element {
 
     rsx! {
         div {
-            class: "flex h-screen bg-gray-900",
+            class: "flex h-screen bg-dc-chat",
 
-            // Sidebar
+            // ─── SIDEBAR ───────────────────────────────────────────
             div {
-                class: "w-64 bg-gray-800 border-r border-gray-700 flex flex-col",
+                class: "w-60 bg-dc-sidebar flex flex-col",
+
+                // Server/App header
                 div {
-                    class: "p-4 border-b border-gray-700 flex items-center justify-between",
+                    class: "h-12 px-4 flex items-center border-b border-dc-dark shadow-sm",
+                    // Shield icon
+                    svg {
+                        class: "w-5 h-5 text-dc-accent mr-2 flex-shrink-0",
+                        view_box: "0 0 24 24",
+                        fill: "currentColor",
+                        path {
+                            d: "M12 2L3 7v6c0 5.25 3.83 10.13 9 11.27C17.17 23.13 21 18.25 21 13V7l-9-5zm0 2.18l7 3.89v5.93c0 4.23-3.08 8.17-7 9.13-3.92-.96-7-4.9-7-9.13V8.07l7-3.89z"
+                        }
+                    }
                     h1 {
-                        class: "text-xl font-bold text-white",
+                        class: "font-semibold text-white text-base truncate",
                         "TOR Chat"
                     }
+                    div { class: "flex-1" }
                     button {
-                        class: "w-8 h-8 bg-purple-600 hover:bg-purple-700 text-white rounded-full text-lg font-bold flex items-center justify-center",
+                        class: "w-7 h-7 flex items-center justify-center bg-dc-accent hover:bg-dc-accent-dim text-white rounded-md text-lg transition-colors",
                         title: "Create Room",
                         onclick: move |_| {
                             show_create_modal.set(true);
@@ -291,45 +337,53 @@ pub fn Chat() -> Element {
                     }
                 }
 
+                // Channel list
                 div {
-                    class: "flex-1 overflow-y-auto",
+                    class: "flex-1 overflow-y-auto pt-2 px-2",
                     if loading() {
                         div {
-                            class: "p-4 text-center text-gray-400",
+                            class: "px-2 py-4 text-center text-dc-text-muted text-sm",
                             "Loading rooms..."
                         }
                     } else if let Some(err) = error_msg() {
                         div {
-                            class: "p-4 text-center text-red-400 text-sm",
+                            class: "px-2 py-4 text-center text-red-400 text-sm",
                             "{err}"
                         }
                     } else if rooms.is_empty() {
                         div {
-                            class: "p-4 text-center text-gray-400",
-                            "No rooms available"
+                            class: "px-2 py-8 text-center text-dc-text-faint text-sm",
+                            "No rooms yet"
                         }
                     } else {
                         for (idx, room) in rooms.iter().enumerate() {
                             {
                                 let room_name = room.name.clone();
-                                let room_desc = room.description.clone();
                                 let room_id = room.id.to_string();
                                 let room_is_public = room.is_public;
                                 let is_selected = selected_room_idx() == Some(idx);
                                 let unread = room.unread_count;
                                 let state = state_for_rooms.clone();
+                                let room_clone = room.clone();
                                 rsx! {
                                     div {
                                         key: "{room_id}",
                                         class: if is_selected {
-                                            "p-4 bg-gray-700 cursor-pointer border-b border-gray-700"
+                                            "flex items-center gap-2 px-2.5 py-2 rounded cursor-pointer mb-0.5 bg-dc-hover text-white border-l-2 border-dc-accent"
+                                        } else if unread > 0 {
+                                            "flex items-center gap-2 px-2.5 py-2 rounded cursor-pointer mb-0.5 hover:bg-dc-hover text-white border-l-2 border-transparent"
                                         } else {
-                                            "p-4 hover:bg-gray-700 cursor-pointer border-b border-gray-700"
+                                            "flex items-center gap-2 px-2.5 py-2 rounded cursor-pointer mb-0.5 hover:bg-dc-hover text-dc-text-muted border-l-2 border-transparent"
                                         },
                                         onclick: move |_| {
                                             selected_room_idx.set(Some(idx));
                                             show_members.set(false);
                                             reply_to_msg.set(None);
+                                            // Set current_room signal for unread tracking
+                                            {
+                                                let mut cr = state.current_room;
+                                                cr.set(Some(room_clone.clone()));
+                                            }
                                             // Clear unread count for this room
                                             {
                                                 let mut rsig = state.rooms;
@@ -343,7 +397,9 @@ pub fn Chat() -> Element {
                                             spawn(async move {
                                                 state.socket.join_room(&rid).await;
                                                 let _ = state.load_messages(&rid).await;
-                                                // Mark read with latest message
+                                                // Scroll to bottom after loading
+                                                utils::scroll_to_bottom("messages-container");
+                                                // Mark read with latest message (now last = newest with ASC)
                                                 let msgs = state.messages.read();
                                                 if let Some(latest) = msgs.last() {
                                                     state.socket.emit("mark_read", serde_json::json!({
@@ -353,31 +409,21 @@ pub fn Chat() -> Element {
                                                 }
                                             });
                                         },
-                                        div {
-                                            class: "flex items-center gap-2",
-                                            div {
-                                                class: "font-semibold text-white flex-1",
-                                                "{room_name}"
-                                            }
-                                            if unread > 0 {
-                                                span {
-                                                    class: "bg-purple-600 text-white text-xs font-bold rounded-full px-2 py-0.5 min-w-[20px] text-center",
-                                                    "{unread}"
-                                                }
-                                            }
-                                            span {
-                                                class: if room_is_public {
-                                                    "text-xs px-1.5 py-0.5 rounded bg-green-800 text-green-300"
-                                                } else {
-                                                    "text-xs px-1.5 py-0.5 rounded bg-yellow-800 text-yellow-300"
-                                                },
-                                                if room_is_public { "Public" } else { "Private" }
-                                            }
+                                        // Channel icon
+                                        span {
+                                            class: "text-xl leading-none flex-shrink-0 opacity-70",
+                                            if room_is_public { "#" } else { "\u{1F512}" }
                                         }
-                                        if let Some(desc) = &room_desc {
-                                            div {
-                                                class: "text-sm text-gray-400 truncate",
-                                                "{desc}"
+                                        // Channel name
+                                        span {
+                                            class: if unread > 0 { "flex-1 truncate text-sm font-semibold" } else { "flex-1 truncate text-sm" },
+                                            "{room_name}"
+                                        }
+                                        // Unread badge
+                                        if unread > 0 {
+                                            span {
+                                                class: "bg-dc-accent text-white text-xs font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1",
+                                                "{unread}"
                                             }
                                         }
                                     }
@@ -387,60 +433,98 @@ pub fn Chat() -> Element {
                     }
                 }
 
-                // Sidebar footer
+                // ─── USER PANEL ─────────────────────────────────────
                 div {
-                    class: "p-4 border-t border-gray-700 space-y-2",
-                    if is_admin {
-                        button {
-                            class: "w-full bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded",
-                            onclick: move |_| {
-                                nav.push(Route::Admin {});
-                            },
-                            "Admin Panel"
+                    class: "h-[56px] bg-dc-dark px-2 flex items-center gap-2",
+                    // Avatar with online dot
+                    div {
+                        class: "relative flex-shrink-0",
+                        div {
+                            class: "w-8 h-8 rounded-full bg-dc-accent flex items-center justify-center text-white text-xs font-semibold",
+                            {
+                                let initial = current_username.chars().next().unwrap_or('?').to_uppercase().to_string();
+                                rsx! { "{initial}" }
+                            }
+                        }
+                        // Online status dot
+                        div {
+                            class: "absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-dc-green rounded-full border-2 border-dc-dark"
                         }
                     }
-                    a {
-                        class: "block w-full bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded text-center",
-                        href: "https://github.com/idan2025/tor-chat-app/releases/latest",
-                        target: "_blank",
-                        "Download Apps"
+                    div {
+                        class: "flex-1 min-w-0",
+                        div {
+                            class: "text-white text-sm font-medium truncate leading-tight",
+                            "{current_display}"
+                        }
+                        div {
+                            class: "text-dc-text-faint text-xs truncate leading-tight",
+                            "Online"
+                        }
+                    }
+                    // Action buttons
+                    if is_admin {
+                        button {
+                            class: "text-dc-text-muted hover:text-dc-text p-1 rounded hover:bg-dc-hover",
+                            title: "Admin Panel",
+                            onclick: move |_| { nav.push(Route::Admin {}); },
+                            // gear icon
+                            "\u{2699}"
+                        }
                     }
                     button {
-                        class: "w-full bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded",
+                        class: "text-dc-text-muted hover:text-red-400 p-1 rounded hover:bg-dc-hover",
+                        title: "Logout",
                         onclick: on_logout,
-                        "Logout"
+                        // power icon
+                        "\u{23FB}"
                     }
                 }
             }
 
-            // Chat area
+            // ─── MAIN CHAT AREA ─────────────────────────────────────
             div {
-                class: "flex-1 flex flex-col",
+                class: "flex-1 flex flex-col min-w-0",
                 if let Some(room) = &selected_room {
-                    // Chat header with room actions
+                    // ─── CHAT HEADER ────────────────────────────────
                     div {
-                        class: "p-4 border-b border-gray-700 bg-gray-800 flex items-center justify-between",
-                        div {
-                            h2 {
-                                class: "text-xl font-bold text-white",
-                                "{room.name}"
+                        class: "h-12 min-h-[48px] px-4 flex items-center border-b border-dc-border bg-dc-chat shadow-sm",
+                        // Channel icon + name
+                        span {
+                            class: "text-dc-text-muted text-lg mr-1",
+                            if room.is_public { "#" } else { "\u{1F512}" }
+                        }
+                        h2 {
+                            class: "font-semibold text-white text-base",
+                            "{room.name}"
+                        }
+                        if let Some(desc) = &room.description {
+                            div {
+                                class: "mx-3 w-px h-5 bg-dc-border"
                             }
-                            if let Some(desc) = &room.description {
-                                p {
-                                    class: "text-sm text-gray-400",
-                                    "{desc}"
-                                }
+                            p {
+                                class: "text-sm text-dc-text-muted truncate flex-1",
+                                "{desc}"
                             }
                         }
+                        if room.description.is_none() {
+                            div { class: "flex-1" }
+                        }
+                        // Header action buttons
                         div {
-                            class: "flex gap-2",
-                            // Members button
+                            class: "flex items-center gap-1 ml-2",
+                            // Members toggle
                             {
                                 let room_id = room.id.to_string();
                                 let api = state.api.clone();
                                 rsx! {
                                     button {
-                                        class: "bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm",
+                                        class: if show_members() {
+                                            "p-1.5 rounded text-dc-text hover:bg-dc-hover"
+                                        } else {
+                                            "p-1.5 rounded text-dc-text-muted hover:bg-dc-hover hover:text-dc-text"
+                                        },
+                                        title: "Members",
                                         onclick: move |_| {
                                             let is_showing = show_members();
                                             show_members.set(!is_showing);
@@ -455,7 +539,7 @@ pub fn Chat() -> Element {
                                                 });
                                             }
                                         },
-                                        "Members"
+                                        "\u{1F465}"
                                     }
                                 }
                             }
@@ -466,7 +550,8 @@ pub fn Chat() -> Element {
                                     let state_leave = state.clone();
                                     rsx! {
                                         button {
-                                            class: "bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-1 rounded text-sm",
+                                            class: "p-1.5 rounded text-dc-text-muted hover:bg-dc-hover hover:text-yellow-400",
+                                            title: "Leave Room",
                                             onclick: move |_| {
                                                 let state = state_leave.clone();
                                                 let rid = room_id.clone();
@@ -474,13 +559,15 @@ pub fn Chat() -> Element {
                                                     match state.api.leave_room(&rid).await {
                                                         Ok(()) => {
                                                             selected_room_idx.set(None);
+                                                            let mut cr = state.current_room;
+                                                            cr.set(None);
                                                             let _ = state.load_rooms().await;
                                                         }
                                                         Err(e) => tracing::error!("Failed to leave room: {}", e),
                                                     }
                                                 });
                                             },
-                                            "Leave"
+                                            "\u{1F6AA}"
                                         }
                                     }
                                 }
@@ -492,7 +579,8 @@ pub fn Chat() -> Element {
                                     let state_del = state.clone();
                                     rsx! {
                                         button {
-                                            class: "bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm",
+                                            class: "p-1.5 rounded text-dc-text-muted hover:bg-dc-hover hover:text-red-400",
+                                            title: "Delete Room",
                                             onclick: move |_| {
                                                 let state = state_del.clone();
                                                 let rid = room_id.clone();
@@ -500,13 +588,15 @@ pub fn Chat() -> Element {
                                                     match state.api.delete_room(&rid).await {
                                                         Ok(()) => {
                                                             selected_room_idx.set(None);
+                                                            let mut cr = state.current_room;
+                                                            cr.set(None);
                                                             let _ = state.load_rooms().await;
                                                         }
                                                         Err(e) => tracing::error!("Failed to delete room: {}", e),
                                                     }
                                                 });
                                             },
-                                            "Delete"
+                                            "\u{1F5D1}"
                                         }
                                     }
                                 }
@@ -514,23 +604,24 @@ pub fn Chat() -> Element {
                         }
                     }
 
-                    // Main content area (messages + optional members panel)
+                    // ─── CONTENT AREA (messages + members) ──────────
                     div {
                         class: "flex-1 flex overflow-hidden",
 
-                        // Messages
+                        // ─── MESSAGES COLUMN ────────────────────────
                         div {
-                            class: "flex-1 overflow-y-auto p-4 flex flex-col",
+                            class: "flex-1 flex flex-col min-w-0",
+
                             // Pinned messages banner
                             {
                                 let pinned: Vec<_> = messages.iter().filter(|m| m.pinned_by.is_some()).collect();
                                 if !pinned.is_empty() {
                                     rsx! {
                                         div {
-                                            class: "bg-yellow-900 bg-opacity-30 border border-yellow-700 rounded-lg p-2 mb-3",
+                                            class: "px-4 py-2 bg-dc-sidebar border-b border-dc-border",
                                             div {
-                                                class: "text-xs font-semibold text-yellow-400 mb-1",
-                                                "📌 Pinned Messages ({pinned.len()})"
+                                                class: "flex items-center gap-1 text-xs font-semibold text-yellow-400 mb-1",
+                                                "\u{1F4CC} Pinned Messages ({pinned.len()})"
                                             }
                                             for pm in pinned.iter() {
                                                 {
@@ -540,11 +631,17 @@ pub fn Chat() -> Element {
                                                     } else {
                                                         pm.content.clone()
                                                     };
+                                                    let pin_msg_id = pm.id.to_string();
                                                     rsx! {
                                                         div {
-                                                            class: "text-xs text-gray-300 truncate",
+                                                            class: "text-xs text-dc-text-muted truncate cursor-pointer hover:text-dc-text py-0.5",
+                                                            onclick: move |_| {
+                                                                let mid = pin_msg_id.clone();
+                                                                utils::scroll_to_message(&mid);
+                                                                utils::highlight_message(&mid);
+                                                            },
                                                             span {
-                                                                class: "text-purple-400 font-semibold",
+                                                                class: "text-dc-accent font-semibold",
                                                                 "{username}: "
                                                             }
                                                             "{content}"
@@ -558,65 +655,301 @@ pub fn Chat() -> Element {
                                     rsx! {}
                                 }
                             }
-                            if messages.is_empty() {
-                                div {
-                                    class: "text-center text-gray-400 mt-4",
-                                    "No messages yet. Start the conversation!"
-                                }
-                            } else {
-                                for message in messages.iter() {
+
+                            // Messages scroll area
+                            div {
+                                id: "messages-container",
+                                class: "flex-1 overflow-y-auto",
+                                if messages.is_empty() {
+                                    div {
+                                        class: "flex flex-col items-center justify-center h-full text-dc-text-muted",
+                                        div {
+                                            class: "w-16 h-16 rounded-full border-2 border-dc-accent flex items-center justify-center mb-4",
+                                            span {
+                                                class: "text-3xl text-dc-accent font-bold",
+                                                "#"
+                                            }
+                                        }
+                                        h3 {
+                                            class: "text-xl font-semibold text-dc-text mb-1",
+                                            "Welcome to #{room.name}!"
+                                        }
+                                        p {
+                                            class: "text-sm mb-1",
+                                            "This is the beginning of #{room.name}."
+                                        }
+                                        p {
+                                            class: "text-xs text-dc-text-faint",
+                                            "Start the conversation by sending a message below."
+                                        }
+                                    }
+                                } else {
+                                    // Render messages with grouping and date separators
                                     {
-                                        let socket_pin = state.socket.clone();
-                                        let socket_unpin = state.socket.clone();
+                                        let msgs: Vec<_> = messages.iter().collect();
+                                        let mut elements: Vec<Element> = Vec::new();
+                                        let mut prev_date: Option<chrono::NaiveDate> = None;
+                                        let mut prev_user_id: Option<uuid::Uuid> = None;
+                                        let mut prev_time: Option<chrono::DateTime<chrono::Utc>> = None;
+
+                                        for (i, msg) in msgs.iter().enumerate() {
+                                            let msg_date = msg.created_at.date_naive();
+                                            // Date separator
+                                            if prev_date.is_none() || prev_date.unwrap() != msg_date {
+                                                let date_text = utils::format_date_separator(&msg.created_at);
+                                                elements.push(rsx! {
+                                                    DateSeparator { key: "date-{i}", date_text: date_text }
+                                                });
+                                                prev_user_id = None;
+                                            }
+
+                                            // Message grouping: same user within 5 minutes
+                                            let is_continuation = prev_user_id == Some(msg.user_id)
+                                                && prev_time.is_some_and(|pt| {
+                                                    (msg.created_at - pt).num_minutes() < 5
+                                                })
+                                                && msg.reply_message.is_none();
+
+                                            let socket_pin = state.socket.clone();
+                                            let socket_unpin = state.socket.clone();
+                                            elements.push(rsx! {
+                                                MessageBubble {
+                                                    key: "{msg.id}",
+                                                    message: (*msg).clone(),
+                                                    is_continuation: is_continuation,
+                                                    is_admin: is_admin,
+                                                    on_reply: move |m: crate::models::Message| {
+                                                        reply_to_msg.set(Some(m));
+                                                    },
+                                                    on_pin: move |m: crate::models::Message| {
+                                                        let socket = socket_pin.clone();
+                                                        let mid = m.id.to_string();
+                                                        spawn(async move {
+                                                            socket.emit("pin_message", serde_json::json!({
+                                                                "messageId": mid,
+                                                            })).await;
+                                                        });
+                                                    },
+                                                    on_unpin: move |m: crate::models::Message| {
+                                                        let socket = socket_unpin.clone();
+                                                        let mid = m.id.to_string();
+                                                        spawn(async move {
+                                                            socket.emit("unpin_message", serde_json::json!({
+                                                                "messageId": mid,
+                                                            })).await;
+                                                        });
+                                                    },
+                                                }
+                                            });
+
+                                            prev_date = Some(msg_date);
+                                            prev_user_id = Some(msg.user_id);
+                                            prev_time = Some(msg.created_at);
+                                        }
+
                                         rsx! {
-                                            MessageBubble {
-                                                key: "{message.id}",
-                                                message: message.clone(),
-                                                is_admin: is_admin,
-                                                on_reply: move |m: crate::models::Message| {
-                                                    reply_to_msg.set(Some(m));
-                                                },
-                                                on_pin: move |m: crate::models::Message| {
-                                                    let socket = socket_pin.clone();
-                                                    let mid = m.id.to_string();
-                                                    spawn(async move {
-                                                        socket.emit("pin_message", serde_json::json!({
-                                                            "messageId": mid,
-                                                        })).await;
-                                                    });
-                                                },
-                                                on_unpin: move |m: crate::models::Message| {
-                                                    let socket = socket_unpin.clone();
-                                                    let mid = m.id.to_string();
-                                                    spawn(async move {
-                                                        socket.emit("unpin_message", serde_json::json!({
-                                                            "messageId": mid,
-                                                        })).await;
-                                                    });
-                                                },
+                                            div {
+                                                class: "py-4",
+                                                {elements.into_iter()}
                                             }
                                         }
                                     }
                                 }
                             }
-                        }
 
-                        // Members side panel
-                        if show_members() {
+                            // ─── INPUT AREA ─────────────────────────
                             div {
-                                class: "w-56 border-l border-gray-700 bg-gray-800 overflow-y-auto",
-                                div {
-                                    class: "p-3 border-b border-gray-700 flex items-center justify-between",
-                                    h3 {
-                                        class: "text-white font-semibold text-sm",
-                                        "Members"
+                                class: "px-4 pb-4",
+                                // Reply preview bar
+                                if let Some(reply_msg) = reply_to_msg() {
+                                    div {
+                                        class: "flex items-center gap-2 mb-2 bg-dc-sidebar rounded-t-lg px-3 py-2 border-l-2 border-dc-accent",
+                                        div {
+                                            class: "flex-1 min-w-0",
+                                            div {
+                                                class: "text-xs font-semibold text-dc-accent",
+                                                "Replying to {reply_msg.user.as_ref().map(|u| u.username.as_str()).unwrap_or(\"?\")}"
+                                            }
+                                            div {
+                                                class: "text-xs text-dc-text-muted truncate",
+                                                "{reply_msg.content}"
+                                            }
+                                        }
+                                        button {
+                                            class: "text-dc-text-muted hover:text-dc-text text-lg px-1",
+                                            onclick: move |_| reply_to_msg.set(None),
+                                            "\u{00D7}"
+                                        }
                                     }
-                                    if is_room_creator || is_admin {
-                                        {
-                                            let api = state.api.clone();
+                                }
+                                // File selection indicator
+                                {
+                                    let file_opt = selected_file();
+                                    if let Some((ref fname, _)) = file_opt {
+                                        rsx! {
+                                            div {
+                                                class: "flex items-center gap-2 mb-2 bg-dc-sidebar rounded px-3 py-1.5",
+                                                span {
+                                                    class: "text-xs text-dc-text-muted",
+                                                    "\u{1F4CE} {fname}"
+                                                }
+                                                if !is_uploading() {
+                                                    button {
+                                                        class: "text-xs text-red-400 hover:text-red-300",
+                                                        onclick: move |_| {
+                                                            selected_file.set(None);
+                                                            upload_status.set(None);
+                                                        },
+                                                        "\u{00D7}"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        rsx! {}
+                                    }
+                                }
+                                // Upload status
+                                {
+                                    let status = upload_status();
+                                    if let Some(msg) = status {
+                                        rsx! {
+                                            div {
+                                                class: if msg.starts_with("Error") {
+                                                    "mb-1 text-xs text-red-400"
+                                                } else {
+                                                    "mb-1 text-xs text-dc-green"
+                                                },
+                                                "{msg}"
+                                            }
+                                        }
+                                    } else {
+                                        rsx! {}
+                                    }
+                                }
+                                // Input bar
+                                form {
+                                    onsubmit: on_send,
+                                    class: "flex items-center bg-dc-input rounded-lg border border-dc-border",
+                                    // File attach button
+                                    label {
+                                        class: "px-3 py-2.5 text-dc-text-muted hover:text-dc-text cursor-pointer",
+                                        title: "Attach file",
+                                        input {
+                                            r#type: "file",
+                                            class: "hidden",
+                                            accept: "image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.gz,.7z,.rar",
+                                            onchange: move |evt| {
+                                                let files = evt.files();
+                                                if let Some(file_data) = files.first() {
+                                                    let file_data = file_data.clone();
+                                                    spawn(async move {
+                                                        match file_data.read_bytes().await {
+                                                            Ok(bytes) => {
+                                                                let file_name = file_data.name();
+                                                                selected_file.set(Some((file_name.clone(), bytes.to_vec())));
+                                                                upload_status.set(Some(format!("Selected: {}", file_name)));
+                                                            }
+                                                            Err(e) => {
+                                                                upload_status.set(Some(format!("Error reading file: {}", e)));
+                                                            }
+                                                        }
+                                                    });
+                                                }
+                                            },
+                                        }
+                                        "\u{2795}"
+                                    }
+                                    input {
+                                        r#type: "text",
+                                        class: "flex-1 bg-transparent px-1 py-3 text-dc-text placeholder-dc-text-faint focus:outline-none text-[0.9375rem]",
+                                        placeholder: "Message #{room.name}",
+                                        value: "{message_input}",
+                                        oninput: move |e| message_input.set(e.value().clone()),
+                                    }
+                                    // Send file button (shown when file is selected)
+                                    {
+                                        let file_opt = selected_file();
+                                        if file_opt.is_some() && !is_uploading() {
+                                            let file = file_opt.unwrap();
+                                            let state_upload = state.clone();
+                                            let selected_room = selected_room.clone();
                                             rsx! {
                                                 button {
-                                                    class: "text-xs bg-purple-600 hover:bg-purple-700 text-white px-2 py-1 rounded",
+                                                    r#type: "button",
+                                                    class: "px-3 py-2.5 text-dc-green hover:text-green-400",
+                                                    title: "Send File",
+                                                    onclick: move |_| {
+                                                        if let Some(room) = &selected_room {
+                                                            let file = file.clone();
+                                                            let room_id = room.id.to_string();
+                                                            let state = state_upload.clone();
+                                                            spawn(async move {
+                                                                is_uploading.set(true);
+                                                                upload_status.set(Some("Uploading...".to_string()));
+                                                                let (filename, file_bytes) = file;
+                                                                match state.api.upload_file(file_bytes, &filename).await {
+                                                                    Ok(response) => {
+                                                                        if let Some(file_url) = response.get("file")
+                                                                            .and_then(|f| f.get("url"))
+                                                                            .and_then(|u| u.as_str()) {
+                                                                            match state.api.send_image_message(&room_id, file_url).await {
+                                                                                Ok(_) => {
+                                                                                    upload_status.set(None);
+                                                                                    selected_file.set(None);
+                                                                                    let _ = state.load_messages(&room_id).await;
+                                                                                    utils::scroll_to_bottom("messages-container");
+                                                                                }
+                                                                                Err(e) => upload_status.set(Some(format!("Error sending: {}", e))),
+                                                                            }
+                                                                        } else {
+                                                                            upload_status.set(Some("Error: Invalid response".to_string()));
+                                                                        }
+                                                                    }
+                                                                    Err(e) => upload_status.set(Some(format!("Error uploading: {}", e))),
+                                                                }
+                                                                is_uploading.set(false);
+                                                            });
+                                                        }
+                                                    },
+                                                    "\u{1F4E4}"
+                                                }
+                                            }
+                                        } else {
+                                            rsx! {}
+                                        }
+                                    }
+                                    button {
+                                        r#type: "submit",
+                                        class: "px-3 py-3 text-dc-accent hover:bg-dc-accent hover:text-white rounded-r-lg transition-colors",
+                                        title: "Send",
+                                        "\u{27A4}"
+                                    }
+                                }
+                            }
+                        }
+
+                        // ─── MEMBERS PANEL ──────────────────────────
+                        if show_members() {
+                            div {
+                                class: "w-60 bg-dc-sidebar border-l border-dc-border overflow-y-auto flex-shrink-0",
+                                // Panel header
+                                div {
+                                    class: "px-4 py-3",
+                                    h3 {
+                                        class: "text-xs font-semibold text-dc-text-muted uppercase tracking-wide",
+                                        "Members"
+                                    }
+                                }
+                                // Add member button (admin only)
+                                if is_room_creator || is_admin {
+                                    {
+                                        let api = state.api.clone();
+                                        rsx! {
+                                            div {
+                                                class: "px-3 mb-2",
+                                                button {
+                                                    class: "w-full text-xs text-dc-accent hover:text-white hover:bg-dc-hover py-1.5 px-2 rounded text-left",
                                                     onclick: move |_| {
                                                         show_add_member_modal.set(true);
                                                         add_member_error.set(None);
@@ -629,302 +962,115 @@ pub fn Chat() -> Element {
                                                             }
                                                         });
                                                     },
-                                                    "+ Add"
+                                                    "+ Add Member"
                                                 }
                                             }
                                         }
                                     }
                                 }
-                                for member in members.read().iter() {
-                                    {
-                                        let member_user_id = member["userId"].as_str().unwrap_or("").to_string();
-                                        let user = &member["user"];
-                                        let is_online = user["isOnline"].as_bool().unwrap_or(false);
-                                        let username = user["username"].as_str().unwrap_or("?").to_string();
-                                        let member_is_admin = member["role"].as_str() == Some("admin");
-                                        let is_creator = selected_room.as_ref()
-                                            .and_then(|r| r.creator_id)
-                                            .map(|c| c.to_string() == member_user_id)
-                                            .unwrap_or(false);
-                                        let can_remove = (is_room_creator || is_admin)
-                                            && !is_creator
-                                            && current_user_id.map(|u| u.to_string() != member_user_id).unwrap_or(false);
-                                        let room_id_for_remove = selected_room.as_ref().map(|r| r.id.to_string()).unwrap_or_default();
-                                        let api_for_remove = state.api.clone();
-                                        let api_for_refresh = state.api.clone();
-                                        let rid_for_refresh = room_id_for_remove.clone();
-                                        let member_uid = member_user_id.clone();
-                                        rsx! {
+                                // Admins section
+                                {
+                                    let admin_members: Vec<_> = members.read().iter()
+                                        .filter(|m| m["role"].as_str() == Some("admin"))
+                                        .cloned().collect();
+                                    let regular_members: Vec<_> = members.read().iter()
+                                        .filter(|m| m["role"].as_str() != Some("admin"))
+                                        .cloned().collect();
+
+                                    rsx! {
+                                        if !admin_members.is_empty() {
                                             div {
-                                                class: "p-3 border-b border-gray-700 flex items-center gap-2",
-                                                div {
-                                                    class: if is_online {
-                                                        "w-2 h-2 bg-green-500 rounded-full flex-shrink-0"
-                                                    } else {
-                                                        "w-2 h-2 bg-gray-500 rounded-full flex-shrink-0"
-                                                    },
+                                                class: "px-4 pt-2 pb-1",
+                                                h4 {
+                                                    class: "text-xs font-semibold text-dc-text-muted uppercase tracking-wide",
+                                                    "Admin \u{2014} {admin_members.len()}"
                                                 }
-                                                div {
-                                                    class: "flex-1 min-w-0",
-                                                    div {
-                                                        class: "text-white text-sm truncate",
-                                                        "{username}"
-                                                    }
-                                                    if member_is_admin {
-                                                        span {
-                                                            class: "text-xs text-purple-400",
-                                                            "Admin"
-                                                        }
-                                                    }
+                                            }
+                                            for member in admin_members.iter() {
+                                                { render_member_item(member, &selected_room, current_user_id, is_room_creator, is_admin, &state, &mut members) }
+                                            }
+                                        }
+                                        if !regular_members.is_empty() {
+                                            div {
+                                                class: "px-4 pt-3 pb-1",
+                                                h4 {
+                                                    class: "text-xs font-semibold text-dc-text-muted uppercase tracking-wide",
+                                                    "Members \u{2014} {regular_members.len()}"
                                                 }
-                                                if can_remove {
-                                                    button {
-                                                        class: "text-xs text-red-400 hover:text-red-300 flex-shrink-0",
-                                                        onclick: move |_| {
-                                                            let api = api_for_remove.clone();
-                                                            let rid = room_id_for_remove.clone();
-                                                            let uid = member_uid.clone();
-                                                            let api_refresh = api_for_refresh.clone();
-                                                            let rid_refresh = rid_for_refresh.clone();
-                                                            spawn(async move {
-                                                                match api.remove_room_member(&rid, &uid).await {
-                                                                    Ok(()) => {
-                                                                        // Refresh members list
-                                                                        if let Ok(m) = api_refresh.get_room_members(&rid_refresh).await {
-                                                                            members.set(m);
-                                                                        }
-                                                                    }
-                                                                    Err(e) => tracing::error!("Failed to remove member: {}", e),
-                                                                }
-                                                            });
-                                                        },
-                                                        "Remove"
-                                                    }
-                                                }
+                                            }
+                                            for member in regular_members.iter() {
+                                                { render_member_item(member, &selected_room, current_user_id, is_room_creator, is_admin, &state, &mut members) }
                                             }
                                         }
                                     }
-                                }
-                            }
-                        }
-                    }
-
-                    // Input
-                    div {
-                        class: "p-4 border-t border-gray-700 bg-gray-800",
-                        // Reply preview bar
-                        if let Some(reply_msg) = reply_to_msg() {
-                            div {
-                                class: "flex items-center gap-2 mb-2 bg-gray-700 rounded-lg p-2 border-l-4 border-purple-500",
-                                div {
-                                    class: "flex-1 min-w-0",
-                                    div {
-                                        class: "text-xs font-semibold text-purple-400",
-                                        "Replying to {reply_msg.user.as_ref().map(|u| u.username.as_str()).unwrap_or(\"?\")}"
-                                    }
-                                    div {
-                                        class: "text-xs text-gray-300 truncate",
-                                        "{reply_msg.content}"
-                                    }
-                                }
-                                button {
-                                    class: "text-gray-400 hover:text-white text-lg px-2",
-                                    onclick: move |_| reply_to_msg.set(None),
-                                    "×"
-                                }
-                            }
-                        }
-                        // File upload status
-                        {
-                            let status = upload_status();
-                            if let Some(msg) = status {
-                                rsx! {
-                                    div {
-                                        class: if msg.starts_with("Error") {
-                                            "mb-2 text-sm text-red-400"
-                                        } else {
-                                            "mb-2 text-sm text-green-400"
-                                        },
-                                        "{msg}"
-                                    }
-                                }
-                            } else {
-                                rsx! {}
-                            }
-                        }
-                        // Message input form
-                        form {
-                            onsubmit: on_send,
-                            class: "flex gap-2",
-                            input {
-                                r#type: "text",
-                                class: "flex-1 px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-purple-500",
-                                placeholder: "Type a message...",
-                                value: "{message_input}",
-                                oninput: move |e| message_input.set(e.value().clone()),
-                            }
-                            button {
-                                r#type: "submit",
-                                class: "bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg",
-                                "Send"
-                            }
-                        }
-                        // File upload section
-                        div {
-                            class: "mt-2 flex items-center gap-2",
-                            input {
-                                r#type: "file",
-                                class: "text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-gray-700 file:text-white hover:file:bg-gray-600",
-                                accept: "image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.gz,.7z,.rar",
-                                onchange: move |evt| {
-                                    let files = evt.files();
-                                    if let Some(file_data) = files.first() {
-                                        let file_data = file_data.clone();
-                                        spawn(async move {
-                                            match file_data.read_bytes().await {
-                                                Ok(bytes) => {
-                                                    let file_name = file_data.name();
-                                                    selected_file.set(Some((file_name.clone(), bytes.to_vec())));
-                                                    upload_status.set(Some(format!("Selected: {}", file_name)));
-                                                }
-                                                Err(e) => {
-                                                    upload_status.set(Some(format!("Error reading file: {}", e)));
-                                                }
-                                            }
-                                        });
-                                    }
-                                },
-                            }
-                            // Send File button (only shown when file is selected)
-                            {
-                                let file_opt = selected_file();
-                                if file_opt.is_some() && !is_uploading() {
-                                    let file = file_opt.unwrap();
-                                    let state_upload = state.clone();
-                                    let selected_room = selected_room.clone();
-                                    rsx! {
-                                        button {
-                                            class: "bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm",
-                                            onclick: move |_| {
-                                                if let Some(room) = &selected_room {
-                                                    let file = file.clone();
-                                                    let room_id = room.id.to_string();
-                                                    let state = state_upload.clone();
-                                                    spawn(async move {
-                                                        is_uploading.set(true);
-                                                        upload_status.set(Some("Uploading...".to_string()));
-
-                                                        let (filename, file_bytes) = file;
-                                                        match state.api.upload_file(file_bytes, &filename).await {
-                                                            Ok(response) => {
-                                                                if let Some(file_url) = response.get("file")
-                                                                    .and_then(|f| f.get("url"))
-                                                                    .and_then(|u| u.as_str()) {
-                                                                    // Send the file URL as an image message
-                                                                    match state.api.send_image_message(&room_id, file_url).await {
-                                                                        Ok(_) => {
-                                                                            upload_status.set(Some("Upload complete!".to_string()));
-                                                                            selected_file.set(None);
-                                                                            // Refresh messages
-                                                                            let _ = state.load_messages(&room_id).await;
-                                                                        }
-                                                                        Err(e) => {
-                                                                            upload_status.set(Some(format!("Error sending: {}", e)));
-                                                                        }
-                                                                    }
-                                                                } else {
-                                                                    upload_status.set(Some("Error: Invalid response".to_string()));
-                                                                }
-                                                            }
-                                                            Err(e) => {
-                                                                upload_status.set(Some(format!("Error uploading: {}", e)));
-                                                            }
-                                                        }
-                                                        is_uploading.set(false);
-                                                    });
-                                                }
-                                            },
-                                            "Send File"
-                                        }
-                                    }
-                                } else {
-                                    rsx! {}
-                                }
-                            }
-                            // Clear selection button
-                            {
-                                if selected_file().is_some() && !is_uploading() {
-                                    rsx! {
-                                        button {
-                                            class: "bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg text-sm",
-                                            onclick: move |_| {
-                                                selected_file.set(None);
-                                                upload_status.set(None);
-                                            },
-                                            "Cancel"
-                                        }
-                                    }
-                                } else {
-                                    rsx! {}
-                                }
-                            }
-                            // Loading indicator
-                            {
-                                if is_uploading() {
-                                    rsx! {
-                                        div {
-                                            class: "text-sm text-gray-400",
-                                            "Uploading..."
-                                        }
-                                    }
-                                } else {
-                                    rsx! {}
                                 }
                             }
                         }
                     }
                 } else {
+                    // No room selected
                     div {
-                        class: "flex-1 flex items-center justify-center",
-                        p {
-                            class: "text-gray-400 text-lg",
-                            if loading() {
-                                "Loading..."
-                            } else {
-                                "Select a room to start chatting"
+                        class: "flex-1 flex flex-col items-center justify-center text-dc-text-muted",
+                        // Shield icon in accent circle with glow
+                        div {
+                            class: "w-20 h-20 rounded-full bg-dc-accent/10 flex items-center justify-center mb-6 accent-glow",
+                            svg {
+                                class: "w-10 h-10 text-dc-accent",
+                                view_box: "0 0 24 24",
+                                fill: "currentColor",
+                                path {
+                                    d: "M12 2L3 7v6c0 5.25 3.83 10.13 9 11.27C17.17 23.13 21 18.25 21 13V7l-9-5zm0 2.18l7 3.89v5.93c0 4.23-3.08 8.17-7 9.13-3.92-.96-7-4.9-7-9.13V8.07l7-3.89z"
+                                }
+                            }
+                        }
+                        h2 {
+                            class: "text-2xl font-bold text-dc-text mb-2",
+                            if loading() { "Loading..." } else { "No Room Selected" }
+                        }
+                        if !loading() {
+                            p {
+                                class: "text-sm mb-4",
+                                "Select a channel from the sidebar to start chatting"
+                            }
+                            a {
+                                class: "text-xs text-dc-accent hover:underline",
+                                href: "https://github.com/idan2025/tor-chat-app/releases/latest",
+                                target: "_blank",
+                                rel: "noopener noreferrer",
+                                "Download Apps"
                             }
                         }
                     }
                 }
             }
 
-            // Add Member Modal
+            // ─── ADD MEMBER MODAL ───────────────────────────────────
             if show_add_member_modal() {
                 div {
-                    class: "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50",
+                    class: "fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50",
                     onclick: move |_| show_add_member_modal.set(false),
                     div {
-                        class: "bg-gray-800 rounded-lg p-6 w-96 max-w-full mx-4 max-h-[80vh] flex flex-col",
+                        class: "bg-dc-sidebar rounded-lg p-5 w-96 max-w-full mx-4 max-h-[80vh] flex flex-col border border-dc-border shadow-xl",
                         onclick: move |e| e.stop_propagation(),
                         h2 {
-                            class: "text-xl font-bold text-white mb-4",
+                            class: "text-lg font-semibold text-white mb-4",
                             "Add Members"
                         }
                         if let Some(err) = add_member_error() {
                             div {
-                                class: "bg-red-900 text-red-200 p-2 rounded mb-4 text-sm",
+                                class: "bg-red-900/50 text-red-200 p-2 rounded mb-3 text-sm",
                                 "{err}"
                             }
                         }
                         input {
                             r#type: "text",
-                            class: "w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:outline-none focus:border-purple-500 mb-4",
+                            class: "w-full px-3 py-2 bg-dc-input border border-dc-border rounded text-dc-text placeholder-dc-text-faint focus:outline-none focus:border-dc-accent mb-3 text-sm",
                             placeholder: "Search users...",
                             value: "{add_member_search}",
                             oninput: move |e| add_member_search.set(e.value().clone()),
                         }
                         div {
-                            class: "flex-1 overflow-y-auto space-y-2",
+                            class: "flex-1 overflow-y-auto space-y-1",
                             {
                                 let search = add_member_search().to_lowercase();
                                 let member_ids: Vec<String> = members.read().iter()
@@ -942,7 +1088,7 @@ pub fn Chat() -> Element {
                                 rsx! {
                                     if filtered.is_empty() {
                                         p {
-                                            class: "text-gray-400 text-sm text-center py-4",
+                                            class: "text-dc-text-faint text-sm text-center py-4",
                                             "No users to add"
                                         }
                                     } else {
@@ -957,21 +1103,31 @@ pub fn Chat() -> Element {
                                                 let rid_refresh = room_id.clone();
                                                 rsx! {
                                                     div {
-                                                        class: "flex items-center justify-between p-2 rounded bg-gray-700",
+                                                        class: "flex items-center justify-between p-2 rounded hover:bg-dc-hover",
                                                         div {
+                                                            class: "flex items-center gap-2",
                                                             div {
-                                                                class: "text-white text-sm",
-                                                                "{uname}"
+                                                                class: "w-8 h-8 rounded-full bg-dc-accent flex items-center justify-center text-white text-xs font-semibold",
+                                                                {
+                                                                    let i = uname.chars().next().unwrap_or('?').to_uppercase().to_string();
+                                                                    rsx! { "{i}" }
+                                                                }
                                                             }
-                                                            if let Some(dn) = &display {
+                                                            div {
                                                                 div {
-                                                                    class: "text-xs text-gray-400",
-                                                                    "{dn}"
+                                                                    class: "text-dc-text text-sm",
+                                                                    "{uname}"
+                                                                }
+                                                                if let Some(dn) = &display {
+                                                                    div {
+                                                                        class: "text-xs text-dc-text-faint",
+                                                                        "{dn}"
+                                                                    }
                                                                 }
                                                             }
                                                         }
                                                         button {
-                                                            class: "bg-purple-600 hover:bg-purple-700 text-white text-xs px-3 py-1 rounded",
+                                                            class: "bg-dc-accent hover:bg-indigo-500 text-white text-xs px-3 py-1 rounded",
                                                             onclick: move |_| {
                                                                 let api = api.clone();
                                                                 let rid = room_id.clone();
@@ -981,7 +1137,6 @@ pub fn Chat() -> Element {
                                                                 spawn(async move {
                                                                     match api.add_room_member(&rid, &uid).await {
                                                                         Ok(()) => {
-                                                                            // Refresh members list
                                                                             if let Ok(m) = api_refresh.get_room_members(&rid_refresh).await {
                                                                                 members.set(m);
                                                                             }
@@ -1001,7 +1156,7 @@ pub fn Chat() -> Element {
                             }
                         }
                         button {
-                            class: "mt-4 w-full bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded",
+                            class: "mt-4 w-full bg-dc-input hover:bg-dc-hover text-dc-text py-2 px-4 rounded text-sm",
                             onclick: move |_| show_add_member_modal.set(false),
                             "Close"
                         }
@@ -1009,21 +1164,21 @@ pub fn Chat() -> Element {
                 }
             }
 
-            // Create Room Modal
+            // ─── CREATE ROOM MODAL ──────────────────────────────────
             if show_create_modal() {
                 div {
-                    class: "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50",
+                    class: "fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50",
                     onclick: move |_| show_create_modal.set(false),
                     div {
-                        class: "bg-gray-800 rounded-lg p-6 w-96 max-w-full mx-4",
+                        class: "bg-dc-sidebar rounded-lg p-5 w-96 max-w-full mx-4 border border-dc-border shadow-xl",
                         onclick: move |e| e.stop_propagation(),
                         h2 {
-                            class: "text-xl font-bold text-white mb-4",
-                            "Create Room"
+                            class: "text-lg font-semibold text-white mb-4",
+                            "Create Channel"
                         }
                         if let Some(err) = create_error() {
                             div {
-                                class: "bg-red-900 text-red-200 p-2 rounded mb-4 text-sm",
+                                class: "bg-red-900/50 text-red-200 p-2 rounded mb-3 text-sm",
                                 "{err}"
                             }
                         }
@@ -1031,26 +1186,26 @@ pub fn Chat() -> Element {
                             class: "space-y-4",
                             div {
                                 label {
-                                    class: "block text-sm text-gray-400 mb-1",
-                                    "Room Name"
+                                    class: "block text-xs font-semibold text-dc-text-muted uppercase tracking-wide mb-1",
+                                    "Channel Name"
                                 }
                                 input {
                                     r#type: "text",
-                                    class: "w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:outline-none focus:border-purple-500",
-                                    placeholder: "Enter room name",
+                                    class: "w-full px-3 py-2 bg-dc-input border border-dc-border rounded text-dc-text placeholder-dc-text-faint focus:outline-none focus:border-dc-accent text-sm",
+                                    placeholder: "new-channel",
                                     value: "{new_room_name}",
                                     oninput: move |e| new_room_name.set(e.value().clone()),
                                 }
                             }
                             div {
                                 label {
-                                    class: "block text-sm text-gray-400 mb-1",
+                                    class: "block text-xs font-semibold text-dc-text-muted uppercase tracking-wide mb-1",
                                     "Description (optional)"
                                 }
                                 input {
                                     r#type: "text",
-                                    class: "w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:outline-none focus:border-purple-500",
-                                    placeholder: "Enter description",
+                                    class: "w-full px-3 py-2 bg-dc-input border border-dc-border rounded text-dc-text placeholder-dc-text-faint focus:outline-none focus:border-dc-accent text-sm",
+                                    placeholder: "What's this channel about?",
                                     value: "{new_room_desc}",
                                     oninput: move |e| new_room_desc.set(e.value().clone()),
                                 }
@@ -1060,19 +1215,19 @@ pub fn Chat() -> Element {
                                     class: "flex items-center gap-2",
                                     input {
                                         r#type: "checkbox",
-                                        class: "w-4 h-4",
+                                        class: "w-4 h-4 accent-dc-accent",
                                         checked: new_room_public(),
                                         onchange: move |e| new_room_public.set(e.checked()),
                                     }
                                     label {
-                                        class: "text-sm text-gray-300",
-                                        "Public room (visible to all users)"
+                                        class: "text-sm text-dc-text-muted",
+                                        "Public channel (visible to all users)"
                                     }
                                 }
                             } else {
                                 p {
-                                    class: "text-xs text-gray-500",
-                                    "Room will be private. Only admins can create public rooms."
+                                    class: "text-xs text-dc-text-faint",
+                                    "Channel will be private. Only admins can create public channels."
                                 }
                             }
                             div {
@@ -1081,11 +1236,11 @@ pub fn Chat() -> Element {
                                     let state_create = state.clone();
                                     rsx! {
                                         button {
-                                            class: "flex-1 bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded",
+                                            class: "flex-1 bg-dc-accent hover:bg-indigo-500 text-white py-2 px-4 rounded text-sm font-medium",
                                             onclick: move |_| {
                                                 let name = new_room_name();
                                                 if name.trim().is_empty() {
-                                                    create_error.set(Some("Room name is required".to_string()));
+                                                    create_error.set(Some("Channel name is required".to_string()));
                                                     return;
                                                 }
                                                 let desc = new_room_desc();
@@ -1107,13 +1262,107 @@ pub fn Chat() -> Element {
                                     }
                                 }
                                 button {
-                                    class: "flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded",
+                                    class: "flex-1 bg-dc-input hover:bg-dc-hover text-dc-text py-2 px-4 rounded text-sm",
                                     onclick: move |_| show_create_modal.set(false),
                                     "Cancel"
                                 }
                             }
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+fn render_member_item(
+    member: &serde_json::Value,
+    selected_room: &Option<crate::models::Room>,
+    current_user_id: Option<uuid::Uuid>,
+    is_room_creator: bool,
+    is_admin: bool,
+    state: &AppState,
+    members_sig: &mut Signal<Vec<serde_json::Value>>,
+) -> Element {
+    let member_user_id = member["userId"].as_str().unwrap_or("").to_string();
+    let user = &member["user"];
+    let is_online = user["isOnline"].as_bool().unwrap_or(false);
+    let username = user["username"].as_str().unwrap_or("?").to_string();
+    let is_creator = selected_room
+        .as_ref()
+        .and_then(|r| r.creator_id)
+        .map(|c| c.to_string() == member_user_id)
+        .unwrap_or(false);
+    let can_remove = (is_room_creator || is_admin)
+        && !is_creator
+        && current_user_id
+            .map(|u| u.to_string() != member_user_id)
+            .unwrap_or(false);
+
+    let room_id_for_remove = selected_room
+        .as_ref()
+        .map(|r| r.id.to_string())
+        .unwrap_or_default();
+    let api_for_remove = state.api.clone();
+    let api_for_refresh = state.api.clone();
+    let rid_for_refresh = room_id_for_remove.clone();
+    let member_uid = member_user_id.clone();
+    let mut members = *members_sig;
+
+    let initial = username
+        .chars()
+        .next()
+        .unwrap_or('?')
+        .to_uppercase()
+        .to_string();
+
+    rsx! {
+        div {
+            class: "flex items-center gap-2 px-3 py-1.5 mx-2 rounded hover:bg-dc-hover cursor-default",
+            // Avatar with online indicator
+            div {
+                class: "relative flex-shrink-0",
+                div {
+                    class: "w-8 h-8 rounded-full bg-dc-input flex items-center justify-center text-dc-text text-xs font-semibold",
+                    "{initial}"
+                }
+                div {
+                    class: if is_online {
+                        "absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-dc-green border-2 border-dc-sidebar"
+                    } else {
+                        "absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-dc-text-faint border-2 border-dc-sidebar"
+                    },
+                }
+            }
+            div {
+                class: "flex-1 min-w-0",
+                div {
+                    class: "text-dc-text text-sm truncate",
+                    "{username}"
+                }
+            }
+            if can_remove {
+                button {
+                    class: "text-xs text-dc-text-faint hover:text-red-400 opacity-0 group-hover:opacity-100",
+                    title: "Remove",
+                    onclick: move |_| {
+                        let api = api_for_remove.clone();
+                        let rid = room_id_for_remove.clone();
+                        let uid = member_uid.clone();
+                        let api_refresh = api_for_refresh.clone();
+                        let rid_refresh = rid_for_refresh.clone();
+                        spawn(async move {
+                            match api.remove_room_member(&rid, &uid).await {
+                                Ok(()) => {
+                                    if let Ok(m) = api_refresh.get_room_members(&rid_refresh).await {
+                                        members.set(m);
+                                    }
+                                }
+                                Err(e) => tracing::error!("Failed to remove member: {}", e),
+                            }
+                        });
+                    },
+                    "\u{00D7}"
                 }
             }
         }

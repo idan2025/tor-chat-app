@@ -105,14 +105,23 @@ jobs:
       - name: Create AppImage
         run: |
           wget -O linuxdeploy https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
-          chmod +x linuxdeploy
+          wget -O linuxdeploy-plugin-gtk.sh https://raw.githubusercontent.com/linuxdeploy/linuxdeploy-plugin-gtk/master/linuxdeploy-plugin-gtk.sh
+          chmod +x linuxdeploy linuxdeploy-plugin-gtk.sh
           mkdir -p AppDir/usr/bin
           mkdir -p AppDir/usr/share/applications
           mkdir -p AppDir/usr/share/icons/hicolor/scalable/apps
           cp target/release/tor-chat-desktop AppDir/usr/bin/
+
+          # Bundle WebKitGTK subprocesses that the app needs at runtime
+          WEBKIT_DIR="/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1"
+          mkdir -p AppDir/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1
+          cp "$WEBKIT_DIR/WebKitNetworkProcess" AppDir/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/
+          cp "$WEBKIT_DIR/WebKitWebProcess" AppDir/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/
+
           cp tor-chat-desktop.desktop AppDir/usr/share/applications/
           cp tor-chat-desktop.svg AppDir/usr/share/icons/hicolor/scalable/apps/
-          ./linuxdeploy --appdir AppDir --desktop-file=tor-chat-desktop.desktop --icon-file=tor-chat-desktop.svg --output appimage
+          export DEPLOY_GTK_VERSION=3
+          ./linuxdeploy --appdir AppDir --desktop-file=tor-chat-desktop.desktop --icon-file=tor-chat-desktop.svg --plugin gtk --output appimage
 
       - name: Upload Linux binary
         uses: actions/upload-artifact@v4
