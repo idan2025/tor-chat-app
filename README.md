@@ -43,22 +43,27 @@ If you do not agree with this disclaimer, **DO NOT USE THIS SOFTWARE**.
 - **TOR Integration**: Complete anonymity via TOR SOCKS5 proxy and hidden services
 - **Real-time Communication**: Socket.IO-based instant messaging with typing indicators
 - **Multi-Platform**: Web (WASM), Desktop (Windows/macOS/Linux), and Android
-- **Production Ready**: Docker deployment, PostgreSQL database, JWT authentication
+- **Production Ready**: Docker Compose deployment, PostgreSQL database, JWT authentication
 
 ### Security Features
 - **E2EE Encryption**: X25519 key exchange + ChaCha20-Poly1305 AEAD
-- **Perfect Forward Secrecy**: Ephemeral room keys with rotation
-- **Password Security**: bcrypt hashing with 12 rounds
-- **TOR Anonymity**: All traffic routed through TOR network
+- **Password Security**: bcrypt hashing (configurable rounds)
+- **TOR Anonymity**: All traffic routed through TOR network with .onion hidden service support
 - **Admin Controls**: User management, bans, room moderation
+- **File Upload Validation**: Blocks dangerous file types (executables)
+- **Rate Limiting**: Configurable request rate limiting
 
 ### Chat Features
 - **Chat Rooms**: Public and private encrypted rooms
 - **Room Management**: Create, join, leave, delete rooms
-- **Message Features**: Edit, delete, forward, reactions, threading
-- **File Sharing**: Encrypted file uploads and downloads
+- **Message Features**: Edit, delete, forward, reactions
+- **Message Pinning**: Pin important messages in rooms
+- **Quoted Replies**: Reply to specific messages with context
+- **Unread Badges**: Track unread messages per room with read status
+- **File Sharing**: Upload and share files (images, videos, documents, archives)
 - **Typing Indicators**: Real-time typing status
 - **User Presence**: Online/offline status tracking
+- **Message Search**: Full-text search within rooms
 - **Admin Dashboard**: Server statistics and user management
 
 ---
@@ -88,31 +93,38 @@ If you do not agree with this disclaimer, **DO NOT USE THIS SOFTWARE**.
 ### Technology Stack
 
 **Backend** (Rust):
-- **Framework**: Axum 0.7 (async web framework)
-- **Real-time**: socketioxide 0.13 (Socket.IO server)
-- **Database**: PostgreSQL 15+ with sqlx 0.7
+- **Framework**: Axum 0.8 (async web framework)
+- **Real-time**: socketioxide 0.18 (Socket.IO server)
+- **Database**: PostgreSQL 15 with sqlx 0.8
 - **Encryption**: sodiumoxide 0.2 (libsodium bindings)
-- **Authentication**: JWT (jsonwebtoken 9.2) + bcrypt 0.15
+- **Authentication**: JWT (jsonwebtoken 10.3) + bcrypt 0.18
 - **TOR**: tokio-socks 0.5 (SOCKS5 proxy client)
+- **HTTP Client**: reqwest 0.13 (with SOCKS proxy support)
 
 **Android** (Flutter):
-- **Framework**: Flutter 3.16+
-- **State**: Riverpod (reactive state management)
-- **Encryption**: flutter_sodium (libsodium)
+- **SDK**: Dart >=3.5.0
+- **State**: Riverpod (reactive state management with code generation)
+- **HTTP**: Dio 5.4
+- **Encryption**: sodium_libs + cryptography
 - **Real-time**: socket_io_client
-- **TOR**: tor_flutter (native TOR integration)
-- **Storage**: sqflite (local SQLite caching)
+- **TOR**: tor + socks5_proxy (embedded Arti-based TOR)
+- **Storage**: sqflite + flutter_secure_storage
 
-**Web/Desktop** (Dioxus):
-- **Framework**: Dioxus 0.5 (React-like Rust framework)
-- **Web**: WASM compilation with Trunk
-- **Desktop**: Native apps (90%+ code reuse from web)
-- **HTTP**: reqwest with async/await
-- **WebSocket**: gloo-net for Socket.IO
+**Web** (Dioxus WASM):
+- **Framework**: Dioxus 0.7 (React-like Rust framework)
+- **Build**: WASM compilation with Trunk, served by nginx
+- **HTTP**: reqwest 0.13 with async/await
+- **WebSocket**: gloo-net 0.6
+- **Storage**: gloo-storage (browser localStorage)
+
+**Desktop** (Dioxus Native):
+- **Framework**: Dioxus 0.7 (native desktop)
+- **TOR**: arti-client 0.39 (embedded TOR client)
+- **WebSocket**: tokio-tungstenite 0.27
 
 ---
 
-## 🚀 Quick Start with Docker
+## Quick Start with Docker
 
 The fastest way to get TOR Chat running:
 
@@ -121,86 +133,62 @@ The fastest way to get TOR Chat running:
 git clone https://github.com/idan2025/tor-chat-app.git
 cd tor-chat-app
 
-# Copy and configure environment
-cp .env.example .env
-nano .env  # Set JWT_SECRET to a secure random value
+# Set your JWT secret (required)
+export JWT_SECRET=$(openssl rand -hex 32)
 
 # Start with pre-built images (recommended)
-docker-compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml up -d
 
 # Access the application
-# Web UI: http://localhost:8080
-# Backend API: http://localhost:3000
+# Web UI: http://localhost:9274
 ```
+
+The first registered user automatically becomes an admin.
 
 **See [DOCKER.md](DOCKER.md) for complete Docker deployment guide.**
 
 ---
 
-## Quick Start
+## Development Setup
 
 ### Prerequisites
 
-Choose your platform:
-
 **Backend**:
-- Rust 1.70+ (install from [rustup.rs](https://rustup.rs))
+- Rust (install from [rustup.rs](https://rustup.rs))
 - PostgreSQL 15+
 - libsodium development libraries
 
 **Android**:
-- Flutter 3.16+
+- Flutter (Dart SDK >=3.5.0)
 - Android SDK / Android Studio
-- Java 17
 
-**Web/Desktop**:
-- Rust 1.70+
-- Trunk (for WASM builds): `cargo install trunk`
+**Web**:
+- Rust + Trunk: `cargo install trunk`
 - wasm32 target: `rustup target add wasm32-unknown-unknown`
 
-### Installation
-
-#### 1. Backend Setup
+### Backend Setup
 
 ```bash
 cd rust-backend
 
 # Install dependencies (Ubuntu/Debian)
-sudo apt-get update
 sudo apt-get install -y libsodium-dev postgresql
 
 # Configure environment
 cp .env.example .env
-# Edit .env with your database URL and JWT secret
+# Edit .env with your DATABASE_URL and JWT_SECRET
 
-# Run migrations
-sqlx database create
-sqlx migrate run
-
-# Build and run
-cargo build --release
+# Build and run (schema is created automatically on startup)
 cargo run --release
 ```
 
-**Environment Variables** (`.env`):
-```env
-DATABASE_URL=postgresql://user:password@localhost:5432/tor_chat
-JWT_SECRET=your-super-secret-jwt-key-change-this
-RUST_LOG=info
-TOR_SOCKS_HOST=127.0.0.1
-TOR_SOCKS_PORT=9050
-```
-
-#### 2. Flutter Android Setup
+### Flutter Android Setup
 
 ```bash
 cd flutter-app
 
 # Get dependencies
 flutter pub get
-
-# Configure API endpoint
-# Edit lib/services/api_service.dart to set your backend URL
 
 # Run on connected device/emulator
 flutter run
@@ -209,80 +197,52 @@ flutter run
 flutter build apk --release
 ```
 
-#### 3. Dioxus Web Setup
+### Dioxus Web Setup
 
 ```bash
 cd dioxus-web
 
 # Build and serve
 trunk serve --release
-
-# Access at http://localhost:8080
 ```
 
-#### 4. Dioxus Desktop Setup
+### Dioxus Desktop Setup
 
 ```bash
 cd dioxus-desktop
-
-# Run desktop app
 cargo run --release
-
-# Build for distribution
-cargo build --release
 ```
 
 ---
 
 ## Docker Deployment
 
-### Quick Deploy
+The project includes two Docker Compose configurations:
+
+- **`docker-compose.yml`** - Builds all services from source
+- **`docker-compose.prod.yml`** - Uses pre-built images from Docker Hub
+
+### Services
+
+| Service | Description | Port |
+|---------|-------------|------|
+| **postgres** | PostgreSQL 15 Alpine | 5432 (dev only) |
+| **tor** | TOR daemon with hidden service | Internal |
+| **backend** | Rust API + Socket.IO server | 3000 (dev only) |
+| **web** | Dioxus WASM app via nginx | 9274 (configurable via `WEB_PORT`) |
+
+Nginx proxies `/api/` and `/socket.io/` requests to the backend, so only the web port needs to be exposed in production.
+
+### Deploy with Pre-built Images
 
 ```bash
-# Pull pre-built images
-docker pull idan2025/tor-chat-backend:latest
-
-# Run with docker-compose
-docker-compose up -d
-
-# Access web UI at http://localhost:8080
+JWT_SECRET=<your-secret> docker compose -f docker-compose.prod.yml up -d
 ```
 
 ### Build from Source
 
 ```bash
-# Build backend image
-cd rust-backend
-docker build -t tor-chat-backend .
-
-# Run with PostgreSQL
-docker-compose up -d
-```
-
-**docker-compose.yml**:
-```yaml
-services:
-  postgres:
-    image: postgres:15
-    environment:
-      POSTGRES_DB: tor_chat
-      POSTGRES_USER: toruser
-      POSTGRES_PASSWORD: torpass
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-
-  backend:
-    image: idan2025/tor-chat-backend:latest
-    ports:
-      - "3000:3000"
-    environment:
-      DATABASE_URL: postgresql://toruser:torpass@postgres:5432/tor_chat
-      JWT_SECRET: change-this-secret-key
-    depends_on:
-      - postgres
-
-volumes:
-  pgdata:
+docker compose up -d --build
 ```
 
 ---
@@ -293,62 +253,49 @@ volumes:
 tor-chat-app/
 ├── rust-backend/              # Rust backend server
 │   ├── src/
-│   │   ├── main.rs           # Server entry point
-│   │   ├── config.rs         # Configuration
-│   │   ├── database.rs       # PostgreSQL schema
+│   │   ├── main.rs           # Server entry point & route wiring
+│   │   ├── config.rs         # Environment configuration
+│   │   ├── database.rs       # PostgreSQL schema (auto-created)
 │   │   ├── error.rs          # Error types
-│   │   ├── state.rs          # App state
-│   │   ├── models/           # Data models
-│   │   │   ├── user.rs
-│   │   │   ├── room.rs
-│   │   │   └── message.rs
-│   │   ├── services/         # Business logic
-│   │   │   ├── crypto.rs     # E2EE implementation
-│   │   │   ├── tor.rs        # TOR SOCKS proxy
-│   │   │   └── auth.rs       # Authentication
-│   │   ├── middleware/       # HTTP middleware
-│   │   │   ├── auth.rs       # JWT validation
-│   │   │   └── validation.rs
-│   │   ├── routes/           # REST API routes
-│   │   │   ├── auth.rs       # Auth endpoints
-│   │   │   ├── rooms.rs      # Room management
-│   │   │   ├── admin.rs      # Admin panel
-│   │   │   └── upload.rs     # File uploads
-│   │   └── socket/           # Socket.IO handlers
-│   │       └── handlers.rs   # 18 real-time events
+│   │   ├── state.rs          # App state (DB pool, config, SocketIo)
+│   │   ├── models/           # Data models (user, room, message, room_member)
+│   │   ├── services/         # Business logic (auth, crypto, tor)
+│   │   ├── middleware/        # HTTP middleware (JWT auth, validation)
+│   │   ├── routes/           # REST API (auth, rooms, admin, upload, tor)
+│   │   └── socket/           # Socket.IO real-time handlers
 │   ├── Cargo.toml
-│   └── .env.example
+│   └── Dockerfile
+├── dioxus-web/                # Dioxus web frontend (WASM)
+│   ├── src/
+│   │   ├── main.rs           # App entry & router
+│   │   ├── api.rs            # REST client
+│   │   ├── socket.rs         # Socket.IO client
+│   │   ├── models.rs         # Data models
+│   │   ├── state/            # Auth state management
+│   │   ├── pages/            # Login, Register, Chat, Admin
+│   │   ├── components/       # Message bubble, room list, input
+│   │   └── utils/            # Storage helpers
+│   ├── Cargo.toml
+│   ├── index.html
+│   └── Dockerfile            # Multi-stage: trunk build → nginx
+├── dioxus-desktop/            # Dioxus desktop app (native)
+│   ├── src/main.rs           # Desktop app with embedded TOR (Arti)
+│   └── Cargo.toml
 ├── flutter-app/               # Flutter Android app
 │   ├── lib/
 │   │   ├── main.dart
-│   │   ├── models/           # Data models
-│   │   ├── services/         # API, TOR, crypto, socket
-│   │   ├── screens/          # UI screens
-│   │   ├── components/       # Reusable widgets
-│   │   └── providers/        # Riverpod state
-│   ├── pubspec.yaml
-│   └── android/
-├── dioxus-web/                # Dioxus web app (WASM)
-│   ├── src/
-│   │   ├── main.rs           # App entry
-│   │   ├── api.rs            # REST client
-│   │   ├── socket.rs         # WebSocket client
-│   │   ├── models.rs         # Data models
-│   │   ├── state/            # Global state
-│   │   ├── pages/            # UI pages
-│   │   └── components/       # UI components
-│   ├── Cargo.toml
-│   └── index.html
-├── dioxus-desktop/            # Dioxus desktop app
-│   ├── src/
-│   │   └── main.rs           # Desktop wrapper
-│   └── Cargo.toml
-├── .github/workflows/         # CI/CD pipelines
-│   ├── rust-backend.yml
-│   ├── flutter-android.yml
-│   ├── dioxus-web.yml
-│   ├── dioxus-desktop.yml
-│   └── code-quality.yml
+│   │   ├── models/           # User, room, message models
+│   │   ├── services/         # API, socket, crypto, TOR, storage, files, notifications, updates
+│   │   ├── screens/          # Login, register, chat, rooms, admin, settings, server config
+│   │   ├── components/       # Message bubble, message input
+│   │   └── providers/        # Riverpod auth state
+│   └── pubspec.yaml
+├── tor/                       # TOR daemon container
+│   ├── torrc                 # TOR configuration (hidden service)
+│   └── Dockerfile
+├── .github/workflows/         # CI/CD pipelines (7 workflows)
+├── docker-compose.yml         # Development (build from source)
+├── docker-compose.prod.yml    # Production (pre-built images)
 └── README.md
 ```
 
@@ -358,67 +305,77 @@ tor-chat-app/
 
 ### REST API Endpoints
 
-**Authentication**:
+**Authentication** (public):
 - `POST /api/auth/register` - Register new user
 - `POST /api/auth/login` - Login user
-- `POST /api/auth/refresh` - Refresh JWT token
+
+**Authentication** (protected):
 - `GET /api/auth/me` - Get current user
-- `DELETE /api/auth/logout` - Logout user
+- `POST /api/auth/logout` - Logout user
+- `GET /api/auth/users` - List all users
 
-**Rooms**:
-- `GET /api/rooms` - List all rooms
+**Rooms** (protected):
+- `GET /api/rooms` - List accessible rooms
 - `POST /api/rooms` - Create room
-- `GET /api/rooms/:id` - Get room details
-- `POST /api/rooms/:id/join` - Join room
-- `DELETE /api/rooms/:id/leave` - Leave room
-- `DELETE /api/rooms/:id` - Delete room (admin/creator)
-- `GET /api/rooms/:id/members` - List room members
-- `GET /api/rooms/:id/messages` - Get room messages
-- `GET /api/rooms/:id/messages/search` - Search messages
-- `DELETE /api/rooms/:id/members/:user_id` - Kick member
+- `GET /api/rooms/{id}` - Get room details
+- `POST /api/rooms/{id}/join` - Join room
+- `POST /api/rooms/{id}/leave` - Leave room
+- `DELETE /api/rooms/{id}` - Delete room (admin/creator)
+- `GET /api/rooms/{id}/messages` - Get messages (paginated)
+- `POST /api/rooms/{id}/messages` - Send message
+- `GET /api/rooms/{id}/members` - List room members
+- `POST /api/rooms/{id}/members` - Add member
+- `DELETE /api/rooms/{id}/members/{user_id}` - Remove member
+- `GET /api/rooms/{id}/search` - Search messages in room
 
-**Admin**:
+**Admin** (protected, admin only):
 - `GET /api/admin/stats` - Server statistics
 - `GET /api/admin/users` - List all users
-- `POST /api/admin/users/:id/promote` - Promote to admin
-- `POST /api/admin/users/:id/demote` - Demote from admin
-- `POST /api/admin/users/:id/ban` - Ban user
-- `POST /api/admin/users/:id/unban` - Unban user
-- `DELETE /api/admin/users/:id` - Delete user
+- `POST /api/admin/users/{id}/promote` - Promote to admin
+- `POST /api/admin/users/{id}/demote` - Demote from admin
+- `POST /api/admin/users/{id}/ban` - Ban user
+- `POST /api/admin/users/{id}/unban` - Unban user
+- `DELETE /api/admin/users/{id}` - Delete user
 - `GET /api/admin/rooms` - List all rooms
-- `DELETE /api/admin/rooms/:id` - Delete any room
+- `DELETE /api/admin/rooms/{id}` - Delete any room
 
-**Upload**:
-- `POST /api/upload` - Upload file
-
-**TOR**:
-- `GET /api/tor/status` - Check TOR connection
+**Other**:
+- `POST /api/upload` - Upload file (protected)
+- `GET /uploads/{path}` - Serve uploaded files (static)
+- `GET /api/tor-status` - Check TOR connection (public)
+- `GET /health` - Health check (public)
 
 ### Socket.IO Events
 
 **Client → Server**:
-- `authenticate` - Authenticate socket connection
-- `join_room` - Join a room
-- `leave_room` - Leave a room
-- `send_message` - Send message
-- `edit_message` - Edit message
-- `delete_message` - Delete message
-- `forward_message` - Forward message
-- `add_reaction` - Add reaction to message
-- `remove_reaction` - Remove reaction
-- `typing_start` - Start typing indicator
-- `typing_stop` - Stop typing indicator
+- `authenticate` - Authenticate socket connection with JWT
+- `join_room` - Join a chat room
+- `leave_room` - Leave a chat room
+- `send_message` - Send message (supports reply_to, message_type, metadata)
+- `edit_message` - Edit a sent message
+- `delete_message` - Delete a sent message
+- `forward_message` - Forward message to another room
+- `add_reaction` - Add emoji reaction to message
+- `remove_reaction` - Remove emoji reaction
+- `typing` - Emit typing status
+- `mark_read` - Mark messages as read in a room
+- `pin_message` - Pin a message in a room
+- `unpin_message` - Unpin a message
 
 **Server → Client**:
-- `authenticated` - Authentication success
-- `new_message` - New message received
-- `message_edited` - Message edited
-- `message_deleted` - Message deleted
-- `reaction_added` - Reaction added
-- `reaction_removed` - Reaction removed
+- `authenticated` - Authentication confirmed
+- `message` - New message received
+- `message_edited` - Message was edited
+- `message_deleted` - Message was deleted
+- `message_reaction_added` - Reaction added to message
+- `message_reaction_removed` - Reaction removed
+- `message_forwarded` - Message forwarded
+- `message_pinned` - Message was pinned
+- `message_unpinned` - Message was unpinned
+- `message_read` - Messages marked as read
 - `user_typing` - User is typing
-- `user_joined` - User joined room
-- `user_left` - User left room
+- `user_online` - User came online
+- `user_offline` - User went offline
 - `error` - Error occurred
 
 ---
@@ -429,7 +386,7 @@ tor-chat-app/
 
 **Algorithm**: ChaCha20-Poly1305 (AEAD)
 **Key Exchange**: X25519 (Elliptic Curve Diffie-Hellman)
-**MAC**: Poly1305
+**Library**: sodiumoxide (libsodium bindings)
 
 **How it works**:
 1. Users generate X25519 keypairs on registration
@@ -441,60 +398,39 @@ tor-chat-app/
 ### TOR Integration
 
 All network traffic can be routed through TOR:
-- Backend connects to TOR SOCKS5 proxy (port 9050)
-- Supports .onion hidden services
-- No IP address leakage
-- Censorship resistant
+- Backend connects to TOR SOCKS5 proxy
+- Docker deployment includes a TOR container with hidden service
+- .onion address auto-generated and served by the TOR hidden service
+- Desktop app uses embedded Arti TOR client
+- Flutter app uses embedded TOR via `tor` + `socks5_proxy` packages
 
 ### Authentication
 
-- **Password Hashing**: bcrypt (12 rounds, auto-salted)
-- **Session Management**: JWT tokens with short expiration
-- **Token Refresh**: Refresh tokens for seamless UX
-- **Rate Limiting**: Protection against brute force
+- **Password Hashing**: bcrypt (configurable cost, default 12 rounds)
+- **Session Management**: JWT tokens with configurable expiration
+- **Rate Limiting**: Configurable per-second rate limiting with burst support
 
 ---
 
 ## CI/CD Pipeline
 
-This project uses **GitHub Actions** for automated testing and deployment:
+This project uses **GitHub Actions** with 7 workflows:
 
-### Workflows
+| Workflow | File | Description |
+|----------|------|-------------|
+| **Rust Backend** | `rust-backend.yml` | Lint (fmt + clippy), build, Docker Hub push |
+| **Dioxus Web** | `dioxus-web.yml` | Lint, WASM build with Trunk, Docker Hub push |
+| **Dioxus Desktop** | `dioxus-desktop.yml` | Cross-platform native builds |
+| **Flutter Android** | `flutter-android.yml` | Analyze, build APK/AAB |
+| **TOR** | `tor.yml` | Build and push TOR container image |
+| **Code Quality** | `code-quality.yml` | Security audits, formatting, linting |
+| **Release** | `release.yml` | Tagged release builds |
 
-1. **Rust Backend** (`.github/workflows/rust-backend.yml`)
-   - Lint: cargo fmt + clippy
-   - Test: Unit tests with PostgreSQL
-   - Build: Release build
-   - Deploy: Docker Hub (main branch)
+### Docker Hub Images
 
-2. **Flutter Android** (`.github/workflows/flutter-android.yml`)
-   - Analyze: dart format + flutter analyze
-   - Test: Flutter test suite
-   - Build: APK + AAB (App Bundle)
-   - Deploy: Google Play Store internal track (main branch)
-
-3. **Dioxus Web** (`.github/workflows/dioxus-web.yml`)
-   - Lint: cargo fmt + clippy
-   - Build: WASM with Trunk
-   - Deploy: GitHub Pages / Netlify / Vercel (main branch)
-
-4. **Dioxus Desktop** (`.github/workflows/dioxus-desktop.yml`)
-   - Build: Linux (AppImage), Windows (installer), macOS (DMG)
-   - Release: GitHub Releases (on tags)
-
-5. **Code Quality** (`.github/workflows/code-quality.yml`)
-   - Security: cargo audit + CodeQL
-   - Coverage: cargo-tarpaulin + Codecov
-   - License: cargo-license compliance check
-
-### Deployment Targets
-
-- **Backend**: Docker Hub → `idan2025/tor-chat-backend:latest`
-- **Android**: Google Play Store (internal track)
-- **Web**: GitHub Pages / Netlify / Vercel
-- **Desktop**: GitHub Releases (binaries for all platforms)
-
-See [.github/workflows/README.md](.github/workflows/README.md) for setup instructions.
+- `idan2025/tor-chat-backend:latest`
+- `idan2025/tor-chat-web:latest`
+- `idan2025/tor-chat-tor:latest`
 
 ---
 
@@ -502,220 +438,90 @@ See [.github/workflows/README.md](.github/workflows/README.md) for setup instruc
 
 ### Running Tests
 
-**Backend**:
 ```bash
-cd rust-backend
-cargo test
-```
+# Backend
+cd rust-backend && cargo test
 
-**Flutter**:
-```bash
-cd flutter-app
-flutter test
-```
+# Flutter
+cd flutter-app && flutter test
 
-**Web**:
-```bash
-cd dioxus-web
-cargo test
+# Web
+cd dioxus-web && cargo test
 ```
 
 ### Code Quality
 
-**Rust linting**:
 ```bash
+# Rust formatting and linting
 cargo fmt --check
 cargo clippy -- -D warnings
-```
 
-**Flutter linting**:
-```bash
+# Flutter
 dart format --set-exit-if-changed .
 flutter analyze
 ```
 
-### Database Migrations
+### Database Schema
 
-```bash
-cd rust-backend
-
-# Create new migration
-sqlx migrate add <migration_name>
-
-# Run migrations
-sqlx migrate run
-
-# Revert last migration
-sqlx migrate revert
-```
+The database schema is defined inline in `rust-backend/src/database.rs` and auto-created on backend startup. No manual migration step is needed.
 
 ---
 
-## Production Deployment
+## Environment Variables
 
-**Recommended: Docker Deployment**
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `JWT_SECRET` | Yes | — | JWT signing key |
+| `DATABASE_URL` | Yes | — | PostgreSQL connection string |
+| `HOST` | No | `0.0.0.0` | Server bind address |
+| `PORT` | No | `3000` | Server port |
+| `RUST_LOG` | No | `info` | Log level |
+| `JWT_EXPIRES_IN` | No | `86400` | Token expiration (seconds) |
+| `BCRYPT_COST` | No | `12` | bcrypt hash rounds |
+| `TOR_ENABLED` | No | `true` | Enable TOR integration |
+| `TOR_SOCKS_HOST` | No | `127.0.0.1` | TOR SOCKS proxy host |
+| `TOR_SOCKS_PORT` | No | `9050` | TOR SOCKS proxy port |
+| `MAX_FILE_SIZE` | No | `1073741824` | Max upload size in bytes (1 GB) |
+| `UPLOAD_DIR` | No | `./uploads` | File upload directory |
+| `RATE_LIMIT_PER_SECOND` | No | `10` | Request rate limit |
+| `RATE_LIMIT_BURST_SIZE` | No | `20` | Rate limit burst size |
+| `WEB_PORT` | No | `9274` | Web UI port (Docker Compose) |
 
-The easiest way to deploy to production is using Docker Compose:
-
-```bash
-# Use pre-built images from Docker Hub
-docker-compose -f docker-compose.prod.yml up -d
-```
-
-See **[DOCKER.md](DOCKER.md)** for complete production deployment guide including:
-- SSL/TLS setup with reverse proxy
-- Database backups
-- Security hardening
-- Monitoring and logging
-- Performance tuning
-
-### Alternative: Manual Deployment
-
-#### 1. Backend Deployment
-
-```bash
-# Using Docker
-docker run -d \
-  -p 3000:3000 \
-  -e DATABASE_URL=postgresql://user:pass@db:5432/tor_chat \
-  -e JWT_SECRET=your-secret-key \
-  idan2025/tor-chat-backend:latest
-
-# Or build from source
-cd rust-backend
-cargo build --release
-./target/release/tor-chat-backend
-```
-
-#### 2. Web Deployment
-
-**Docker (Recommended)**:
-```bash
-docker run -d -p 8080:80 idan2025/tor-chat-web:latest
-```
-
-**GitHub Pages**:
-```bash
-cd dioxus-web
-trunk build --release
-# Deploy dist/ to GitHub Pages
-```
-
-**Netlify**:
-```bash
-# Build command: cd dioxus-web && trunk build --release
-# Publish directory: dioxus-web/dist
-```
-
-#### 3. Android Deployment
-
-Download APK from [GitHub Actions artifacts](https://github.com/idan2025/tor-chat-app/actions/workflows/flutter-android.yml) or build from source:
-
-```bash
-cd flutter-app
-
-# Build signed APK
-flutter build apk --release
-
-# Build App Bundle for Play Store
-flutter build appbundle --release
-```
-
-#### 4. Desktop Deployment
-
-Download pre-built binaries from:
-- **Linux AppImage**: [GitHub Actions artifacts](https://github.com/idan2025/tor-chat-app/actions/workflows/dioxus-desktop.yml)
-- **Windows Installer**: [GitHub Actions artifacts](https://github.com/idan2025/tor-chat-app/actions/workflows/dioxus-desktop.yml)
-- **macOS DMG**: [GitHub Actions artifacts](https://github.com/idan2025/tor-chat-app/actions/workflows/dioxus-desktop.yml)
-
-Or build from source:
-
-```bash
-cd dioxus-desktop
-cargo build --release
-
-# Binaries in target/release/
-```
+See **[DOCKER.md](DOCKER.md)** for complete production deployment guide.
 
 ---
 
 ## Troubleshooting
 
-### Backend Issues
-
-**libsodium not found**:
+**libsodium not found** (backend build):
 ```bash
 # Ubuntu/Debian
 sudo apt-get install libsodium-dev
 
 # macOS
 brew install libsodium
-
-# Windows
-# Download from https://libsodium.org
 ```
 
-**PostgreSQL connection failed**:
-- Check DATABASE_URL format: `postgresql://user:pass@host:port/dbname`
-- Ensure PostgreSQL is running: `sudo systemctl status postgresql`
-- Verify user permissions: `psql -U user -d dbname`
+**WASM build failed** (web frontend):
+```bash
+cargo install trunk
+rustup target add wasm32-unknown-unknown
+```
 
-### Flutter Issues
-
-**TOR connection failed**:
-- Ensure TOR is installed and running
-- Check SOCKS proxy configuration in settings
-- Verify backend URL is correct
-
-**Build failures**:
-- Clean build: `flutter clean && flutter pub get`
-- Update Flutter: `flutter upgrade`
-- Check Java version: `java -version` (requires Java 17)
-
-### Web Issues
-
-**WASM build failed**:
-- Install Trunk: `cargo install trunk`
-- Add wasm32 target: `rustup target add wasm32-unknown-unknown`
-- Clear cache: `trunk clean`
-
----
-
-## Performance
-
-### Backend Benchmarks
-- **REST API**: ~10,000 req/sec (single instance)
-- **WebSocket**: ~5,000 concurrent connections
-- **Database**: PostgreSQL with connection pooling (max 20)
-
-### Optimization Tips
-- Enable cargo build cache in CI/CD (40-60% faster builds)
-- Use release builds for production (`--release`)
-- Configure PostgreSQL max_connections based on load
-- Use Redis for session storage (optional, for horizontal scaling)
+**Flutter build failures**:
+```bash
+flutter clean && flutter pub get
+```
 
 ---
 
 ## Roadmap
 
-### Completed ✅
-- [x] Complete Rust backend rewrite
-- [x] Flutter Android app
-- [x] Dioxus Web + Desktop apps
-- [x] E2EE implementation
-- [x] TOR integration
-- [x] GitHub Actions CI/CD
-- [x] Docker deployment
-- [x] Admin dashboard
-
-### Planned 🚧
 - [ ] iOS app (Flutter)
 - [ ] Voice/Video calls (WebRTC)
-- [ ] Message search optimization
 - [ ] Redis caching layer
 - [ ] Kubernetes deployment manifests
 - [ ] E2E testing suite
-- [ ] Message threading UI
 - [ ] Push notifications (FCM)
 
 ---
@@ -763,27 +569,26 @@ For security vulnerabilities, please use [GitHub Security Advisories](https://gi
 
 ## Acknowledgments
 
-- **TOR Project**: For the anonymity network
-- **libsodium**: For the cryptography library
-- **Rust Community**: For amazing tooling and libraries
-- **Flutter Team**: For the cross-platform framework
-- **Dioxus Team**: For the Rust UI framework
+- [TOR Project](https://www.torproject.org/) - Anonymity network
+- [libsodium](https://doc.libsodium.org/) - Cryptography library
+- [Dioxus](https://dioxuslabs.com/) - Rust UI framework
+- [Arti](https://gitlab.torproject.org/tpo/core/arti) - Embedded TOR client
 
 ---
 
 ## Statistics
 
-| Metric | Value |
+| Component | Files | Lines |
+|-----------|-------|-------|
+| **Backend** (Rust) | 25 | ~3,940 |
+| **Web Frontend** (Dioxus WASM) | 16 | ~3,230 |
+| **Desktop** (Dioxus Native) | 2 | ~2,300 |
+| **Android** (Flutter) | 25 | ~6,760 |
+| **CI/CD Workflows** | 7 | ~1,420 |
+| **Total** | | **~17,650** |
+
+| Metric | Count |
 |--------|-------|
-| **Total Lines of Code** | ~7,850 |
-| **Backend (Rust)** | 27 files, ~2,650 lines |
-| **Android (Flutter)** | 25 files, ~3,000 lines |
-| **Web (Dioxus)** | 16 files, ~1,500 lines |
-| **Desktop (Dioxus)** | 2 files, ~100 lines |
-| **CI/CD Workflows** | 5 workflows, ~600 lines |
-| **Platforms Supported** | 6 (Linux, Windows, macOS, Android, Web, Docker) |
-| **API Endpoints** | 28 REST + 18 Socket.IO events |
-
----
-
-**⭐ If you find this project useful, please give it a star!**
+| **REST API Endpoints** | 24 |
+| **Socket.IO Events** | 13 client → server, 14 server → client |
+| **Platforms** | Web, Desktop (Linux/Windows/macOS), Android |
