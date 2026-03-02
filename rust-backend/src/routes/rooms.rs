@@ -349,7 +349,7 @@ pub async fn get_messages(
     let messages = sqlx::query_as::<_, Message>(
         "SELECT * FROM messages
          WHERE room_id = $1
-         ORDER BY created_at DESC
+         ORDER BY created_at ASC
          LIMIT $2 OFFSET $3",
     )
     .bind(room_id)
@@ -727,7 +727,7 @@ pub async fn search_messages(
     // Return all messages for client-side decryption and search
     // Since messages are encrypted, we can't search server-side
     let messages = sqlx::query_as::<_, Message>(
-        "SELECT * FROM messages WHERE room_id = $1 ORDER BY created_at DESC",
+        "SELECT * FROM messages WHERE room_id = $1 ORDER BY created_at ASC",
     )
     .bind(room_id)
     .fetch_all(&state.db)
