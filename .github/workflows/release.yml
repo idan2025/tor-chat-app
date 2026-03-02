@@ -218,22 +218,28 @@ jobs:
 
       - name: Create AppImage
         run: |
-          wget -O linuxdeploy https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
-          wget -O linuxdeploy-plugin-gtk.sh https://raw.githubusercontent.com/linuxdeploy/linuxdeploy-plugin-gtk/master/linuxdeploy-plugin-gtk.sh
-          chmod +x linuxdeploy linuxdeploy-plugin-gtk.sh
+          # Use appimagetool directly (no linuxdeploy) to avoid LD_LIBRARY_PATH
+          # conflicts with WebKitGTK subprocesses. System libwebkit2gtk-4.1 required.
+          wget -O appimagetool https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool
+
           mkdir -p AppDir/usr/bin AppDir/usr/share/applications AppDir/usr/share/icons/hicolor/scalable/apps
           cp target/release/tor-chat-desktop AppDir/usr/bin/
-
-          # Bundle WebKitGTK subprocesses that the app needs at runtime
-          WEBKIT_DIR="/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1"
-          mkdir -p AppDir/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1
-          cp "$WEBKIT_DIR/WebKitNetworkProcess" AppDir/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/
-          cp "$WEBKIT_DIR/WebKitWebProcess" AppDir/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/
-
           cp tor-chat-desktop.desktop AppDir/usr/share/applications/ || true
           cp tor-chat-desktop.svg AppDir/usr/share/icons/hicolor/scalable/apps/ || true
-          export DEPLOY_GTK_VERSION=3
-          ./linuxdeploy --appdir AppDir --plugin gtk --output appimage || true
+
+          ln -sf usr/share/applications/tor-chat-desktop.desktop AppDir/tor-chat-desktop.desktop
+          ln -sf usr/share/icons/hicolor/scalable/apps/tor-chat-desktop.svg AppDir/tor-chat-desktop.svg
+          ln -sf usr/share/icons/hicolor/scalable/apps/tor-chat-desktop.svg AppDir/.DirIcon
+
+          cat > AppDir/AppRun << 'APPRUN'
+          #!/bin/bash
+          SELF_DIR="$(dirname "$(readlink -f "$0")")"
+          exec "$SELF_DIR/usr/bin/tor-chat-desktop" "$@"
+          APPRUN
+          chmod +x AppDir/AppRun
+
+          ARCH=x86_64 ./appimagetool AppDir TOR_Chat-x86_64.AppImage || true
 
       - name: Upload Linux desktop
         uses: actions/upload-artifact@v4
