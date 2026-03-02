@@ -1279,15 +1279,18 @@ fn render_member_item(
     let user = &member["user"];
     let is_online = user["isOnline"].as_bool().unwrap_or(false);
     let username = user["username"].as_str().unwrap_or("?").to_string();
+    let member_uuid = uuid::Uuid::parse_str(&member_user_id).ok();
     let is_creator = selected_room
         .as_ref()
         .and_then(|r| r.creator_id)
-        .map(|c| c.to_string() == member_user_id)
+        .zip(member_uuid)
+        .map(|(c, m)| c == m)
         .unwrap_or(false);
     let can_remove = (is_room_creator || is_admin)
         && !is_creator
         && current_user_id
-            .map(|u| u.to_string() != member_user_id)
+            .zip(member_uuid)
+            .map(|(cur, mem)| cur != mem)
             .unwrap_or(false);
 
     let room_id_for_remove = selected_room
