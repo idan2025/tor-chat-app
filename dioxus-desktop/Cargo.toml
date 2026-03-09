@@ -8,7 +8,7 @@ edition = "2021"
 dioxus = { version = "0.7", features = ["desktop", "router"] }
 
 # Async runtime
-tokio = { version = "1.35", features = ["full"] }
+tokio = { version = "1.50", features = ["full"] }
 
 # HTTP client
 reqwest = { version = "0.13", features = ["json", "socks"] }
