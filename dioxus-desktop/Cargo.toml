@@ -36,7 +36,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 url = "2.5"
 
 # Embedded Tor
-arti-client = { version = "0.39", features = ["tokio", "onion-service-client"] }
+arti-client = { version = "0.40", features = ["tokio", "onion-service-client"] }
 tor-rtcompat = { version = "0.39", features = ["tokio"] }
 
 # Bundle sqlite3 from source so Windows builds don't need a system sqlite3.lib
