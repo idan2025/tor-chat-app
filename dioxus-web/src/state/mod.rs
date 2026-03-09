@@ -16,6 +16,8 @@ pub struct AppState {
     pub messages: Signal<Vec<Message>>,
     pub current_room: Signal<Option<Room>>,
     pub authenticated: Signal<bool>,
+    /// Set by admin panel "View" button to auto-open a room in chat
+    pub admin_view_room: Signal<Option<String>>,
 }
 
 impl AppState {
@@ -34,6 +36,7 @@ impl AppState {
             messages: Signal::new(Vec::new()),
             current_room: Signal::new(None),
             authenticated: Signal::new(false),
+            admin_view_room: Signal::new(None),
         }
     }
 
@@ -64,11 +67,13 @@ impl AppState {
         let mut rooms_sig = self.rooms;
         let mut messages_sig = self.messages;
         let mut room_sig = self.current_room;
+        let mut admin_view = self.admin_view_room;
         user_sig.set(None);
         auth_sig.set(false);
         rooms_sig.set(Vec::new());
         messages_sig.set(Vec::new());
         room_sig.set(None);
+        admin_view.set(None);
         self.socket.disconnect().await;
         crate::utils::storage::remove_token();
     }

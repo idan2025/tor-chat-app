@@ -347,6 +347,7 @@ pub fn Admin() -> Element {
 
                                         let api_del = state.api.clone();
                                         let rid_del = room_id.clone();
+                                        let rid_view = room_id.clone();
 
                                         rsx! {
                                             div {
@@ -373,19 +374,32 @@ pub fn Admin() -> Element {
                                                         }
                                                     }
                                                 }
-                                                button {
-                                                    class: "bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-xs",
-                                                    onclick: move |_| {
-                                                        let api = api_del.clone();
-                                                        let rid = rid_del.clone();
-                                                        spawn(async move {
-                                                            if let Err(e) = api.admin_delete_room(&rid).await {
-                                                                action_error.set(Some(e));
-                                                            }
-                                                            admin_rooms.restart();
-                                                        });
-                                                    },
-                                                    "Delete"
+                                                div {
+                                                    class: "flex gap-1",
+                                                    button {
+                                                        class: "bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-xs",
+                                                        onclick: move |_| {
+                                                            let rid = rid_view.clone();
+                                                            let mut avr = state.admin_view_room;
+                                                            avr.set(Some(rid));
+                                                            nav.push(Route::Chat {});
+                                                        },
+                                                        "View"
+                                                    }
+                                                    button {
+                                                        class: "bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-xs",
+                                                        onclick: move |_| {
+                                                            let api = api_del.clone();
+                                                            let rid = rid_del.clone();
+                                                            spawn(async move {
+                                                                if let Err(e) = api.admin_delete_room(&rid).await {
+                                                                    action_error.set(Some(e));
+                                                                }
+                                                                admin_rooms.restart();
+                                                            });
+                                                        },
+                                                        "Delete"
+                                                    }
                                                 }
                                             }
                                         }

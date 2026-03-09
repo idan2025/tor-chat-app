@@ -56,20 +56,29 @@ pub struct MessageResponse {
     pub reply_message: Option<serde_json::Value>,
 }
 
-// GET /api/rooms - List rooms (public + user's private rooms)
+// GET /api/rooms - List rooms (public + user's private rooms, or ALL for global admins)
 pub async fn list_rooms(
     State(state): State<Arc<AppState>>,
     Extension(auth): Extension<AuthUser>,
 ) -> Result<Json<serde_json::Value>> {
-    let rooms = sqlx::query_as::<_, Room>(
-        "SELECT DISTINCT r.* FROM rooms r
-         LEFT JOIN room_members rm ON r.id = rm.room_id
-         WHERE r.is_public = true OR rm.user_id = $1
-         ORDER BY r.created_at DESC",
-    )
-    .bind(auth.user_id)
-    .fetch_all(&state.db)
-    .await?;
+    let rooms = if auth.user.is_admin {
+        // Global admins see ALL rooms (for moderation)
+        sqlx::query_as::<_, Room>(
+            "SELECT * FROM rooms ORDER BY created_at DESC",
+        )
+        .fetch_all(&state.db)
+        .await?
+    } else {
+        sqlx::query_as::<_, Room>(
+            "SELECT DISTINCT r.* FROM rooms r
+             LEFT JOIN room_members rm ON r.id = rm.room_id
+             WHERE r.is_public = true OR rm.user_id = $1
+             ORDER BY r.created_at DESC",
+        )
+        .bind(auth.user_id)
+        .fetch_all(&state.db)
+        .await?
+    };
 
     let mut room_responses = Vec::new();
     for r in &rooms {
@@ -193,7 +202,7 @@ pub async fn get_room(
             auth.user.username,
             room.name
         );
-    } else if !is_member {
+    } else if !is_member && !auth.user.is_admin {
         return Err(AppError::Authorization(
             "Not a member of this room".to_string(),
         ));
@@ -331,19 +340,21 @@ pub async fn get_messages(
     Path(room_id): Path<Uuid>,
     Query(pagination): Query<PaginationQuery>,
 ) -> Result<Json<serde_json::Value>> {
-    // Check if user is member
-    let is_member = sqlx::query_scalar::<_, bool>(
-        "SELECT EXISTS(SELECT 1 FROM room_members WHERE room_id = $1 AND user_id = $2)",
-    )
-    .bind(room_id)
-    .bind(auth.user_id)
-    .fetch_one(&state.db)
-    .await?;
+    // Global admins can view any room's messages (moderation)
+    if !auth.user.is_admin {
+        let is_member = sqlx::query_scalar::<_, bool>(
+            "SELECT EXISTS(SELECT 1 FROM room_members WHERE room_id = $1 AND user_id = $2)",
+        )
+        .bind(room_id)
+        .bind(auth.user_id)
+        .fetch_one(&state.db)
+        .await?;
 
-    if !is_member {
-        return Err(AppError::Authorization(
-            "Not a member of this room".to_string(),
-        ));
+        if !is_member {
+            return Err(AppError::Authorization(
+                "Not a member of this room".to_string(),
+            ));
+        }
     }
 
     let messages = sqlx::query_as::<_, Message>(
@@ -502,19 +513,21 @@ pub async fn get_members(
     Extension(auth): Extension<AuthUser>,
     Path(room_id): Path<Uuid>,
 ) -> Result<Json<serde_json::Value>> {
-    // Check if user is member
-    let is_member = sqlx::query_scalar::<_, bool>(
-        "SELECT EXISTS(SELECT 1 FROM room_members WHERE room_id = $1 AND user_id = $2)",
-    )
-    .bind(room_id)
-    .bind(auth.user_id)
-    .fetch_one(&state.db)
-    .await?;
+    // Global admins can view any room's members (moderation)
+    if !auth.user.is_admin {
+        let is_member = sqlx::query_scalar::<_, bool>(
+            "SELECT EXISTS(SELECT 1 FROM room_members WHERE room_id = $1 AND user_id = $2)",
+        )
+        .bind(room_id)
+        .bind(auth.user_id)
+        .fetch_one(&state.db)
+        .await?;
 
-    if !is_member {
-        return Err(AppError::Authorization(
-            "Not a member of this room".to_string(),
-        ));
+        if !is_member {
+            return Err(AppError::Authorization(
+                "Not a member of this room".to_string(),
+            ));
+        }
     }
 
     let members = sqlx::query_as::<_, RoomMember>("SELECT * FROM room_members WHERE room_id = $1")
@@ -709,19 +722,21 @@ pub async fn search_messages(
     Path(room_id): Path<Uuid>,
     Query(query): Query<SearchQuery>,
 ) -> Result<Json<serde_json::Value>> {
-    // Check if user is member
-    let is_member = sqlx::query_scalar::<_, bool>(
-        "SELECT EXISTS(SELECT 1 FROM room_members WHERE room_id = $1 AND user_id = $2)",
-    )
-    .bind(room_id)
-    .bind(auth.user_id)
-    .fetch_one(&state.db)
-    .await?;
+    // Global admins can search any room's messages (moderation)
+    if !auth.user.is_admin {
+        let is_member = sqlx::query_scalar::<_, bool>(
+            "SELECT EXISTS(SELECT 1 FROM room_members WHERE room_id = $1 AND user_id = $2)",
+        )
+        .bind(room_id)
+        .bind(auth.user_id)
+        .fetch_one(&state.db)
+        .await?;
 
-    if !is_member {
-        return Err(AppError::Authorization(
-            "Not a member of this room".to_string(),
-        ));
+        if !is_member {
+            return Err(AppError::Authorization(
+                "Not a member of this room".to_string(),
+            ));
+        }
     }
 
     // Return all messages for client-side decryption and search

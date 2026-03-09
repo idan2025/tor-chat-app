@@ -183,8 +183,8 @@ pub async fn on_authenticate(socket: SocketRef, data: AuthData, state: Arc<AppSt
 
 // 2. join_room - Join a room
 pub async fn on_join_room(socket: SocketRef, data: JoinRoomData, state: Arc<AppState>) {
-    let user_id = match get_socket_user_info(&socket, &state).await {
-        Some((id, _)) => id,
+    let (user_id, user) = match get_socket_user_info(&socket, &state).await {
+        Some((id, u)) => (id, u),
         None => {
             socket
                 .emit(
@@ -213,8 +213,8 @@ pub async fn on_join_room(socket: SocketRef, data: JoinRoomData, state: Arc<AppS
         }
     };
 
-    // Check membership
-    if !check_room_membership(room_id, user_id, &state).await {
+    // Global admins can join any room socket for moderation
+    if !user.is_admin && !check_room_membership(room_id, user_id, &state).await {
         socket
             .emit(
                 "error",
