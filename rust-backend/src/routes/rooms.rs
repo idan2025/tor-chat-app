@@ -63,11 +63,9 @@ pub async fn list_rooms(
 ) -> Result<Json<serde_json::Value>> {
     let rooms = if auth.user.is_admin {
         // Global admins see ALL rooms (for moderation)
-        sqlx::query_as::<_, Room>(
-            "SELECT * FROM rooms ORDER BY created_at DESC",
-        )
-        .fetch_all(&state.db)
-        .await?
+        sqlx::query_as::<_, Room>("SELECT * FROM rooms ORDER BY created_at DESC")
+            .fetch_all(&state.db)
+            .await?
     } else {
         sqlx::query_as::<_, Room>(
             "SELECT DISTINCT r.* FROM rooms r

@@ -197,7 +197,10 @@ pub fn Chat() -> Element {
                     // If admin clicked "View" on a room, auto-select it
                     if let Some(target_room_id) = state.admin_view_room.peek().clone() {
                         let rooms = state.rooms.read();
-                        if let Some(idx) = rooms.iter().position(|r| r.id.to_string() == target_room_id) {
+                        if let Some(idx) = rooms
+                            .iter()
+                            .position(|r| r.id.to_string() == target_room_id)
+                        {
                             selected_room_idx.set(Some(idx));
                             let room = rooms[idx].clone();
                             drop(rooms);
