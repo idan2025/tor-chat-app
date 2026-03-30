@@ -44,7 +44,7 @@ regex = { version = "1.11", default-features = false, features = ["unicode-perl"
 
 # Utilities
 chrono = { version = "0.4", features = ["serde", "wasm-bindgen"] }
-uuid = { version = "1.21", features = ["v4", "serde", "js"] }
+uuid = { version = "1.23", features = ["v4", "serde", "js"] }
 base64 = "0.22"
 tracing = "0.1"
 tracing-wasm = "0.2"
